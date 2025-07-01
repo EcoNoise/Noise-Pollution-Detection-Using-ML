@@ -9,7 +9,7 @@ model:
 
   firefly:
     population_size: 30
-    max_generations: 50
+    max_generations: 1
     alpha: 0.2
     beta: 1.0
     gamma: 0.01
@@ -19,12 +19,21 @@ model:
     max_iterations: 100
     step_size: 0.1
 
+paths:
+  metadata_path: "data/raw/metadata/UrbanSound8K.csv"
+  audio_path: "data/raw/audio"
+  processed_data: "data/processed"
+
 data:
   sample_rate: 22050
   duration: 5 # seconds
   n_mfcc: 13
   n_fft: 2048
   hop_length: 512
+  n_chroma: 12  # Add this line
+  test_size: 0.2
+  val_size: 0.2
+  max_samples_per_class: 100  # Optional: limit samples for faster processing
 
 features:
   audio_features:
@@ -42,7 +51,35 @@ features:
     - location_type
     - traffic_density
 
+features:
+  noise_source_mapping:
+    air_conditioner: "mechanical"
+    car_horn: "traffic"
+    children_playing: "human"
+    dog_bark: "animal"
+    drilling: "construction"
+    engine_idling: "traffic"
+    gun_shot: "impact"
+    jackhammer: "construction"
+    siren: "emergency"
+    street_music: "music"
+  
+  noise_level_ranges:
+    air_conditioner: [45, 65]
+    car_horn: [100, 120]
+    children_playing: [60, 80]
+    dog_bark: [85, 110]
+    drilling: [90, 110]
+    engine_idling: [70, 85]
+    gun_shot: [140, 180]
+    jackhammer: [100, 120]
+    siren: [110, 130]
+    street_music: [70, 95]
+
 health_impact:
+  low_threshold: 50
+  moderate_threshold: 70
+  high_threshold: 85
   sleep_disruption_threshold: 45 # dB
   stress_threshold: 55 # dB
   hearing_damage_threshold: 85 # dB
