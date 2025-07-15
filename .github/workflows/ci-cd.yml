@@ -1,0 +1,209 @@
+name: Noise Detection System CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # ===========================================
+  # BACKEND TESTING (Django)
+  # ===========================================
+  backend-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testpassword
+          MYSQL_DATABASE: test_econoise_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      working-directory: ./backend
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Set up test environment
+      working-directory: ./backend
+      run: |
+        cp .env.example .env
+        echo "DB_PASSWORD=testpassword" >> .env
+        echo "DB_NAME=test_econoise_db" >> .env
+    
+    - name: Wait for MySQL
+      run: |
+        while ! mysqladmin ping -h"127.0.0.1" -P3306 -uroot -ptestpassword --silent; do
+          sleep 1
+        done
+    
+    - name: Run Django checks
+      working-directory: ./backend
+      run: |
+        python manage.py check
+    
+    - name: Run migrations
+      working-directory: ./backend
+      run: |
+        python manage.py migrate
+    
+    - name: Run tests
+      working-directory: ./backend
+      run: |
+        python manage.py test
+    
+    - name: Check for security issues
+      working-directory: ./backend
+      run: |
+        python manage.py check --deploy
+
+  # ===========================================
+  # FRONTEND TESTING (React)
+  # ===========================================
+  frontend-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+    
+    - name: Run ESLint
+      working-directory: ./frontend
+      run: npm run lint --if-present
+    
+    - name: Run TypeScript check
+      working-directory: ./frontend
+      run: npx tsc --noEmit
+    
+    - name: Run tests
+      working-directory: ./frontend
+      run: npm test -- --coverage --watchAll=false
+    
+    - name: Build application
+      working-directory: ./frontend
+      run: npm run build
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-build
+        path: frontend/build/
+
+  # ===========================================
+  # SECURITY SCANNING
+  # ===========================================
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # ===========================================
+  # CODE QUALITY
+  # ===========================================
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install Python linting tools
+      run: |
+        pip install flake8 black isort bandit
+    
+    - name: Run Black (Python formatter)
+      run: |
+        black --check backend/
+    
+    - name: Run isort (Python import sorter)
+      run: |
+        isort --check-only backend/
+    
+    - name: Run Flake8 (Python linter)
+      run: |
+        flake8 backend/ --max-line-length=88 --extend-ignore=E203,W503
+    
+    - name: Run Bandit (Security linter)
+      run: |
+        bandit -r backend/ -f json -o bandit-report.json || true
+    
+    - name: Upload Bandit scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: bandit-results
+        path: bandit-report.json
+
+  # ===========================================
+  # DEPLOYMENT (only on main branch)
+  # ===========================================
+  deploy:
+    needs: [backend-test, frontend-test, security-scan, code-quality]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to staging
+      run: |
+        echo "🚀 Deploying to staging environment..."
+        # Add your deployment commands here
+        # For example: AWS, Heroku, DigitalOcean, etc.
+    
+    - name: Notify deployment
+      run: |
+        echo "✅ Deployment completed successfully!"
