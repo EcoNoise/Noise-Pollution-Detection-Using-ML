@@ -151,7 +151,8 @@ ML_MODELS_DIR = BASE_DIR / "ml_models"
 
 # Audio processing settings
 AUDIO_UPLOAD_MAX_SIZE = 10 * 1024 * 1024  # 10MB
-ALLOWED_AUDIO_FORMATS = [".wav", ".mp3", ".m4a", ".flac"]
+ALLOWED_AUDIO_FORMATS = [".wav", ".mp3", ".m4a", ".flac", ".ogg", ".aac"]
+
 
 # Logging configuration
 LOGGING = {
