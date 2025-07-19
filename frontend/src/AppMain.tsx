@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { Container, Box, Typography, styled } from '@mui/material';
 import { VolumeX, Home, History, MapPin, User, LogOut } from 'lucide-react';
