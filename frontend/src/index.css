@@ -20,7 +20,23 @@ code {
 .fade-in {
   animation: fadeIn 0.3s ease-in;
 }
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 80px; /* sesuaikan dengan lebar sidebar */
+  height: 100vh;
+  z-index: 10;
+}
 
+.fullscreen-map-container {
+  position: fixed;
+  left: 80px; /* sama dengan lebar sidebar */
+  top: 0;
+  width: calc(100vw - 80px);
+  height: 100vh;
+  z-index: 1;
+}
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -31,3 +47,4 @@ code {
     transform: translateY(0);
   }
 }
+@import '~leaflet/dist/leaflet.css';

@@ -1,7 +1,7 @@
 // src/components/HomePage.tsx
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useDropzone } from 'react-dropzone';
+import { useNavigate } from 'react-router-dom'; // Tambahkan import ini
 import {
   Box,
   Paper,
@@ -34,22 +34,96 @@ import {
 } from 'lucide-react';
 
 import { apiService, PredictionResponse } from '../services/api';
+import { mapService } from '../services/mapService'; // Tambahkan import ini
 import AudioVisualizer from './AudioVisualizer';
 
 type ChipColor = "success" | "warning" | "error" | "default" | "primary" | "secondary" | "info";
 
-const DropzoneContainer = styled('div')<{isDragActive: boolean}>(({ theme, isDragActive }) => ({
-  padding: theme.spacing(4),
-  textAlign: 'center',
-  border: `2px dashed ${isDragActive ? '#60a5fa' : 'rgba(255, 255, 255, 0.2)'}`,
-  borderRadius: '16px',
-  backgroundColor: isDragActive ? 'rgba(96, 165, 250, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-  color: 'rgba(255, 255, 255, 0.7)',
-  transition: 'all 0.3s ease',
+const pulseAnimation = keyframes`
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+`;
+
+const glowAnimation = keyframes`
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5),
+                0 0 40px rgba(59, 130, 246, 0.3),
+                0 0 60px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.7),
+                0 0 60px rgba(59, 130, 246, 0.5),
+                0 0 90px rgba(59, 130, 246, 0.3);
+  }
+`;
+
+const recordingPulse = keyframes`
+  0%, 100% {
+    transform: scale(1);
+    background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+  }
+  50% {
+    transform: scale(1.1);
+    background: linear-gradient(135deg, #fca5a5 0%, #f87171 100%);
+  }
+`;
+
+const MicButton = styled(Button)<{ recording?: boolean }>(({ theme, recording }) => ({
+  width: '150px',  // Dikurangi dari 200px
+  height: '150px', // Dikurangi dari 200px
+  borderRadius: '50%',
+  background: recording 
+    ? 'linear-gradient(135deg, #f87171 0%, #dc2626 100%)'
+    : 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+  color: '#fff',
+  fontSize: '1.2rem',
+  fontWeight: 'bold',
+  border: 'none',
   cursor: 'pointer',
+  transition: 'all 0.3s ease',
+  position: 'relative',
+  overflow: 'hidden',
+  animation: recording 
+    ? `${recordingPulse} 1.5s ease-in-out infinite`
+    : 'none',
+  
   '&:hover': {
-    borderColor: '#60a5fa',
-    backgroundColor: 'rgba(96, 165, 250, 0.08)',
+    transform: 'scale(1.05)',
+    animation: recording 
+      ? `${recordingPulse} 1.5s ease-in-out infinite`
+      : `${glowAnimation} 2s ease-in-out infinite`,
+  },
+  
+  '&:active': {
+    transform: 'scale(0.95)',
+  },
+  
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: '100%',
+    height: '100%',
+    borderRadius: '50%',
+    background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)',
+    transform: 'translate(-50%, -50%)',
+    opacity: 0,
+    transition: 'opacity 0.3s ease',
+  },
+  
+  '&:hover::before': {
+    opacity: 1,
   }
 }));
 
@@ -75,6 +149,7 @@ interface UploadResult extends PredictionResponse {
 }
 
 const HomePage: React.FC = () => {
+  const navigate = useNavigate(); // Tambahkan hook useNavigate
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<UploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -89,10 +164,11 @@ const HomePage: React.FC = () => {
   const streamRef = useRef<MediaStream | null>(null);
 
   // --- PERBAIKAN UTAMA: SINKRONISASI DENGAN EVENT ASLI AUDIO ---
+  // Dalam useEffect untuk event listener audio
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-
+  
     const handleLoadedMetadata = () => {
       setDuration(isFinite(audio.duration) ? audio.duration : 0);
     };
@@ -102,13 +178,13 @@ const HomePage: React.FC = () => {
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     const handleEnded = () => setIsPlaying(false);
-
+  
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
-
+  
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
@@ -116,8 +192,33 @@ const HomePage: React.FC = () => {
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [audioUrl]); // Penting: Hook ini me-refresh listener setiap kali ada audio baru
-
+  }, [audioUrl]);
+  
+  // Perbaikan pada slider
+  <Slider 
+    value={currentTime} 
+    max={duration} 
+    onChange={(_, v) => {
+      const newTime = v as number;
+      if (audioRef.current && isFinite(newTime)) {
+        audioRef.current.currentTime = newTime;
+        setCurrentTime(newTime); 
+      }
+    }} 
+    sx={{ 
+      color: '#a78bfa',
+      '& .MuiSlider-thumb': { 
+        backgroundColor: '#e9d5ff',
+        width: 14,
+        height: 14,
+        '&:hover, &.Mui-active': {
+          boxShadow: '0 0 0 8px rgba(233, 213, 255, 0.16)'
+        }
+      },
+      '& .MuiSlider-rail': { opacity: 0.4 },
+      '& .MuiSlider-track': { height: 4 }
+    }} 
+  />
   const togglePlayback = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -128,18 +229,19 @@ const HomePage: React.FC = () => {
     }
   };
 
-  // ... (sisa logika state dan fungsi Anda tidak berubah)
   const [recordingFormat, setRecordingFormat] = useState<{mimeType: string, extension: string}>({ mimeType: 'audio/wav', extension: '.wav' });
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => { return () => { if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop()); }; }, []);
+  
   const getBestRecordingFormat = () => {
     const formats = [ { mimeType: 'audio/wav', extension: '.wav' }, { mimeType: 'audio/webm;codecs=opus', extension: '.webm' }, { mimeType: 'audio/mp4', extension: '.mp4' }, { mimeType: 'audio/ogg;codecs=opus', extension: '.ogg' }, { mimeType: 'audio/webm', extension: '.webm' }, ];
     for (const format of formats) if (MediaRecorder.isTypeSupported(format.mimeType)) return format;
     return { mimeType: 'audio/webm', extension: '.webm' };
   };
+  
   const convertToWav = async (audioBlob: Blob): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -151,6 +253,7 @@ const HomePage: React.FC = () => {
       fileReader.readAsArrayBuffer(audioBlob);
     });
   };
+  
   const audioBufferToWav = (audioBuffer: AudioBuffer): Blob => {
     const numberOfChannels = audioBuffer.numberOfChannels; const length = audioBuffer.length * numberOfChannels * 2; const buffer = new ArrayBuffer(44 + length); const view = new DataView(buffer);
     const writeString = (offset: number, string: string) => { for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i)); };
@@ -159,6 +262,7 @@ const HomePage: React.FC = () => {
     for (let i = 0; i < audioBuffer.length; i++) { for (let channel = 0; channel < numberOfChannels; channel++) { const sample = audioBuffer.getChannelData(channel)[i]; const intSample = Math.max(-1, Math.min(1, sample)) * 0x7FFF; view.setInt16(offset, intSample, true); offset += 2; } }
     return new Blob([buffer], { type: 'audio/wav' });
   };
+  
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 } });
@@ -168,23 +272,35 @@ const HomePage: React.FC = () => {
       mediaRecorder.start(1000); setIsRecording(true); setRecordingTime(0); recordingTimerRef.current = setInterval(() => { setRecordingTime(prev => prev + 1); }, 1000);
     } catch (error) { console.error('Error starting recording:', error); setError('Tidak dapat mengakses mikrofon. Pastikan izin mikrofon telah diberikan.'); }
   };
+  
   const stopRecording = () => { if (mediaRecorderRef.current && isRecording) { mediaRecorderRef.current.stop(); setIsRecording(false); if (recordingTimerRef.current) clearInterval(recordingTimerRef.current); } };
-  const processFile = async (file: File) => {
-    setIsUploading(true); setError(null); setResult(null);
-    try { const response = await apiService.uploadAudioFile(file); setResult(response); } catch (err: any) { const errorMessage = err.response?.data?.error || err.message || 'Upload failed'; setError(errorMessage); } finally { setIsUploading(false); }
-  };
+  
   const processRecording = async () => {
     if (!audioBlob) return;
     try {
-      let fileToUpload: File; const needsConversion = !['.wav', '.mp3', '.m4a', '.flac', '.ogg', '.aac'].includes(recordingFormat.extension);
-      if (needsConversion || recordingFormat.extension === '.webm') { try { const wavBlob = await convertToWav(audioBlob); fileToUpload = new File([wavBlob], 'recording.wav', { type: 'audio/wav', lastModified: Date.now() }); } catch (conversionError) { fileToUpload = new File([audioBlob], `recording${recordingFormat.extension}`, { type: audioBlob.type, lastModified: Date.now() }); } } else { fileToUpload = new File([audioBlob], `recording${recordingFormat.extension}`, { type: audioBlob.type, lastModified: Date.now() }); }
-      await processFile(fileToUpload);
-    } catch (err: any) { setError(err.response?.data?.error || err.message || 'Upload failed'); }
+      // Langsung tampilkan hasil tanpa loading
+      setIsUploading(false); // Tidak menampilkan loading
+      
+      let fileToUpload: File;
+      const needsConversion = !['.wav', '.mp3', '.m4a', '.flac', '.ogg', '.aac'].includes(recordingFormat.extension);
+      if (needsConversion || recordingFormat.extension === '.webm') {
+        try {
+          const wavBlob = await convertToWav(audioBlob);
+          fileToUpload = new File([wavBlob], 'recording.wav', { type: 'audio/wav', lastModified: Date.now() });
+        } catch (conversionError) {
+          fileToUpload = new File([audioBlob], `recording${recordingFormat.extension}`, { type: audioBlob.type, lastModified: Date.now() });
+        }
+      } else {
+        fileToUpload = new File([audioBlob], `recording${recordingFormat.extension}`, { type: audioBlob.type, lastModified: Date.now() });
+      }
+      
+      const response = await apiService.uploadAudioFile(fileToUpload);
+      setResult(response);
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.message || 'Upload failed');
+    }
   };
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return; const file = acceptedFiles[0]; setAudioBlob(file); setAudioUrl(URL.createObjectURL(file)); await processFile(file);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  
   const resetAll = () => { if (audioUrl) URL.revokeObjectURL(audioUrl); setAudioBlob(null); setAudioUrl(null); setCurrentTime(0); setDuration(0); setIsPlaying(false); setResult(null); setError(null); };
   
   const formatTime = (seconds: number) => {
@@ -196,12 +312,23 @@ const HomePage: React.FC = () => {
 
   const getHealthColor = (impact: string): ChipColor => { switch (impact.toLowerCase()) { case 'low': return 'success'; case 'moderate': return 'warning'; case 'high': return 'error'; case 'severe': return 'error'; default: return 'default'; } };
   const getNoiseLevel = (level: number): { label: string; color: ChipColor } => { if (level < 55) return { label: 'Tenang', color: 'success' }; if (level < 70) return { label: 'Sedang', color: 'warning' }; if (level < 85) return { label: 'Bising', color: 'error' }; return { label: 'Sangat Bising', color: 'error' }; };
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, noClick: true, accept: { 'audio/*': ['.wav', '.mp3', '.m4a', '.flac', '.ogg', '.aac'] }, maxFiles: 1 });
+
+  function shareToMap(event: React.MouseEvent<HTMLButtonElement, MouseEvent>): void {
+    if (!result) return;
+    // Kirim data hasil ke mapService, lalu navigasi ke halaman peta
+    mapService.shareNoiseData({
+      noise_level: result.predictions.noise_level,
+      health_impact: result.predictions.health_impact,
+      noise_source: result.predictions.noise_source,
+      confidence_score: result.predictions.confidence_score,
+      file_info: result.file_info,
+      processing_time: result.processing_time
+    });
+    navigate('/maps');
+  }
 
   return (
-    <Box {...getRootProps()} sx={{ maxWidth: 1200, mx: 'auto', p: 3, color: '#fff', textAlign: 'center' }}>
-      <input {...getInputProps()} />
-
+    <Box sx={{ maxWidth: 1200, mx: 'auto', p: 3, color: '#fff', textAlign: 'center' }}>
       {/* Elemen audio yang tersembunyi */}
       <audio ref={audioRef} src={audioUrl ?? ''} style={{ display: 'none' }} />
 
@@ -211,63 +338,50 @@ const HomePage: React.FC = () => {
           {!isRecording && !audioBlob && !isUploading && (
             <Box width="100%" maxWidth={600}>
               <GradientText variant="h3" gutterBottom>Deteksi Polusi Suara</GradientText>
-              <Typography variant="h6" color="rgba(255,255,255,0.7)" mb={4}>
-                Analisis kebisingan dari file audio atau rekaman mikrofon secara langsung.
+              <Typography variant="h6" color="rgba(255,255,255,0.7)" mb={6}>
+                Analisis kebisingan dari rekaman mikrofon secara langsung.
               </Typography>
-              <Grid container spacing={3} alignItems="center">
-                <Grid item xs={12} md={5}>
-                  <DropzoneContainer isDragActive={isDragActive} onClick={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()}>
-                    <UploadCloud size={40} />
-                    <Typography mt={1}>
-                      {isDragActive ? "Lepaskan file di sini" : "Tarik & lepas file atau klik untuk unggah"}
+              
+              <Box display="flex" flexDirection="column" alignItems="center" gap={4}>
+                <MicButton
+                  recording={false}
+                  onClick={startRecording}
+                  disableRipple
+                >
+                  <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+                    <Mic size={36} /> {/* Dikurangi dari 48 */}
+                    <Typography variant="h6" fontWeight="bold">
+                      Mulai Merekam
                     </Typography>
-                  </DropzoneContainer>
-                </Grid>
-                <Grid item xs={12} md={2}>
-                  <Typography color="rgba(255,255,255,0.5)">ATAU</Typography>
-                </Grid>
-                <Grid item xs={12} md={5}>
-                   <Button
-                      variant="contained"
-                      onClick={startRecording}
-                      startIcon={<Mic size={24} />}
-                      sx={{
-                        width: '100%', py: 2, borderRadius: '12px',
-                        background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
-                        boxShadow: '0 8px 30px rgba(59, 130, 246, 0.4)',
-                      }}
-                   >
-                     Mulai Merekam
-                   </Button>
-                </Grid>
-              </Grid>
+                  </Box>
+                </MicButton>
+                
+                <Typography variant="body2" color="rgba(255,255,255,0.6)">
+                  Klik tombol mikrofon untuk memulai perekaman
+                </Typography>
+              </Box>
             </Box>
           )}
 
           {isRecording && (
-            <>
+            <Box display="flex" flexDirection="column" alignItems="center" gap={4}>
               <Typography variant="h5" color="rgba(255,255,255,0.8)">Merekam Suara...</Typography>
               <GradientText variant="h2" my={1}>{formatTime(recordingTime)}</GradientText>
               <AudioVisualizer stream={streamRef.current} isRecording={isRecording} />
-              <Button 
-                variant="contained" 
-                onClick={stopRecording} 
-                sx={{ 
-                  mt: 3, borderRadius: '50px', px: 4, py: 1.5,
-                  fontWeight: 'bold', color: '#fff',
-                  background: 'linear-gradient(135deg, #f87171 0%, #dc2626 100%)',
-                  boxShadow: '0 4px 20px rgba(248, 113, 113, 0.3)',
-                  display: 'inline-flex', alignItems: 'center', gap: 1,
-                  '&:hover': {
-                    boxShadow: '0 8px 30px rgba(248, 113, 113, 0.4)',
-                    transform: 'translateY(-2px)'
-                  },
-                  transition: 'all 0.2s ease-in-out',
-                }}
+              
+              <MicButton
+                recording={true}
+                onClick={stopRecording}
+                disableRipple
               >
-                  <Square fill="white" size={16} /> Hentikan
-              </Button>
-            </>
+                <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+                  <Square fill="white" size={32} />
+                  <Typography variant="h6" fontWeight="bold">
+                    Hentikan
+                  </Typography>
+                </Box>
+              </MicButton>
+            </Box>
           )}
           
           {audioBlob && !result && !isUploading && (
@@ -334,24 +448,67 @@ const HomePage: React.FC = () => {
         <Box mt={2} width="100%">
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
             <GradientText variant="h4">Hasil Analisis Audio</GradientText>
-            <Button variant="outlined" onClick={resetAll} sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.3)', borderRadius: '50px' }}>
-              Analisis Lagi
-            </Button>
+            <Box display="flex" gap={2}>
+              <Button 
+                variant="contained" 
+                onClick={shareToMap}
+                sx={{ 
+                  bgcolor: '#3b82f6', 
+                  color: '#fff',
+                  borderRadius: '50px',
+                  '&:hover': { bgcolor: '#2563eb' }
+                }}
+              >
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Activity size={18} />
+                  Bagikan ke Peta
+                </Box>
+              </Button>
+              <Button 
+                variant="outlined" 
+                onClick={resetAll} 
+                sx={{ 
+                  color: '#fff', 
+                  borderColor: 'rgba(255,255,255,0.3)', 
+                  borderRadius: '50px',
+                  '&:hover': { borderColor: '#fff' }
+                }}
+              >
+                Analisis Lagi
+              </Button>
+            </Box>
           </Box>
           <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
-                  <StyledCard>
+                  <StyledCard sx={{
+                      transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-5px)',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+                      }
+                  }}>
                       <CardContent>
-                          <Box display="flex" alignItems="center" gap={1.5} mb={1}><BarChart2 size={24} color="#60a5fa" /><Typography color="rgba(255,255,255,0.8)">Tingkat Kebisingan (dB)</Typography></Box>
+                          <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                              <BarChart2 size={24} color="#60a5fa" />
+                              <Typography color="rgba(255,255,255,0.8)">Tingkat Kebisingan (dB)</Typography>
+                          </Box>
                           <Typography variant="h2" sx={{fontWeight: 'bold'}}>{result.predictions.noise_level}</Typography>
-                          <Chip label={getNoiseLevel(result.predictions.noise_level).label} color={getNoiseLevel(result.predictions.noise_level).color} variant="filled" sx={{mt: 1, fontWeight: 'bold'}}/>
+                          <Chip 
+                              label={getNoiseLevel(result.predictions.noise_level).label} 
+                              color={getNoiseLevel(result.predictions.noise_level).color} 
+                              variant="filled" 
+                              sx={{mt: 1, fontWeight: 'bold'}}
+                          />
                       </CardContent>
                   </StyledCard>
               </Grid>
               <Grid item xs={12} md={6}>
                   <StyledCard>
                       <CardContent>
-                          <Box display="flex" alignItems="center" gap={1.5} mb={1}><Activity size={24} color="#a78bfa" /><Typography color="rgba(255,255,255,0.8)">Potensi Dampak Kesehatan</Typography></Box>
+                          <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                              <Activity size={24} color="#a78bfa" />
+                              <Typography color="rgba(255,255,255,0.8)">Potensi Dampak Kesehatan</Typography>
+                          </Box>
                           <Typography variant="h3" sx={{fontWeight: 'bold'}}>{result.predictions.health_impact}</Typography>
                           <Chip label={`Keyakinan: ${(result.predictions.confidence_score * 100).toFixed(1)}%`} color={getHealthColor(result.predictions.health_impact)} variant="filled" sx={{mt: 1, fontWeight: 'bold'}}/>
                       </CardContent>
@@ -360,7 +517,10 @@ const HomePage: React.FC = () => {
               <Grid item xs={12} md={6}>
                   <StyledCard>
                       <CardContent>
-                          <Box display="flex" alignItems="center" gap={1.5} mb={1}><VolumeX size={24} color="#60a5fa" /><Typography color="rgba(255,255,255,0.8)">Prediksi Sumber Suara</Typography></Box>
+                          <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                              <VolumeX size={24} color="#60a5fa" />
+                              <Typography color="rgba(255,255,255,0.8)">Prediksi Sumber Suara</Typography>
+                          </Box>
                           <Typography variant="h4" sx={{fontWeight: 'bold'}}>{result.predictions.noise_source}</Typography>
                       </CardContent>
                   </StyledCard>
@@ -368,7 +528,10 @@ const HomePage: React.FC = () => {
               <Grid item xs={12} md={6}>
                   <StyledCard>
                       <CardContent>
-                          <Box display="flex" alignItems="center" gap={1.5} mb={1}><Clock size={24} color="#a78bfa" /><Typography color="rgba(255,255,255,0.8)">Informasi Pemrosesan</Typography></Box>
+                          <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                              <Clock size={24} color="#a78bfa" />
+                              <Typography color="rgba(255,255,255,0.8)">Informasi Pemrosesan</Typography>
+                          </Box>
                           <Typography variant="body1" component="div">
                             <Box display="flex" justifyContent="space-between"><span>Nama File:</span> <strong>{result.file_info.name}</strong></Box>
                             <Box display="flex" justifyContent="space-between"><span>Ukuran File:</span> <strong>{(result.file_info.size / 1024).toFixed(2)} KB</strong></Box>
