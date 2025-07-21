@@ -41,3 +41,6 @@ tqdm>=4.65.0
 
 # Model explainability
 shap>=0.42.0
+
+# Authentication
+djangorestframework-simplejwt==5.3.1

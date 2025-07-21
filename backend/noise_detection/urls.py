@@ -9,6 +9,9 @@ from .views import (
     PredictionHistoryView,
     BatchPredictionView,
     HealthView,
+    RegisterView,
+    LoginView,
+    UserProfileView,
 )
 
 app_name = "noise_detection"
@@ -23,4 +26,7 @@ urlpatterns = [
     path("predict/batch/", BatchPredictionView.as_view(), name="batch_prediction"),
     # History
     path("history/", PredictionHistoryView.as_view(), name="prediction_history"),
+    path("auth/register/", RegisterView.as_view(), name="auth_register"),
+    path("auth/login/", LoginView.as_view(), name="auth_login"),
+    path("auth/me/", UserProfileView.as_view(), name="auth_me"),
 ]

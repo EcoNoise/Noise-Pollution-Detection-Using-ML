@@ -18,7 +18,12 @@ from .utils import AudioProcessor
 from .models import PredictionHistory
 
 logger = logging.getLogger(__name__)
-
+from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+from .serializers import RegisterSerializer
+from rest_framework.permissions import IsAuthenticated
+from .serializers import UserSerializer
+from django.contrib.auth.models import User
 
 class HealthView(APIView):
     """Health check endpoint"""
@@ -291,3 +296,116 @@ class BatchPredictionView(APIView):
                 {"status": "error", "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+class RegisterView(APIView):
+    """
+    Registrasi user baru dengan foto profil.
+    """
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        # Salin data request agar bisa dimodifikasi
+        data = request.data.copy()
+
+        # --- PERBAIKAN UTAMA ---
+        # Petakan field dari camelCase (frontend) ke snake_case (backend)
+        # Ini menyelesaikan masalah first_name dan last_name yang NULL
+        if 'firstName' in data:
+            data['first_name'] = data.pop('firstName')[0]
+        if 'lastName' in data:
+            data['last_name'] = data.pop('lastName')[0]
+        
+        # Penanganan khusus untuk foto yang berada di dalam nested object 'profile'
+        if 'profile.photo' in data:
+            photo_file = data.pop('profile.photo')[0]
+            data['photo'] = photo_file
+
+        # Pass data yang sudah dimodifikasi ke serializer
+        # Tambahkan context={'request': request} agar URL foto bisa dibuat dengan benar
+        serializer = RegisterSerializer(data=data, context={'request': request})
+        
+        if serializer.is_valid():
+            user = serializer.save()
+            refresh = RefreshToken.for_user(user)
+
+            photo_url = None
+            if hasattr(user, 'profile') and user.profile.photo:
+                # Dapatkan URL absolut dari foto profil
+                photo_url = request.build_absolute_uri(user.profile.photo.url)
+
+            return Response({
+                "status": "success",
+                "message": "User berhasil dibuat.",
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "photo": photo_url
+                },
+                "tokens": {
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token),
+                }
+            }, status=status.HTTP_201_CREATED)
+            
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class LoginView(APIView):
+    """
+    Login user dan mendapatkan token.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from django.contrib.auth import authenticate
+
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        user = authenticate(username=username, password=password)
+
+        if user:
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                "status": "success",
+                "message": "Login berhasil.",
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            })
+
+        return Response({"error": "Username atau password salah"}, status=status.HTTP_401_UNAUTHORIZED)
+    
+class UserProfileView(APIView):
+    """
+    Mengambil atau memperbarui data profil user yang sedang login.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser] # Tambahkan ini untuk handle file upload
+
+    def get(self, request):
+        """Mengembalikan data user yang terotentikasi."""
+        serializer = UserSerializer(request.user, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        """Memperbarui data user yang terotentikasi."""
+        user = request.user
+        data = request.data
+
+        # Update field User model
+        user.first_name = data.get('first_name', user.first_name)
+        user.last_name = data.get('last_name', user.last_name)
+        user.save()
+
+        # Update foto di Profile model
+        # Pastikan user sudah punya profile, jika belum, buat.
+        profile, created = Profile.objects.get_or_create(user=user)
+        if 'photo' in data:
+            profile.photo = data['photo']
+            profile.save()
+
+        # Kembalikan data yang sudah diperbarui
+        serializer = UserSerializer(user, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)

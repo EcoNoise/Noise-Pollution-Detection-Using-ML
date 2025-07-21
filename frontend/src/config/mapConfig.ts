@@ -3,15 +3,15 @@ import { MapConfig } from '../types/mapTypes';
 
 export const mapConfig: MapConfig = {
   center: [-6.2088, 106.8456], // Jakarta coordinates
-  zoom: 12,
-  maxZoom: 18,
+  zoom: 15,
+  maxZoom: 19,
   minZoom: 5,
   attributionControl: true,
   zoomControl: true,
 };
 
 export const tileLayerConfig = {
-  url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  url: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 };
 
