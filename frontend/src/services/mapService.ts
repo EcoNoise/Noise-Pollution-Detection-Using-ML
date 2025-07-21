@@ -1,12 +1,33 @@
 // src/services/mapService.ts
 import { NoiseLocation, SearchResult } from '../types/mapTypes';
-
-// Hapus deklarasi global window yang sebelumnya ada di sini
+import { PredictionResult } from './api'; // Import PredictionResult type
 
 class MapService {
   private noiseLocations: NoiseLocation[] = [];
-  // VARIABEL BARU: Untuk menyimpan data yang dibagikan sementara
-  private sharedData: any = null;
+  // UPDATED: More specific type for shared data
+  private sharedData: {
+    analysis: PredictionResult;
+    position?: [number, number];
+    address?: string;
+  } | null = null;
+
+  // NEW: Property to hold the analysis request context from the map
+  private analysisRequestContext: {
+    position: [number, number];
+    address: string;
+  } | null = null;
+
+  // NEW: Function to set the analysis request context before navigating to HomePage
+  setAnalysisRequest(context: { position: [number, number]; address: string; }) {
+    this.analysisRequestContext = context;
+  }
+
+  // NEW: Function for HomePage to retrieve and clear the request
+  getAndClearAnalysisRequest(): { position: [number, number]; address: string; } | null {
+    const context = this.analysisRequestContext;
+    this.analysisRequestContext = null; // Clear after retrieval
+    return context;
+  }
 
   // Add noise analysis location
   addNoiseLocation(location: Omit<NoiseLocation, 'id' | 'timestamp'>): NoiseLocation {
@@ -135,15 +156,15 @@ class MapService {
     }
   }
 
-  // FUNGSI BARU: Untuk menyimpan data dari HomePage
-  shareNoiseData(data: any) {
+  // UPDATED: Function to share analysis data back to the map
+  shareNoiseData(data: { analysis: PredictionResult; position?: [number, number]; address?: string; }) {
     this.sharedData = data;
   }
 
-  // FUNGSI BARU: Untuk mengambil dan membersihkan data di MapComponent
-  getSharedNoiseData(): any {
+  // UPDATED: Function for MapComponent to retrieve the shared data
+  getSharedNoiseData(): { analysis: PredictionResult; position?: [number, number]; address?: string; } | null {
     const data = this.sharedData;
-    this.sharedData = null; // Langsung hapus setelah diambil
+    this.sharedData = null; // Clear after retrieval
     return data;
   }
 }

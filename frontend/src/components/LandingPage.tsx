@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-
+import { Link } from 'react-router-dom';
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -680,7 +680,8 @@ const ModernLandingPage = () => {
             </a>
             
             <div className="nav-menu">
-              <a href="/signin" className="signin-btn">Sign In</a>
+              <Link to="/login" className="signin-btn">Sign In</Link>
+              <Link to="/register" className="signup-btn">Sign Up</Link>
               
               <button 
                 className="mobile-menu-btn"

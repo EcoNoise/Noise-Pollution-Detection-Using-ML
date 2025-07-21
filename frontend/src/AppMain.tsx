@@ -11,6 +11,9 @@ import HistoryPage from './components/HistoryPage';
 import StatusPage from './components/StatusPage';
 import LandingPage from './components/LandingPage';
 import MapsPage from './components/MapsPage'; // Import yang benar
+import RegisterPage from './components/RegisterPage';
+import LoginPage from './components/LoginPage';
+import ProfilePage from './components/ProfilePage';
 
 // Updated theme to match landing page
 const theme = createTheme({
@@ -163,122 +166,83 @@ const ContentWrapper = styled(Box)({
   },
 });
 
-const NavigationSidebar: React.FC = () => {
+const NavigationSidebar: React.FC<{ onLogout: () => void; isAuthenticated: boolean }> = ({ onLogout, isAuthenticated }) => {
   const location = useLocation();
-  
-  const isActive = (path: string) => {
-    return location.pathname === path;
-  };
+  const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
     <Sidebar>
-      <SidebarLogo>
-        <VolumeX size={24} />
-      </SidebarLogo>
-      
+      <SidebarLogo><VolumeX size={24} /></SidebarLogo>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: '100%', flex: 1, alignItems: 'center' }}>
-        {/* Home */}
-        <Link to="/home" style={{ textDecoration: 'none' }}>
-          <NavItem active={isActive('/home')}>
-            <Home size={22} />
-          </NavItem>
-        </Link>
+        {/* Menu ini selalu ada untuk semua orang */}
+        <Link to="/home" style={{ textDecoration: 'none' }}><NavItem active={isActive('/home')}><Home size={22} /></NavItem></Link>
+        <Link to="/maps" style={{ textDecoration: 'none' }}><NavItem active={isActive('/maps')}><MapPin size={22} /></NavItem></Link>
         
-        {/* Riwayat */}
-        <Link to="/history" style={{ textDecoration: 'none' }}>
-          <NavItem active={isActive('/history')}>
-            <History size={22} />
-          </NavItem>
-        </Link>
-        
-        {/* Maps */}
-        <Link to="/maps" style={{ textDecoration: 'none' }}>
-          <NavItem active={isActive('/maps')}>
-            <MapPin size={22} />
-          </NavItem>
-        </Link>
+        {/* Menu ini HANYA MUNCUL jika sudah login */}
+        {isAuthenticated && (
+          <Link to="/history" style={{ textDecoration: 'none' }}><NavItem active={isActive('/history')}><History size={22} /></NavItem></Link>
+        )}
       </Box>
       
-      {/* Profile dan Logout di bagian bawah */}
+      {/* Tombol Profile & Logout HANYA MUNCUL jika sudah login */}
       <Box sx={{ mt: 'auto', display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
-        {/* Profile */}
-        <Link to="/profile" style={{ textDecoration: 'none' }}>
-          <NavItem active={isActive('/profile')}>
-            <User size={22} />
-          </NavItem>
-        </Link>
-        
-        {/* Logout */}
-        <NavItem>
-          <LogOut size={22} />
-        </NavItem>
+        {isAuthenticated && (
+          <>
+            <Link to="/profile" style={{ textDecoration: 'none' }}><NavItem active={isActive('/profile')}><User size={22} /></NavItem></Link>
+            <NavItem onClick={onLogout}><LogOut size={22} /></NavItem>
+          </>
+        )}
       </Box>
     </Sidebar>
   );
 };
 
-// Layout komponen untuk halaman dengan navigasi
-const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return (
-    <Box sx={{ display: 'flex' }}>
-      <NavigationSidebar />
-      <ContentWrapper>
-        <Container 
-          maxWidth="lg" 
-          sx={{ 
-            mt: 4, 
-            mb: 4, 
-            p: 3,
-            position: 'relative',
-            zIndex: 1,
-          }}
-        >
-          {children}
-        </Container>
-      </ContentWrapper>
-    </Box>
-  );
+// 2. Layout Utama: Membungkus semua halaman yang butuh sidebar
+const MainLayout: React.FC<{ children: React.ReactNode; onLogout: () => void; isAuthenticated: boolean; }> = ({ children, onLogout, isAuthenticated }) => (
+  <Box sx={{ display: 'flex' }}>
+    <NavigationSidebar onLogout={onLogout} isAuthenticated={isAuthenticated} />
+    <ContentWrapper>{children}</ContentWrapper>
+  </Box>
+);
+
+// 3. Rute Terlindungi: Komponen untuk halaman yang wajib login
+const ProtectedRoute: React.FC<{ isAuthenticated: boolean; children: JSX.Element }> = ({ isAuthenticated, children }) => {
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return children;
 };
 
+
+// 4. Komponen App Utama: Mengatur semua routing
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('accessToken'));
+  const handleLogin = () => setIsAuthenticated(true);
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    setIsAuthenticated(false);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
         <Routes>
-          {/* Landing page tanpa layout navigasi */}
+          {/* Rute tanpa sidebar */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage onLoginSuccess={handleLogin} />} />
+          <Route path="/register" element={<RegisterPage />} />
           
-          {/* Halaman dengan layout navigasi */}
-          <Route path="/home" element={
-            <MainLayout>
-              <HomePage />
-            </MainLayout>
-          } />
-          <Route path="/history" element={
-            <MainLayout>
-              <HistoryPage />
-            </MainLayout>
-          } />
-          <Route path="/status" element={
-            <MainLayout>
-              <StatusPage />
-            </MainLayout>
-          } />
-          
-          {/* Route untuk Maps - menggunakan komponen MapsPage yang sebenarnya */}
-          <Route path="/maps" element={
-            <MainLayout>
-              <MapsPage />
-            </MainLayout>
-          } />
-          
-          {/* Route untuk Profile */}
-          <Route path="/profile" element={
-            <MainLayout>
-              <div>Profile Page - Coming Soon</div>
-            </MainLayout>
-          } />
+          {/* Rute publik dengan sidebar (Home & Maps) */}
+          <Route path="/home" element={<MainLayout onLogout={handleLogout} isAuthenticated={isAuthenticated}><HomePage /></MainLayout>} />
+          <Route path="/maps" element={<MainLayout onLogout={handleLogout} isAuthenticated={isAuthenticated}><MapsPage /></MainLayout>} />
+
+          {/* Rute yang wajib login */}
+          <Route path="/history" element={<ProtectedRoute isAuthenticated={isAuthenticated}><MainLayout onLogout={handleLogout} isAuthenticated={isAuthenticated}><HistoryPage /></MainLayout></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute isAuthenticated={isAuthenticated}><MainLayout onLogout={handleLogout} isAuthenticated={isAuthenticated}><ProfilePage /></MainLayout></ProtectedRoute>} />
+          <Route path="/status" element={<ProtectedRoute isAuthenticated={isAuthenticated}><MainLayout onLogout={handleLogout} isAuthenticated={isAuthenticated}><StatusPage /></MainLayout></ProtectedRoute>} />
+
+          {/* Rute default */}
+          <Route path="*" element={<Navigate to={isAuthenticated ? "/home" : "/"} />} />
         </Routes>
       </Router>
     </ThemeProvider>
