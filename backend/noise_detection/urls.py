@@ -11,6 +11,7 @@ from .views import (
     HealthView,
     RegisterView,
     LoginView,
+    RefreshTokenView,
     UserProfileView,
     NoiseAreaListCreateView,
     NoiseAreaDetailView,
@@ -32,6 +33,7 @@ urlpatterns = [
     # Authentication
     path("auth/register/", RegisterView.as_view(), name="auth_register"),
     path("auth/login/", LoginView.as_view(), name="auth_login"),
+    path("auth/refresh/", RefreshTokenView.as_view(), name="auth_refresh"),
     path("auth/me/", UserProfileView.as_view(), name="auth_me"),
     # Noise Areas
     path("areas/", NoiseAreaListCreateView.as_view(), name="noise_areas"),

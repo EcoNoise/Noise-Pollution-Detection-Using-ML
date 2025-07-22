@@ -10,10 +10,10 @@ export const getNoiseColor = (noiseLevel: number): string => {
 };
 
 export const getNoiseRadius = (noiseLevel: number): number => {
-  // Calculate radius based on noise level (in meters)
-  const baseRadius = 50;
-  const multiplier = Math.max(1, noiseLevel / 40);
-  return baseRadius * multiplier;
+  // Calculate radius based on noise level (in meters) - DIPERKECIL
+  const baseRadius = 25; // Dikurangi dari 50 ke 25 meter
+  const multiplier = Math.max(1, noiseLevel / 80); // Dikurangi dari 40 ke 80 untuk multiplier lebih kecil
+  return Math.min(baseRadius * multiplier, 60); // Maksimal 60 meter
 };
 
 export const getNoiseOpacity = (noiseLevel: number): number => {
