@@ -112,7 +112,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
         formData.append('username', username);
         formData.append('password', password);
         if (email) formData.append('email', email);
-        if (photo) formData.append('profile.photo', photo);
+        if (photo) formData.append('photo', photo);
 
         try {
             const response = await register(formData);

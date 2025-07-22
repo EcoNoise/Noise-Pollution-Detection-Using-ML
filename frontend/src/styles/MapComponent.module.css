@@ -48,7 +48,7 @@
 }
 
 .searchInput:focus {
-  box-shadow: 0 0 0 2px #2196F3;
+  box-shadow: 0 0 0 2px #2196f3;
 }
 
 /* SEARCH RESULTS - FIXED */
@@ -122,7 +122,7 @@
 }
 
 .controlButton.active {
-  background: #2196F3;
+  background: #2196f3;
   color: white;
 }
 
@@ -159,7 +159,7 @@
 
 .noiseInput:focus {
   outline: none;
-  border-color: #2196F3;
+  border-color: #2196f3;
 }
 
 .noiseSlider {
@@ -180,7 +180,7 @@
 }
 
 .submitButton {
-  background: #4CAF50;
+  background: #4caf50;
   color: white;
   border: none;
   border-radius: 4px;
@@ -293,7 +293,7 @@
 }
 
 .editButton {
-  background: #2196F3;
+  background: #2196f3;
   color: white;
 }
 
@@ -331,24 +331,24 @@
   .mapContainer {
     margin-left: 0; /* Hilangkan margin di mobile */
   }
-  
+
   .searchContainer {
     left: 10px;
     right: 10px;
     width: auto;
     min-width: auto;
   }
-  
+
   .mapControls {
     right: 10px;
   }
-  
+
   .noisePanel {
     left: 10px;
     right: 10px;
     min-width: auto;
   }
-  
+
   .legend {
     right: 10px;
     min-width: auto;

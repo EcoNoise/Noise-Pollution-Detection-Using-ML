@@ -1,30 +1,37 @@
 // src/components/MapComponent.tsx
-import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Circle, Popup, useMapEvents, Marker } from 'react-leaflet';
-import L, { Map as LeafletMap } from 'leaflet';
-import { useNavigate } from 'react-router-dom'; // NEW: Import for navigation
-import { NoiseLocation, SearchResult } from '../types/mapTypes';
-import { mapConfig, tileLayerConfig, noiseColors } from '../config/mapConfig';
-import { mapService } from '../services/mapService';
-import { generateNoiseArea } from '../utils/mapUtils';
-import MapControls from './MapControls';
-import MapPopup from './MapPopup';
-import styles from '../styles/MapComponent.module.css';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  MapContainer,
+  TileLayer,
+  Circle,
+  Popup,
+  useMapEvents,
+  Marker,
+} from "react-leaflet";
+import L, { Map as LeafletMap } from "leaflet";
+import { useNavigate } from "react-router-dom"; // NEW: Import for navigation
+import { NoiseLocation, SearchResult } from "../types/mapTypes";
+import { mapConfig, tileLayerConfig, noiseColors } from "../config/mapConfig";
+import { mapService } from "../services/mapService";
+import { generateNoiseArea } from "../utils/mapUtils";
+import MapControls from "./MapControls";
+import MapPopup from "./MapPopup";
+import styles from "../styles/MapComponent.module.css";
 
-import 'leaflet/dist/leaflet.css';
+import "leaflet/dist/leaflet.css";
 
 // ... (existing code for Leaflet icon fix and custom icons) ...
 // PERBAIKAN: Fix untuk ikon default Leaflet yang sering rusak di React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-  iconUrl: require('leaflet/dist/images/marker-icon.png'),
-  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+  iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
+  iconUrl: require("leaflet/dist/images/marker-icon.png"),
+  shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
 });
 
 // BARU: Custom icon untuk lokasi pengguna
 const userLocationIcon = L.divIcon({
-  className: 'user-location-marker',
+  className: "user-location-marker",
   html: `
     <div style="
       position: relative;
@@ -64,12 +71,12 @@ const userLocationIcon = L.divIcon({
     </style>
   `,
   iconSize: [20, 20],
-  iconAnchor: [10, 10]
+  iconAnchor: [10, 10],
 });
 
 // BARU: Custom icon untuk search location
 const searchLocationIcon = L.divIcon({
-  className: 'search-location-marker',
+  className: "search-location-marker",
   html: `
     <div style="
       position: relative;
@@ -110,9 +117,8 @@ const searchLocationIcon = L.divIcon({
     </style>
   `,
   iconSize: [30, 30],
-  iconAnchor: [15, 15]
+  iconAnchor: [15, 15],
 });
-
 
 interface MapComponentProps {
   className?: string;
@@ -121,27 +127,33 @@ interface MapComponentProps {
 const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const navigate = useNavigate(); // NEW: Hook for navigation
   const [noiseLocations, setNoiseLocations] = useState<NoiseLocation[]>([]);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isAddingNoise, setIsAddingNoise] = useState<boolean>(false);
   const [showNoiseForm, setShowNoiseForm] = useState<boolean>(false);
   const [showLegend, setShowLegend] = useState<boolean>(true);
-  const [selectedPosition, setSelectedPosition] = useState<[number, number] | null>(null);
-  const [searchMarker, setSearchMarker] = useState<[number, number] | null>(null);
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [selectedPosition, setSelectedPosition] = useState<
+    [number, number] | null
+  >(null);
+  const [searchMarker, setSearchMarker] = useState<[number, number] | null>(
+    null
+  );
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(
+    null
+  );
   const [isTrackingUser, setIsTrackingUser] = useState<boolean>(false);
   const [searchLocationMarker, setSearchLocationMarker] = useState<{
     position: [number, number];
     name: string;
     address: string;
   } | null>(null);
-  
+
   // NEW: State for the address input in the form
-  const [formAddress, setFormAddress] = useState<string>('');
-  
+  const [formAddress, setFormAddress] = useState<string>("");
+
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
 
   const mapRef = useRef<LeafletMap | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -150,13 +162,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   useEffect(() => {
     loadNoiseLocations();
     handleLocateUser();
-    
+
     // UPDATED: Check for shared data from either flow
     const sharedData = mapService.getSharedNoiseData();
     if (sharedData) {
       processSharedData(sharedData);
     }
-    
+
     return () => {
       if (watchId.current !== null) {
         navigator.geolocation.clearWatch(watchId.current);
@@ -172,12 +184,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         (position) => {
           const newLocation: [number, number] = [
             position.coords.latitude,
-            position.coords.longitude
+            position.coords.longitude,
           ];
           setUserLocation(newLocation);
         },
         (error) => {
-          console.warn('Tracking location error:', error);
+          console.warn("Tracking location error:", error);
           setIsTrackingUser(false);
         },
         {
@@ -198,44 +210,52 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     };
   }, [isTrackingUser]);
 
-
   // UPDATED: This function now handles data from both the old and new flow
   const processSharedData = async (sharedData: any) => {
     setLoading(true);
-    setError('');
+    setError("");
     try {
       // Prioritize position from the new flow; otherwise, get current location for the old flow
-      const position = sharedData.position || await mapService.getCurrentLocation();
-      
+      const position =
+        sharedData.position || (await mapService.getCurrentLocation());
+
       if (position) {
         mapService.addNoiseLocation({
           latitude: position[0],
           longitude: position[1],
           noiseLevel: sharedData.analysis.noise_level,
-          description: `Sumber: ${sharedData.analysis.noise_source}. Dampak: ${sharedData.analysis.health_impact}. Alamat: ${sharedData.address || 'N/A'}`,
+          description: `Sumber: ${sharedData.analysis.noise_source}. Dampak: ${
+            sharedData.analysis.health_impact
+          }. Alamat: ${sharedData.address || "N/A"}`,
         });
         loadNoiseLocations();
         zoomToLocation(position, 17);
       } else {
-        setError('Gagal mendapatkan lokasi untuk membuat titik analisis.');
-        alert('Gagal mendapatkan lokasi Anda. Pastikan izin lokasi telah diberikan.');
+        setError("Gagal mendapatkan lokasi untuk membuat titik analisis.");
+        alert(
+          "Gagal mendapatkan lokasi Anda. Pastikan izin lokasi telah diberikan."
+        );
       }
     } catch (err) {
-      setError('Gagal memproses data analisis.');
+      setError("Gagal memproses data analisis.");
     } finally {
       setLoading(false);
     }
   };
-  
-  const zoomToLocation = (coordinates: [number, number], zoomLevel: number = 15, showMarker: boolean = true) => {
+
+  const zoomToLocation = (
+    coordinates: [number, number],
+    zoomLevel: number = 15,
+    showMarker: boolean = true
+  ) => {
     if (mapRef.current) {
       // Smooth pan dan zoom
       mapRef.current.flyTo(coordinates, zoomLevel, {
         animate: true,
         duration: 1.5, // Durasi animasi dalam detik
-        easeLinearity: 0.25
+        easeLinearity: 0.25,
       });
-      
+
       // Tampilkan marker pencarian jika diperlukan
       if (showMarker && !userLocation) {
         setSearchMarker(coordinates);
@@ -259,7 +279,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           const results = await mapService.searchLocations(searchQuery);
           setSearchResults(results);
         } catch (error) {
-          setError('Pencarian gagal');
+          setError("Pencarian gagal");
           setSearchResults([]);
         } finally {
           setIsSearching(false);
@@ -281,7 +301,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     const locations = mapService.getNoiseLocations();
     setNoiseLocations(locations);
   };
-  
+
   const handleMapClick = (e: any) => {
     if (isAddingNoise) {
       setSelectedPosition([e.latlng.lat, e.latlng.lng]);
@@ -294,10 +314,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   };
 
   const handleAddNoiseArea = () => {
-    const isAuthenticated = !!localStorage.getItem('accessToken');
+    const isAuthenticated = !!localStorage.getItem("accessToken");
     if (!isAuthenticated) {
-      alert('Anda harus login untuk dapat menambahkan area analisis di peta.');
-      navigate('/login');
+      alert("Anda harus login untuk dapat menambahkan area analisis di peta.");
+      navigate("/login");
       return;
     }
 
@@ -306,7 +326,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     if (isAddingNoise) {
       setShowNoiseForm(false);
       setSelectedPosition(null);
-      setFormAddress('');
+      setFormAddress("");
     }
   };
 
@@ -319,18 +339,18 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         address: formAddress,
       });
       // 2. Navigate to the HomePage to start recording
-      navigate('/home');
+      navigate("/home");
     } else {
-      setError('Silakan pilih titik di peta terlebih dahulu.');
+      setError("Silakan pilih titik di peta terlebih dahulu.");
     }
   };
-  
+
   const handleDeleteNoiseLocation = (id: string) => {
     try {
       mapService.removeNoiseLocation(id);
       loadNoiseLocations();
     } catch (error) {
-      setError('Gagal menghapus area berisik');
+      setError("Gagal menghapus area berisik");
     }
   };
 
@@ -345,17 +365,19 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         // PERBAIKAN: Gunakan smooth zoom untuk lokasi user
         zoomToLocation(position, 16, false); // false karena sudah ada user location icon
       } else {
-        setError('Tidak dapat mengakses lokasi Anda');
+        setError("Tidak dapat mengakses lokasi Anda");
       }
     } catch (error) {
-      setError('Gagal mendapatkan lokasi');
+      setError("Gagal mendapatkan lokasi");
     } finally {
       setLoading(false);
     }
   };
 
   const handleClearAreas = () => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus semua area berisik?')) {
+    if (
+      window.confirm("Apakah Anda yakin ingin menghapus semua area berisik?")
+    ) {
       mapService.clearAllNoiseLocations();
       loadNoiseLocations();
     }
@@ -367,14 +389,14 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     setSearchLocationMarker({
       position: result.coordinates,
       name: result.name,
-      address: result.address || 'Alamat tidak tersedia' // Fix untuk type error
+      address: result.address || "Alamat tidak tersedia", // Fix untuk type error
     });
 
     // Smooth zoom ke hasil pencarian dengan zoom level yang lebih tinggi
     zoomToLocation(result.coordinates, 17, false); // false karena kita gunakan marker khusus
-    
+
     // Clear search UI
-    setSearchQuery('');
+    setSearchQuery("");
     setSearchResults([]);
 
     // Auto-hide marker setelah 10 detik
@@ -390,19 +412,18 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
   // PERBAIKAN: Fungsi untuk handle keyboard navigation pada search results
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      setSearchQuery('');
+    if (e.key === "Escape") {
+      setSearchQuery("");
       setSearchResults([]);
       setSearchLocationMarker(null); // Clear search marker juga
-    } else if (e.key === 'Enter' && searchResults.length > 0) {
+    } else if (e.key === "Enter" && searchResults.length > 0) {
       // Auto select first result saat Enter
       handleSearchResultClick(searchResults[0]);
-    } else if (e.key === 'ArrowDown' && searchResults.length > 0) {
+    } else if (e.key === "ArrowDown" && searchResults.length > 0) {
       // Future: implement keyboard navigation through results
       e.preventDefault();
     }
   };
-
 
   // ENHANCED: Component for handling map events
   const MapEvents: React.FC = () => {
@@ -418,10 +439,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   };
 
   return (
-    <div className={`${styles.mapContainer} ${className || ''}`}>
+    <div className={`${styles.mapContainer} ${className || ""}`}>
       {/* Search Container and MapControls remain the same */}
       <div className={styles.searchContainer}>
-      <input
+        <input
           type="text"
           placeholder="Cari lokasi..."
           value={searchQuery}
@@ -429,34 +450,40 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           onKeyDown={handleSearchKeyDown}
           className={styles.searchInput}
         />
-        
+
         {searchResults.length > 0 && (
           <div className={styles.searchResults}>
             {searchResults.map((result, index) => (
               <div
                 key={result.id}
-                className={`${styles.searchResult} ${index === 0 ? styles.firstResult : ''}`}
+                className={`${styles.searchResult} ${
+                  index === 0 ? styles.firstResult : ""
+                }`}
                 onClick={() => handleSearchResultClick(result)}
               >
                 <div className={styles.resultName}>{result.name}</div>
-                <div className={styles.resultAddress}>{result.address || 'Alamat tidak tersedia'}</div>
+                <div className={styles.resultAddress}>
+                  {result.address || "Alamat tidak tersedia"}
+                </div>
               </div>
             ))}
           </div>
         )}
-        
+
         {isSearching && (
           <div className={styles.searchResult}>
             <div className={styles.resultName}>🔍 Mencari...</div>
           </div>
         )}
-        
+
         {/* PERBAIKAN: Show message when no results found */}
-        {!isSearching && searchQuery.length > 2 && searchResults.length === 0 && (
-          <div className={styles.searchResult}>
-            <div className={styles.resultName}>Tidak ada hasil ditemukan</div>
-          </div>
-        )}
+        {!isSearching &&
+          searchQuery.length > 2 &&
+          searchResults.length === 0 && (
+            <div className={styles.searchResult}>
+              <div className={styles.resultName}>Tidak ada hasil ditemukan</div>
+            </div>
+          )}
       </div>
       <MapControls
         onAddNoiseArea={handleAddNoiseArea}
@@ -485,63 +512,101 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
             <div className={styles.noiseLevel}>
               <span>Koordinat:</span>
               <span className={styles.noiseLevelValue}>
-                {selectedPosition[0].toFixed(5)}, {selectedPosition[1].toFixed(5)}
+                {selectedPosition[0].toFixed(5)},{" "}
+                {selectedPosition[1].toFixed(5)}
               </span>
             </div>
-            <button onClick={handleStartAnalysis} className={styles.submitButton}>
+            <button
+              onClick={handleStartAnalysis}
+              className={styles.submitButton}
+            >
               Analisis Suara
             </button>
           </div>
         </div>
       )}
-      
+
       {/* Legend, Loading, Error, and MapContainer JSX remain the same */}
-      {showLegend && (<div className={styles.legend}>
+      {showLegend && (
+        <div className={styles.legend}>
           <div className={styles.legendTitle}>Legenda</div>
           {Object.entries(noiseColors).map(([key, color]) => {
-              let label = '';
-              switch(key) {
-                  case 'low': label = 'Tenang (≤40 dB)'; break;
-                  case 'medium': label = 'Sedang (41-60 dB)'; break;
-                  case 'high': label = 'Berisik (61-80 dB)'; break;
-                  case 'extreme': label = 'Sangat Berisik (>80 dB)'; break;
-              }
-              return (
-                <div className={styles.legendItem} key={key}>
-                  <div className={styles.legendColor} style={{ backgroundColor: color }} />
-                  <span>{label}</span>
-                </div>
-              );
+            let label = "";
+            switch (key) {
+              case "low":
+                label = "Tenang (≤40 dB)";
+                break;
+              case "medium":
+                label = "Sedang (41-60 dB)";
+                break;
+              case "high":
+                label = "Berisik (61-80 dB)";
+                break;
+              case "extreme":
+                label = "Sangat Berisik (>80 dB)";
+                break;
+            }
+            return (
+              <div className={styles.legendItem} key={key}>
+                <div
+                  className={styles.legendColor}
+                  style={{ backgroundColor: color }}
+                />
+                <span>{label}</span>
+              </div>
+            );
           })}
           {/* BARU: Tambahkan legenda untuk lokasi pengguna */}
           <div className={styles.legendItem}>
-            <div className={styles.legendColor} style={{ 
-              backgroundColor: '#007AFF',
-              borderRadius: '50%',
-              border: '2px solid white',
-              boxShadow: '0 2px 4px rgba(0,122,255,0.3)'
-            }} />
+            <div
+              className={styles.legendColor}
+              style={{
+                backgroundColor: "#007AFF",
+                borderRadius: "50%",
+                border: "2px solid white",
+                boxShadow: "0 2px 4px rgba(0,122,255,0.3)",
+              }}
+            />
             <span>Lokasi Anda</span>
           </div>
           {/* BARU: Tambahkan legenda untuk lokasi pencarian */}
           <div className={styles.legendItem}>
-            <div className={styles.legendColor} style={{ 
-              backgroundColor: '#ff4444',
-              borderRadius: '50%',
-              border: '2px solid white',
-              boxShadow: '0 2px 4px rgba(255,68,68,0.3)'
-            }} />
+            <div
+              className={styles.legendColor}
+              style={{
+                backgroundColor: "#ff4444",
+                borderRadius: "50%",
+                border: "2px solid white",
+                boxShadow: "0 2px 4px rgba(255,68,68,0.3)",
+              }}
+            />
             <span>Lokasi Pencarian</span>
           </div>
-        </div>)}
-      {loading && (<div className={styles.loading}>
+        </div>
+      )}
+      {loading && (
+        <div className={styles.loading}>
           <div>📍 Memuat Lokasi...</div>
-        </div>)}
-      {error && (<div className={styles.errorMessage}>
+        </div>
+      )}
+      {error && (
+        <div className={styles.errorMessage}>
           {error}
-          <button onClick={() => setError('')} style={{ marginLeft: '10px', background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>×</button>
-        </div>)}
-      <MapContainer 
+          <button
+            onClick={() => setError("")}
+            style={{
+              marginLeft: "10px",
+              background: "none",
+              border: "none",
+              color: "white",
+              cursor: "pointer",
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      <MapContainer
         center={mapConfig.center}
         zoom={mapConfig.zoom}
         className={styles.mapInstance}
@@ -583,20 +648,17 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
         {/* BARU: User Location Marker */}
         {userLocation && (
-          <Marker 
-            position={userLocation}
-            icon={userLocationIcon}
-          >
+          <Marker position={userLocation} icon={userLocationIcon}>
             <Popup>
-              <div style={{ textAlign: 'center', padding: '8px' }}>
+              <div style={{ textAlign: "center", padding: "8px" }}>
                 <strong>📍 Lokasi Anda</strong>
                 <br />
                 <small>
                   {userLocation[0].toFixed(6)}, {userLocation[1].toFixed(6)}
                 </small>
                 <br />
-                <small style={{ color: '#666' }}>
-                  {isTrackingUser ? '🔄 Tracking aktif' : '📌 Lokasi tetap'}
+                <small style={{ color: "#666" }}>
+                  {isTrackingUser ? "🔄 Tracking aktif" : "📌 Lokasi tetap"}
                 </small>
               </div>
             </Popup>
@@ -605,32 +667,47 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
         {/* BARU: Search Location Marker */}
         {searchLocationMarker && (
-          <Marker 
+          <Marker
             position={searchLocationMarker.position}
             icon={searchLocationIcon}
           >
             <Popup>
-              <div style={{ textAlign: 'center', padding: '10px', minWidth: '200px' }}>
-                <strong style={{ fontSize: '16px', color: '#ff4444' }}>
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "10px",
+                  minWidth: "200px",
+                }}
+              >
+                <strong style={{ fontSize: "16px", color: "#ff4444" }}>
                   📍 {searchLocationMarker.name}
                 </strong>
                 <br />
-                <div style={{ margin: '8px 0', color: '#666', fontSize: '14px' }}>
+                <div
+                  style={{ margin: "8px 0", color: "#666", fontSize: "14px" }}
+                >
                   {searchLocationMarker.address}
                 </div>
-                <div style={{ fontSize: '12px', color: '#999', marginBottom: '10px' }}>
-                  {searchLocationMarker.position[0].toFixed(6)}, {searchLocationMarker.position[1].toFixed(6)}
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#999",
+                    marginBottom: "10px",
+                  }}
+                >
+                  {searchLocationMarker.position[0].toFixed(6)},{" "}
+                  {searchLocationMarker.position[1].toFixed(6)}
                 </div>
-                <button 
+                <button
                   onClick={handleClearSearchMarker}
                   style={{
-                    background: '#ff4444',
-                    color: 'white',
-                    border: 'none',
-                    padding: '6px 12px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px'
+                    background: "#ff4444",
+                    color: "white",
+                    border: "none",
+                    padding: "6px 12px",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "12px",
                   }}
                 >
                   Tutup Marker
@@ -641,19 +718,17 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         )}
 
         {/* Selected Position Marker */}
-        {selectedPosition && (
-          <Marker position={selectedPosition} />
-        )}
+        {selectedPosition && <Marker position={selectedPosition} />}
 
         {/* PERBAIKAN: Search Result Marker (legacy - untuk fallback) */}
         {searchMarker && (
-          <Marker 
+          <Marker
             position={searchMarker}
             icon={L.divIcon({
-              className: 'search-marker',
+              className: "search-marker",
               html: '<div style="background: #ff4444; border: 2px solid white; border-radius: 50%; width: 20px; height: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
               iconSize: [20, 20],
-              iconAnchor: [10, 10]
+              iconAnchor: [10, 10],
             })}
           />
         )}

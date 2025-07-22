@@ -23,7 +23,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import RegisterSerializer
 from rest_framework.permissions import IsAuthenticated
 from .serializers import UserSerializer
-from django.contrib.auth.models import User
+from .models import CustomUser
 
 class HealthView(APIView):
     """Health check endpoint"""
@@ -329,9 +329,9 @@ class RegisterView(APIView):
             refresh = RefreshToken.for_user(user)
 
             photo_url = None
-            if hasattr(user, 'profile') and user.profile.photo:
+            if user.photo:
                 # Dapatkan URL absolut dari foto profil
-                photo_url = request.build_absolute_uri(user.profile.photo.url)
+                photo_url = request.build_absolute_uri(user.photo.url)
 
             return Response({
                 "status": "success",
@@ -361,10 +361,18 @@ class LoginView(APIView):
     def post(self, request):
         from django.contrib.auth import authenticate
 
-        username = request.data.get("username")
+        # Terima field 'username' atau 'loginField' dari frontend
+        login_field = request.data.get("username") or request.data.get("loginField")
         password = request.data.get("password")
 
-        user = authenticate(username=username, password=password)
+        if not login_field or not password:
+            return Response(
+                {"error": "Username/email dan password harus diisi"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Gunakan custom authentication backend yang mendukung email atau username
+        user = authenticate(username=login_field, password=password)
 
         if user:
             refresh = RefreshToken.for_user(user)
@@ -375,7 +383,10 @@ class LoginView(APIView):
                 "access": str(refresh.access_token),
             })
 
-        return Response({"error": "Username atau password salah"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {"error": "Username/email atau password salah"}, 
+            status=status.HTTP_401_UNAUTHORIZED
+        )
     
 class UserProfileView(APIView):
     """
@@ -397,14 +408,12 @@ class UserProfileView(APIView):
         # Update field User model
         user.first_name = data.get('first_name', user.first_name)
         user.last_name = data.get('last_name', user.last_name)
-        user.save()
-
-        # Update foto di Profile model
-        # Pastikan user sudah punya profile, jika belum, buat.
-        profile, created = Profile.objects.get_or_create(user=user)
+        
+        # Update foto langsung di User model
         if 'photo' in data:
-            profile.photo = data['photo']
-            profile.save()
+            user.photo = data['photo']
+            
+        user.save()
 
         # Kembalikan data yang sudah diperbarui
         serializer = UserSerializer(user, context={'request': request})
