@@ -15,14 +15,12 @@ from rest_framework import status
 
 from .ml_models import ModelManager
 from .utils import AudioProcessor
-from .models import PredictionHistory
+from .models import PredictionHistory, NoiseArea
+from .serializers import RegisterSerializer, UserSerializer, NoiseAreaSerializer
 
 logger = logging.getLogger(__name__)
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import RegisterSerializer
-from rest_framework.permissions import IsAuthenticated
-from .serializers import UserSerializer
 from .models import CustomUser
 
 class HealthView(APIView):
@@ -418,3 +416,174 @@ class UserProfileView(APIView):
         # Kembalikan data yang sudah diperbarui
         serializer = UserSerializer(user, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class NoiseAreaListCreateView(APIView):
+    """
+    GET: Mengambil semua area noise (semua user bisa lihat)
+    POST: Membuat area noise baru (hanya user yang login)
+    """
+    
+    def get_permissions(self):
+        """
+        Instantiates and returns the list of permissions that this view requires.
+        """
+        if self.request.method == 'GET':
+            permission_classes = [AllowAny]
+        else:
+            permission_classes = [IsAuthenticated]
+        
+        return [permission() for permission in permission_classes]
+
+    def get(self, request):
+        """Mengambil semua area noise dari semua user"""
+        try:
+            areas = NoiseArea.objects.all()
+            serializer = NoiseAreaSerializer(areas, many=True, context={'request': request})
+            return Response({
+                "status": "success",
+                "areas": serializer.data,
+                "total": areas.count()
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error fetching noise areas: {e}")
+            return Response({
+                "status": "error",
+                "error": "Gagal mengambil data area noise"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request):
+        """Membuat area noise baru"""
+        try:
+            print(f"🔍 Data yang diterima backend: {request.data}")
+            print(f"🔍 User yang login: {request.user}")
+            print(f"🔍 User authenticated: {request.user.is_authenticated}")
+            
+            serializer = NoiseAreaSerializer(data=request.data, context={'request': request})
+            if serializer.is_valid():
+                area = serializer.save()
+                return Response({
+                    "status": "success",
+                    "message": "Area noise berhasil ditambahkan",
+                    "area": NoiseAreaSerializer(area, context={'request': request}).data
+                }, status=status.HTTP_201_CREATED)
+            else:
+                print(f"❌ Serializer errors: {serializer.errors}")
+                return Response({
+                    "status": "error",
+                    "errors": serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error creating noise area: {e}")
+            print(f"❌ Exception: {e}")
+            return Response({
+                "status": "error",
+                "error": "Gagal membuat area noise"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class NoiseAreaDetailView(APIView):
+    """
+    GET: Mengambil detail area noise
+    PUT: Update area noise (hanya pemilik)
+    DELETE: Hapus area noise (hanya pemilik)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk):
+        """Helper method untuk mendapatkan object NoiseArea"""
+        try:
+            return NoiseArea.objects.get(pk=pk)
+        except NoiseArea.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        """Mengambil detail area noise"""
+        area = self.get_object(pk)
+        if not area:
+            return Response({
+                "status": "error",
+                "error": "Area noise tidak ditemukan"
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = NoiseAreaSerializer(area, context={'request': request})
+        return Response({
+            "status": "success",
+            "area": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    def put(self, request, pk):
+        """Update area noise (hanya pemilik)"""
+        area = self.get_object(pk)
+        if not area:
+            return Response({
+                "status": "error",
+                "error": "Area noise tidak ditemukan"
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Cek apakah user adalah pemilik area
+        if area.user != request.user:
+            return Response({
+                "status": "error",
+                "error": "Anda tidak memiliki izin untuk mengubah area ini"
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = NoiseAreaSerializer(area, data=request.data, partial=True, context={'request': request})
+        if serializer.is_valid():
+            updated_area = serializer.save()
+            return Response({
+                "status": "success",
+                "message": "Area noise berhasil diperbarui",
+                "area": NoiseAreaSerializer(updated_area, context={'request': request}).data
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                "status": "error",
+                "errors": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        """Hapus area noise (hanya pemilik)"""
+        area = self.get_object(pk)
+        if not area:
+            return Response({
+                "status": "error",
+                "error": "Area noise tidak ditemukan"
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Cek apakah user adalah pemilik area
+        if area.user != request.user:
+            return Response({
+                "status": "error",
+                "error": "Anda tidak memiliki izin untuk menghapus area ini"
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        area.delete()
+        return Response({
+            "status": "success",
+            "message": "Area noise berhasil dihapus"
+        }, status=status.HTTP_200_OK)
+
+
+class UserNoiseAreasView(APIView):
+    """
+    Mengambil semua area noise yang dibuat oleh user yang sedang login
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Mengambil area noise milik user yang login"""
+        try:
+            areas = NoiseArea.objects.filter(user=request.user)
+            serializer = NoiseAreaSerializer(areas, many=True, context={'request': request})
+            return Response({
+                "status": "success",
+                "areas": serializer.data,
+                "total": areas.count()
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error fetching user noise areas: {e}")
+            return Response({
+                "status": "error",
+                "error": "Gagal mengambil data area noise user"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

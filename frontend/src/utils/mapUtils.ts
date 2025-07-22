@@ -1,6 +1,6 @@
 // src/utils/mapUtils.ts
-import { NoiseLocation, NoiseArea } from '../types/mapTypes';
-import { noiseColors, noiseThresholds } from '../config/mapConfig';
+import { NoiseLocation, NoiseArea } from "../types/mapTypes";
+import { noiseColors, noiseThresholds } from "../config/mapConfig";
 
 export const getNoiseColor = (noiseLevel: number): string => {
   if (noiseLevel <= noiseThresholds.low) return noiseColors.low;
@@ -26,10 +26,10 @@ export const formatNoiseLevel = (level: number): string => {
 };
 
 export const getNoiseDescription = (level: number): string => {
-  if (level <= noiseThresholds.low) return 'Tenang';
-  if (level <= noiseThresholds.medium) return 'Sedang';
-  if (level <= noiseThresholds.high) return 'Berisik';
-  return 'Sangat Berisik';
+  if (level <= noiseThresholds.low) return "Tenang";
+  if (level <= noiseThresholds.medium) return "Sedang";
+  if (level <= noiseThresholds.high) return "Berisik";
+  return "Sangat Berisik";
 };
 
 export const calculateDistance = (
@@ -44,9 +44,9 @@ export const calculateDistance = (
   const Δφ = ((lat2 - lat1) * Math.PI) / 180;
   const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
-  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) *
-    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c;
@@ -66,8 +66,8 @@ export const isValidCoordinate = (lat: number, lon: number): boolean => {
 export const generateNoiseArea = (location: NoiseLocation): NoiseArea => {
   return {
     id: location.id,
-    center: [location.latitude, location.longitude],
-    radius: getNoiseRadius(location.noiseLevel),
+    center: location.coordinates,
+    radius: location.radius || getNoiseRadius(location.noiseLevel),
     noiseLevel: location.noiseLevel,
     color: getNoiseColor(location.noiseLevel),
     opacity: getNoiseOpacity(location.noiseLevel),

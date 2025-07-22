@@ -1,13 +1,18 @@
 // src/types/mapTypes.ts
 export interface NoiseLocation {
   id: string;
-  latitude: number;
-  longitude: number;
+  coordinates: [number, number]; // Changed from separate latitude/longitude to coordinates array
   noiseLevel: number;
+  source: string; // Added source field
+  healthImpact: string; // Added health impact field
   description?: string;
+  address?: string; // Added address field
   timestamp: Date;
   radius?: number;
   color?: string;
+  userId?: number; // Added user ID field
+  userName?: string; // Added user name field
+  canDelete?: boolean; // Added permission field
 }
 
 export interface MapMarkerData {
@@ -15,7 +20,7 @@ export interface MapMarkerData {
   position: [number, number];
   title: string;
   description?: string;
-  type: 'analysis' | 'noise';
+  type: "analysis" | "noise";
   data?: any;
 }
 
