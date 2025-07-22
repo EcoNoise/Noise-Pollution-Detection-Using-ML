@@ -43,7 +43,7 @@ class NoiseArea(models.Model):
     health_impact = models.CharField(max_length=50, blank=True)
     description = models.TextField(blank=True)
     address = models.CharField(max_length=255, blank=True)
-    radius = models.IntegerField(default=100)  # radius dalam meter
+    radius = models.IntegerField(default=50)  # radius dalam meter - DIPERKECIL dari 100 ke 50
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

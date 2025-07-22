@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 
@@ -272,12 +272,64 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(
     !!localStorage.getItem("accessToken")
   );
+
   const handleLogin = () => setIsAuthenticated(true);
   const handleLogout = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     setIsAuthenticated(false);
   };
+
+  // Listen untuk auth logout events dari API interceptor
+  useEffect(() => {
+    const handleAuthLogout = () => {
+      setIsAuthenticated(false);
+    };
+
+    window.addEventListener("auth:logout", handleAuthLogout);
+
+    return () => {
+      window.removeEventListener("auth:logout", handleAuthLogout);
+    };
+  }, []);
+
+  // Check authentication status saat app load
+  useEffect(() => {
+    const checkAuth = () => {
+      const accessToken = localStorage.getItem("accessToken");
+      const refreshToken = localStorage.getItem("refreshToken");
+
+      if (!accessToken || !refreshToken) {
+        setIsAuthenticated(false);
+        return;
+      }
+
+      // Basic token expiry check
+      try {
+        const payload = JSON.parse(atob(accessToken.split(".")[1]));
+        const currentTime = Date.now() / 1000;
+
+        if (payload.exp < currentTime) {
+          // Access token expired, check refresh token
+          const refreshPayload = JSON.parse(atob(refreshToken.split(".")[1]));
+          if (refreshPayload.exp < currentTime) {
+            // Both tokens expired
+            handleLogout();
+          } else {
+            // Refresh token still valid, keep authenticated
+            setIsAuthenticated(true);
+          }
+        } else {
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        // Invalid token format
+        handleLogout();
+      }
+    };
+
+    checkAuth();
+  }, []);
 
   return (
     <ThemeProvider theme={theme}>
