@@ -16,6 +16,10 @@ from .views import (
     NoiseAreaListCreateView,
     NoiseAreaDetailView,
     UserNoiseAreasView,
+    HealthProfileView,
+    ExposureLogView,
+    WeeklySummaryView,
+    HealthDashboardView,
 )
 
 app_name = "noise_detection"
@@ -39,4 +43,9 @@ urlpatterns = [
     path("areas/", NoiseAreaListCreateView.as_view(), name="noise_areas"),
     path("areas/<int:pk>/", NoiseAreaDetailView.as_view(), name="noise_area_detail"),
     path("areas/my/", UserNoiseAreasView.as_view(), name="user_noise_areas"),
+    # Health Dashboard
+    path("health-profile/", HealthProfileView.as_view(), name="health_profile"),
+    path("exposure-logs/", ExposureLogView.as_view(), name="exposure_logs"),
+    path("weekly-summary/", WeeklySummaryView.as_view(), name="weekly_summary"),
+    path("health-dashboard/", HealthDashboardView.as_view(), name="health_dashboard"),
 ]

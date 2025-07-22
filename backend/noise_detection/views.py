@@ -15,8 +15,8 @@ from rest_framework import status
 
 from .ml_models import ModelManager
 from .utils import AudioProcessor
-from .models import PredictionHistory, NoiseArea
-from .serializers import RegisterSerializer, UserSerializer, NoiseAreaSerializer
+from .models import PredictionHistory, NoiseArea, HealthProfile, ExposureLog
+from .serializers import RegisterSerializer, UserSerializer, NoiseAreaSerializer, HealthProfileSerializer, ExposureLogSerializer, WeeklySummarySerializer
 
 logger = logging.getLogger(__name__)
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -623,4 +623,307 @@ class UserNoiseAreasView(APIView):
             return Response({
                 "status": "error",
                 "error": "Gagal mengambil data area noise user"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ===== HEALTH DASHBOARD VIEWS =====
+
+class HealthProfileView(APIView):
+    """
+    GET: Mengambil health profile user
+    POST: Membuat health profile baru
+    PUT: Update health profile
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Mengambil health profile user"""
+        try:
+            profile, created = HealthProfile.objects.get_or_create(user=request.user)
+            serializer = HealthProfileSerializer(profile, context={'request': request})
+            return Response({
+                "status": "success",
+                "profile": serializer.data,
+                "is_new": created
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error fetching health profile: {e}")
+            return Response({
+                "status": "error",
+                "error": "Gagal mengambil data health profile"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def put(self, request):
+        """Update health profile"""
+        try:
+            profile, created = HealthProfile.objects.get_or_create(user=request.user)
+            serializer = HealthProfileSerializer(profile, data=request.data, partial=True, context={'request': request})
+            
+            if serializer.is_valid():
+                updated_profile = serializer.save()
+                return Response({
+                    "status": "success",
+                    "message": "Health profile berhasil diperbarui",
+                    "profile": HealthProfileSerializer(updated_profile, context={'request': request}).data
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    "status": "error",
+                    "errors": serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error updating health profile: {e}")
+            return Response({
+                "status": "error",
+                "error": "Gagal memperbarui health profile"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ExposureLogView(APIView):
+    """
+    GET: Mengambil exposure logs user
+    POST: Membuat exposure log baru
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Mengambil exposure logs user dengan filter tanggal"""
+        try:
+            from datetime import datetime, timedelta
+            
+            # Get query parameters
+            days = int(request.GET.get('days', 7))  # Default 7 hari
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=days-1)
+            
+            logs = ExposureLog.objects.filter(
+                user=request.user,
+                date__range=[start_date, end_date]
+            ).order_by('-date')
+            
+            serializer = ExposureLogSerializer(logs, many=True, context={'request': request})
+            return Response({
+                "status": "success",
+                "logs": serializer.data,
+                "total": logs.count(),
+                "date_range": {
+                    "start": start_date,
+                    "end": end_date
+                }
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error fetching exposure logs: {e}")
+            return Response({
+                "status": "error",
+                "error": "Gagal mengambil data exposure logs"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request):
+        """Membuat atau update exposure log untuk tanggal tertentu"""
+        try:
+            from datetime import datetime
+            
+            # Get date from request or use today
+            log_date = request.data.get('date', datetime.now().date())
+            if isinstance(log_date, str):
+                log_date = datetime.strptime(log_date, '%Y-%m-%d').date()
+            
+            # Check if log already exists for this date
+            try:
+                existing_log = ExposureLog.objects.get(user=request.user, date=log_date)
+                # Update existing log
+                serializer = ExposureLogSerializer(existing_log, data=request.data, partial=True, context={'request': request})
+                if serializer.is_valid():
+                    log = serializer.save()
+                    return Response({
+                        "status": "success",
+                        "message": "Exposure log berhasil diperbarui",
+                        "log": ExposureLogSerializer(log, context={'request': request}).data,
+                        "is_new": False
+                    }, status=status.HTTP_200_OK)
+                else:
+                    return Response({
+                        "status": "error",
+                        "error": serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                    
+            except ExposureLog.DoesNotExist:
+                # Create new log
+                serializer = ExposureLogSerializer(data=request.data, context={'request': request})
+                if serializer.is_valid():
+                    log = serializer.save()
+                    return Response({
+                        "status": "success",
+                        "message": "Exposure log berhasil dibuat",
+                        "log": ExposureLogSerializer(log, context={'request': request}).data,
+                        "is_new": True
+                    }, status=status.HTTP_201_CREATED)
+                else:
+                    return Response({
+                        "status": "error",
+                        "error": serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            logger.error(f"Error creating/updating exposure log: {e}")
+            return Response({
+                "status": "error",
+                "error": "Gagal menyimpan exposure log"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class WeeklySummaryView(APIView):
+    """
+    GET: Mengambil weekly summary untuk health dashboard
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Generate weekly summary"""
+        try:
+            from datetime import datetime, timedelta
+            from django.db.models import Avg, Count
+            
+            # Get week range
+            today = datetime.now().date()
+            week_start = today - timedelta(days=today.weekday())  # Monday
+            week_end = week_start + timedelta(days=6)  # Sunday
+            
+            # Get exposure logs for this week
+            logs = ExposureLog.objects.filter(
+                user=request.user,
+                date__range=[week_start, week_end]
+            ).order_by('date')
+            
+            # Calculate weekly averages
+            weekly_stats = logs.aggregate(
+                avg_noise=Avg('weighted_avg_noise'),
+                total_logs=Count('id')
+            )
+            
+            # Generate daily data for missing days
+            daily_exposures = []
+            current_date = week_start
+            
+            while current_date <= week_end:
+                try:
+                    log = logs.get(date=current_date)
+                    daily_exposures.append(log)
+                except ExposureLog.DoesNotExist:
+                    # Create default log for missing day
+                    health_profile = getattr(request.user, 'health_profile', None)
+                    
+                    default_log = ExposureLog(
+                        user=request.user,
+                        date=current_date,
+                        home_avg_noise=health_profile.home_avg_noise if health_profile else 50,
+                        work_avg_noise=health_profile.work_avg_noise if health_profile else 60,
+                    )
+                    daily_exposures.append(default_log)
+                
+                current_date += timedelta(days=1)
+            
+            # Count total alerts
+            total_alerts = sum(len(log.health_alerts) for log in daily_exposures)
+            
+            # Generate recommendations
+            recommendations = []
+            avg_noise = weekly_stats['avg_noise'] or 55
+            
+            if avg_noise > 70:
+                recommendations.append("Try noise-cancelling headphones")
+                recommendations.append("Consider quieter routes for commuting")
+            elif avg_noise > 60:
+                recommendations.append("Weekend recovery recommended")
+            else:
+                recommendations.append("Good noise exposure levels!")
+            
+            # Prepare response data
+            summary_data = {
+                "week_start": week_start,
+                "week_end": week_end,
+                "daily_exposures": daily_exposures,
+                "weekly_avg_noise": round(avg_noise, 1),
+                "total_alerts": total_alerts,
+                "recommendations": recommendations
+            }
+            
+            serializer = WeeklySummarySerializer(summary_data)
+            return Response({
+                "status": "success",
+                "summary": serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error generating weekly summary: {e}")
+            return Response({
+                "status": "error",
+                "error": "Gagal membuat weekly summary"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class HealthDashboardView(APIView):
+    """
+    GET: Mengambil semua data untuk health dashboard
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get complete health dashboard data"""
+        try:
+            from datetime import datetime, timedelta
+            
+            # Get health profile
+            health_profile, _ = HealthProfile.objects.get_or_create(user=request.user)
+            
+            # Get recent exposure logs (7 days)
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=6)
+            
+            recent_logs = ExposureLog.objects.filter(
+                user=request.user,
+                date__range=[start_date, end_date]
+            ).order_by('-date')
+            
+            # Generate missing logs with defaults
+            existing_dates = set(log.date for log in recent_logs)
+            all_logs = list(recent_logs)
+            
+            current_date = start_date
+            while current_date <= end_date:
+                if current_date not in existing_dates:
+                    default_log = ExposureLog(
+                        user=request.user,
+                        date=current_date,
+                        home_avg_noise=health_profile.home_avg_noise,
+                        work_avg_noise=health_profile.work_avg_noise,
+                    )
+                    all_logs.append(default_log)
+                current_date += timedelta(days=1)
+            
+            # Sort by date
+            all_logs.sort(key=lambda x: x.date, reverse=True)
+            
+            # Calculate summary stats
+            total_alerts = sum(len(log.health_alerts) for log in all_logs)
+            avg_noise = sum(log.weighted_avg_noise for log in all_logs) / len(all_logs) if all_logs else 55
+            
+            return Response({
+                "status": "success",
+                "dashboard": {
+                    "profile": HealthProfileSerializer(health_profile, context={'request': request}).data,
+                    "recent_logs": ExposureLogSerializer(all_logs, many=True, context={'request': request}).data,
+                    "summary": {
+                        "avg_noise_7days": round(avg_noise, 1),
+                        "total_alerts": total_alerts,
+                        "tracking_enabled": health_profile.tracking_enabled
+                    }
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error fetching health dashboard: {e}")
+            return Response({
+                "status": "error",
+                "error": "Gagal mengambil data health dashboard"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
