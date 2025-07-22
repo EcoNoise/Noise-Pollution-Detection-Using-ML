@@ -385,6 +385,43 @@ class LoginView(APIView):
             {"error": "Username/email atau password salah"}, 
             status=status.HTTP_401_UNAUTHORIZED
         )
+
+class RefreshTokenView(APIView):
+    """
+    Refresh access token menggunakan refresh token.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from rest_framework_simplejwt.exceptions import TokenError
+
+        refresh_token = request.data.get('refresh')
+        
+        if not refresh_token:
+            return Response(
+                {"error": "Refresh token diperlukan"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            refresh = RefreshToken(refresh_token)
+            new_access_token = str(refresh.access_token)
+            
+            # Jika ROTATE_REFRESH_TOKENS True, generate refresh token baru
+            new_refresh_token = str(refresh)
+            
+            return Response({
+                "status": "success",
+                "access": new_access_token,
+                "refresh": new_refresh_token,
+            }, status=status.HTTP_200_OK)
+            
+        except TokenError as e:
+            return Response(
+                {"error": "Refresh token tidak valid atau sudah expired"}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
     
 class UserProfileView(APIView):
     """
