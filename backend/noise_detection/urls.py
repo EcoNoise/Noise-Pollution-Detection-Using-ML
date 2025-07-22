@@ -12,6 +12,9 @@ from .views import (
     RegisterView,
     LoginView,
     UserProfileView,
+    NoiseAreaListCreateView,
+    NoiseAreaDetailView,
+    UserNoiseAreasView,
 )
 
 app_name = "noise_detection"
@@ -26,7 +29,12 @@ urlpatterns = [
     path("predict/batch/", BatchPredictionView.as_view(), name="batch_prediction"),
     # History
     path("history/", PredictionHistoryView.as_view(), name="prediction_history"),
+    # Authentication
     path("auth/register/", RegisterView.as_view(), name="auth_register"),
     path("auth/login/", LoginView.as_view(), name="auth_login"),
     path("auth/me/", UserProfileView.as_view(), name="auth_me"),
+    # Noise Areas
+    path("areas/", NoiseAreaListCreateView.as_view(), name="noise_areas"),
+    path("areas/<int:pk>/", NoiseAreaDetailView.as_view(), name="noise_area_detail"),
+    path("areas/my/", UserNoiseAreasView.as_view(), name="user_noise_areas"),
 ]

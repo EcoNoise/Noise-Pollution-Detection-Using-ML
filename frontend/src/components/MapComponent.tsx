@@ -220,16 +220,22 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         sharedData.position || (await mapService.getCurrentLocation());
 
       if (position) {
-        mapService.addNoiseLocation({
-          latitude: position[0],
-          longitude: position[1],
+        const newLocation = await mapService.addNoiseLocation({
+          coordinates: position,
           noiseLevel: sharedData.analysis.noise_level,
-          description: `Sumber: ${sharedData.analysis.noise_source}. Dampak: ${
-            sharedData.analysis.health_impact
-          }. Alamat: ${sharedData.address || "N/A"}`,
+          source: sharedData.analysis.noise_source,
+          healthImpact: sharedData.analysis.health_impact,
+          description: `Analisis suara otomatis`,
+          address: sharedData.address || "Alamat tidak tersedia",
+          radius: 100,
         });
-        loadNoiseLocations();
-        zoomToLocation(position, 17);
+
+        if (newLocation) {
+          await loadNoiseLocations();
+          zoomToLocation(position, 17);
+        } else {
+          setError("Gagal menyimpan data analisis ke server");
+        }
       } else {
         setError("Gagal mendapatkan lokasi untuk membuat titik analisis.");
         alert(
@@ -237,6 +243,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         );
       }
     } catch (err) {
+      console.error("Error processing shared data:", err);
       setError("Gagal memproses data analisis.");
     } finally {
       setLoading(false);
@@ -297,9 +304,17 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     };
   }, [searchQuery]);
 
-  const loadNoiseLocations = () => {
-    const locations = mapService.getNoiseLocations();
-    setNoiseLocations(locations);
+  const loadNoiseLocations = async () => {
+    try {
+      setLoading(true);
+      const locations = await mapService.getNoiseLocations();
+      setNoiseLocations(locations);
+    } catch (error) {
+      console.error("Error loading noise locations:", error);
+      setError("Gagal memuat data area noise");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleMapClick = (e: any) => {
@@ -345,12 +360,20 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     }
   };
 
-  const handleDeleteNoiseLocation = (id: string) => {
+  const handleDeleteNoiseLocation = async (id: string) => {
     try {
-      mapService.removeNoiseLocation(id);
-      loadNoiseLocations();
+      setLoading(true);
+      const success = await mapService.removeNoiseLocation(id);
+      if (success) {
+        await loadNoiseLocations(); // Reload data after successful deletion
+      } else {
+        setError("Gagal menghapus area berisik");
+      }
     } catch (error) {
+      console.error("Error deleting noise location:", error);
       setError("Gagal menghapus area berisik");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -374,12 +397,26 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     }
   };
 
-  const handleClearAreas = () => {
+  const handleClearAreas = async () => {
     if (
-      window.confirm("Apakah Anda yakin ingin menghapus semua area berisik?")
+      window.confirm(
+        "Apakah Anda yakin ingin menghapus semua area berisik milik Anda?"
+      )
     ) {
-      mapService.clearAllNoiseLocations();
-      loadNoiseLocations();
+      try {
+        setLoading(true);
+        const success = await mapService.clearAllNoiseLocations();
+        if (success) {
+          await loadNoiseLocations(); // Reload data after successful clearing
+        } else {
+          setError("Gagal menghapus area berisik");
+        }
+      } catch (error) {
+        console.error("Error clearing noise areas:", error);
+        setError("Gagal menghapus area berisik");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
