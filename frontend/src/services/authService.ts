@@ -12,9 +12,9 @@ export const register = (formData: FormData) => {
 };
 
 // Fungsi untuk login
-export const login = (username: string, password: string) => {
+export const login = (loginField: string, password: string) => {
     return axios.post(`${API_URL}/auth/login/`, {
-        username,
+        username: loginField, // Backend akan menerima ini sebagai username atau email
         password,
     });
 };
