@@ -14,7 +14,8 @@ import {
   IconButton,
   Slider,
   styled,
-  keyframes
+  keyframes,
+  CircularProgress
 } from '@mui/material';
 import {
   VolumeX,
@@ -119,6 +120,7 @@ const HomePage: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [mapRequestContext, setMapRequestContext] = useState<{ position: [number, number], address: string } | null>(null);
@@ -258,7 +260,9 @@ const HomePage: React.FC = () => {
         setAudioBlob(audioBlob); 
         setAudioUrl(URL.createObjectURL(audioBlob)); 
         stream.getTracks().forEach(track => track.stop()); 
-        streamRef.current = null; 
+        streamRef.current = null;
+        // Auto-process recording after it stops
+        processRecording(audioBlob, format);
       };
       
       mediaRecorder.start(1000); 
@@ -281,20 +285,25 @@ const HomePage: React.FC = () => {
     } 
   };
 
-  const processRecording = async () => {
-    if (!audioBlob) return;
+  const processRecording = async (blob?: Blob, format?: { mimeType: string; extension: string }) => {
+    const audioToProcess = blob || audioBlob;
+    const formatToUse = format || recordingFormat;
+    
+    if (!audioToProcess) return;
+    
+    setIsProcessing(true);
     try {
       let fileToUpload: File;
-      const needsConversion = !['.wav', '.mp3', '.m4a', '.flac', '.ogg', '.aac'].includes(recordingFormat.extension);
-      if (needsConversion || recordingFormat.extension === '.webm') {
+      const needsConversion = !['.wav', '.mp3', '.m4a', '.flac', '.ogg', '.aac'].includes(formatToUse.extension);
+      if (needsConversion || formatToUse.extension === '.webm') {
         try {
-          const wavBlob = await convertToWav(audioBlob);
+          const wavBlob = await convertToWav(audioToProcess);
           fileToUpload = new File([wavBlob], 'recording.wav', { type: 'audio/wav', lastModified: Date.now() });
         } catch (conversionError) {
-          fileToUpload = new File([audioBlob], `recording${recordingFormat.extension}`, { type: audioBlob.type, lastModified: Date.now() });
+          fileToUpload = new File([audioToProcess], `recording${formatToUse.extension}`, { type: audioToProcess.type, lastModified: Date.now() });
         }
       } else {
-        fileToUpload = new File([audioBlob], `recording${recordingFormat.extension}`, { type: audioBlob.type, lastModified: Date.now() });
+        fileToUpload = new File([audioToProcess], `recording${formatToUse.extension}`, { type: audioToProcess.type, lastModified: Date.now() });
       }
       
       const response = await apiService.uploadAudioFile(fileToUpload);
@@ -312,6 +321,8 @@ const HomePage: React.FC = () => {
 
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Upload failed');
+    } finally {
+      setIsProcessing(false);
     }
   };
   
@@ -323,7 +334,8 @@ const HomePage: React.FC = () => {
     setDuration(0); 
     setIsPlaying(false); 
     setResult(null); 
-    setError(null); 
+    setError(null);
+    setIsProcessing(false);
   };
   
   const formatTime = (seconds: number) => {
@@ -450,7 +462,7 @@ const HomePage: React.FC = () => {
 
       <audio ref={audioRef} src={audioUrl ?? ''} style={{ display: 'none' }} />
 
-      {!result && (
+      {!result && !isProcessing && (
         <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="calc(100vh - 160px)">
           
           {!isRecording && !audioBlob && (
@@ -483,74 +495,27 @@ const HomePage: React.FC = () => {
               </MicButton>
             </Box>
           )}
-          
-          {audioBlob && !result && (
-             <Paper sx={{ 
-               width: '100%', 
-               maxWidth: 600, 
-               p: 3, 
-               background: 'rgba(30, 41, 59, 0.5)', 
-               border: '1px solid rgba(255, 255, 255, 0.1)', 
-               borderRadius: '16px', 
-               backdropFilter: 'blur(10px)' 
-             }}>
-                <GradientText variant="h4" gutterBottom>Pratinjau & Analisis</GradientText>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 2 }}>
-                    <IconButton onClick={togglePlayback} sx={{ color: '#a78bfa' }}>
-                      {isPlaying ? <PauseCircle size={32} /> : <Play size={32} />}
-                    </IconButton>
-                    <Slider 
-                      value={currentTime} 
-                      max={duration} 
-                      onChange={(_, v) => {
-                        const newTime = v as number;
-                        if (audioRef.current && isFinite(newTime)) {
-                          audioRef.current.currentTime = newTime;
-                          setCurrentTime(newTime); 
-                        }
-                      }} 
-                      sx={{ 
-                        color: '#a78bfa',
-                        '& .MuiSlider-thumb': { backgroundColor: '#e9d5ff' },
-                        '& .MuiSlider-rail': { opacity: 0.4 }
-                      }} 
-                    />
-                    <Typography sx={{ minWidth: '40px' }}>{formatTime(currentTime)}</Typography>
-                    <IconButton onClick={resetAll} sx={{ color: '#f87171' }}>
-                      <Trash2 />
-                    </IconButton>
-                </Box>
-                <Button 
-                  variant="contained" 
-                  size="large" 
-                  onClick={processRecording} 
-                  sx={{ 
-                    width: '100%', 
-                    borderRadius: '12px', 
-                    px: 4, 
-                    py: 1.5, 
-                    fontWeight: 'bold',
-                    color: '#fff',
-                    backgroundColor: '#3b82f6', 
-                    boxShadow: '0 4px 20px rgba(59, 130, 246, 0.3)',
-                    transition: 'all 0.2s ease-in-out',
-                    '&:hover': {
-                      backgroundColor: '#2563eb',
-                      boxShadow: '0 8px 30px rgba(59, 130, 246, 0.4)',
-                      transform: 'translateY(-2px)'
-                    }
-                  }}
-                >
-                    Jalankan Analisis
-                </Button>
-             </Paper>
-          )}
+        </Box>
+      )}
 
+      {isProcessing && (
+        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="calc(100vh - 160px)">
+          <CircularProgress 
+            size={80} 
+            sx={{ 
+              color: '#a78bfa',
+              mb: 4
+            }} 
+          />
+          <GradientText variant="h4" gutterBottom>Memproses Audio...</GradientText>
+          <Typography variant="h6" color="rgba(255,255,255,0.7)">
+            Sedang menganalisis rekaman suara Anda
+          </Typography>
         </Box>
       )}
 
       {result && result.status === 'success' && (
-        <Box mt={2} width="100%">
+        <Box mt={!isAuthenticated ? 10 : 2} width="100%">
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
             <GradientText variant="h4">Hasil Analisis Audio</GradientText>
             <Box display="flex" gap={2}>
