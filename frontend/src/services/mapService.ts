@@ -1,31 +1,28 @@
 // src/services/mapService.ts
 import { NoiseLocation, SearchResult } from "../types/mapTypes";
 import { PredictionResult } from "./api"; // Import PredictionResult type
+import APIInterceptor from "../utils/apiInterceptor";
 
 // API base URL
 const API_BASE_URL = "http://localhost:8000/api";
 
-// Helper function to get auth token
-const getAuthToken = (): string | null => {
-  return localStorage.getItem("accessToken");
-};
+// Get API interceptor instance
+const apiInterceptor = APIInterceptor.getInstance();
 
 // Helper function to make authenticated API calls
 const apiCall = async (
   url: string,
   options: RequestInit = {}
 ): Promise<Response> => {
-  const token = getAuthToken();
-  const headers = {
-    "Content-Type": "application/json",
-    ...(token && { Authorization: `Bearer ${token}` }),
-    ...options.headers,
-  };
+  return apiInterceptor.fetch(`${API_BASE_URL}${url}`, options);
+};
 
-  return fetch(`${API_BASE_URL}${url}`, {
-    ...options,
-    headers,
-  });
+// Helper function to make public API calls (no auth required)
+const publicApiCall = async (
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> => {
+  return apiInterceptor.fetchPublic(`${API_BASE_URL}${url}`, options);
 };
 
 class MapService {
@@ -63,18 +60,18 @@ class MapService {
   ): Promise<NoiseLocation | null> {
     try {
       const requestData = {
-        latitude: location.coordinates[1],  // coordinates[1] adalah latitude
-        longitude: location.coordinates[0], // coordinates[0] adalah longitude
+        latitude: Number(location.coordinates[1].toFixed(10)), // Bulatkan ke 10 decimal places
+        longitude: Number(location.coordinates[0].toFixed(10)), // Bulatkan ke 10 decimal places
         noise_level: location.noiseLevel,
-        noise_source: location.source,     // Backend mengharapkan 'noise_source'
+        noise_source: location.source, // Backend mengharapkan 'noise_source'
         health_impact: location.healthImpact,
         description: location.description || "",
         address: location.address || "",
         radius: location.radius || 100,
       };
-      
+
       console.log("🔍 Data yang dikirim ke backend:", requestData);
-      
+
       const response = await apiCall("/areas/", {
         method: "POST",
         body: JSON.stringify(requestData),
@@ -97,7 +94,7 @@ class MapService {
             number
           ],
           noiseLevel: apiArea.noise_level,
-          source: apiArea.noise_source,  // Backend mengirim 'noise_source'
+          source: apiArea.noise_source, // Backend mengirim 'noise_source'
           healthImpact: apiArea.health_impact,
           description: apiArea.description,
           address: apiArea.address,
@@ -118,6 +115,7 @@ class MapService {
   // UPDATED: Get all noise locations from API
   async getNoiseLocations(): Promise<NoiseLocation[]> {
     try {
+      // Gunakan apiCall (authenticated) untuk mendapatkan can_delete yang benar
       const response = await apiCall("/areas/");
 
       if (!response.ok) {
@@ -131,7 +129,7 @@ class MapService {
           id: area.id.toString(),
           coordinates: [area.longitude, area.latitude] as [number, number],
           noiseLevel: area.noise_level,
-          source: area.noise_source,  // Backend mengirim 'noise_source'
+          source: area.noise_source, // Backend mengirim 'noise_source'
           healthImpact: area.health_impact,
           description: area.description,
           address: area.address,
@@ -145,6 +143,32 @@ class MapService {
       return [];
     } catch (error) {
       console.error("Error fetching noise locations:", error);
+      // Fallback ke public call jika user belum login
+      try {
+        const response = await publicApiCall("/areas/");
+        if (!response.ok) {
+          throw new Error("Failed to fetch noise areas");
+        }
+        const data = await response.json();
+        if (data.status === "success") {
+          return data.areas.map((area: any) => ({
+            id: area.id.toString(),
+            coordinates: [area.longitude, area.latitude] as [number, number],
+            noiseLevel: area.noise_level,
+            source: area.noise_source,
+            healthImpact: area.health_impact,
+            description: area.description,
+            address: area.address,
+            radius: area.radius,
+            timestamp: new Date(area.created_at),
+            userId: area.user_info?.id,
+            userName: area.user_info?.username,
+            canDelete: false, // Tidak bisa delete jika tidak login
+          }));
+        }
+      } catch (fallbackError) {
+        console.error("Error in fallback fetch:", fallbackError);
+      }
       return [];
     }
   }
@@ -165,7 +189,7 @@ class MapService {
           id: area.id.toString(),
           coordinates: [area.longitude, area.latitude] as [number, number],
           noiseLevel: area.noise_level,
-          source: area.noise_source,  // Backend mengirim 'noise_source'
+          source: area.noise_source, // Backend mengirim 'noise_source'
           healthImpact: area.health_impact,
           description: area.description,
           address: area.address,
@@ -211,13 +235,13 @@ class MapService {
       const updateData: any = {};
 
       if (updates.coordinates) {
-        updateData.latitude = updates.coordinates[1];   // coordinates[1] adalah latitude
-        updateData.longitude = updates.coordinates[0];  // coordinates[0] adalah longitude
+        updateData.latitude = Number(updates.coordinates[1].toFixed(10)); // Bulatkan ke 10 decimal places
+        updateData.longitude = Number(updates.coordinates[0].toFixed(10)); // Bulatkan ke 10 decimal places
       }
       if (updates.noiseLevel !== undefined)
         updateData.noise_level = updates.noiseLevel;
-      if (updates.source !== undefined) 
-        updateData.noise_source = updates.source;       // Backend mengharapkan 'noise_source'
+      if (updates.source !== undefined)
+        updateData.noise_source = updates.source; // Backend mengharapkan 'noise_source'
       if (updates.healthImpact !== undefined)
         updateData.health_impact = updates.healthImpact;
       if (updates.description !== undefined)
@@ -241,7 +265,7 @@ class MapService {
           id: area.id.toString(),
           coordinates: [area.longitude, area.latitude] as [number, number],
           noiseLevel: area.noise_level,
-          source: area.noise_source,  // Backend mengirim 'noise_source'
+          source: area.noise_source, // Backend mengirim 'noise_source'
           healthImpact: area.health_impact,
           description: area.description,
           address: area.address,
