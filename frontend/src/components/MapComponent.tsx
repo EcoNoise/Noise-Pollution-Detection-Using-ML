@@ -252,21 +252,31 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       }
 
       if (position) {
-        const newLocation = await mapService.addNoiseLocation({
-          coordinates: position,
-          noiseLevel: sharedData.analysis.noise_level,
-          source: sharedData.analysis.noise_source,
-          healthImpact: sharedData.analysis.health_impact,
-          description: `Analisis suara otomatis`,
-          address: sharedData.address || "Alamat tidak tersedia",
-          radius: 100,
-        });
+        try {
+          const newLocation = await mapService.addNoiseLocation({
+            coordinates: position,
+            noiseLevel: sharedData.analysis.noise_level,
+            source: sharedData.analysis.noise_source,
+            healthImpact: sharedData.analysis.health_impact,
+            description: `Analisis suara otomatis`,
+            address: sharedData.address || "Alamat tidak tersedia",
+            radius: 100,
+          });
 
-        if (newLocation) {
-          await loadNoiseLocations();
-          zoomToLocation(position, 17);
-        } else {
-          setError("Gagal menyimpan data analisis ke server");
+          if (newLocation) {
+            await loadNoiseLocations();
+            zoomToLocation(position, 17);
+          }
+        } catch (addError: any) {
+          console.error("Error adding noise location:", addError);
+          if (
+            addError.message &&
+            addError.message.includes("Koordinat sudah digunakan")
+          ) {
+            setError(addError.message);
+          } else {
+            setError("Gagal menyimpan data analisis ke server");
+          }
         }
       }
     } catch (err) {
@@ -459,6 +469,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     } catch (err: any) {
       console.error("❌ Error saat analisis:", err);
 
+      // Tangani error koordinat sama
+      if (err.message && err.message.includes("Koordinat sudah digunakan")) {
+        setError(err.message);
+        return;
+      }
+
       // Tampilkan error yang lebih user-friendly
       let userMessage =
         err.message || "Terjadi kesalahan saat memproses file Anda.";
@@ -560,7 +576,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         setError("Gagal memperbarui setelah analisis ulang.");
       }
     } catch (err: any) {
-      setError(err.message || "Terjadi kesalahan saat memproses file.");
+      // Tangani error koordinat sama
+      if (err.message && err.message.includes("Koordinat sudah digunakan")) {
+        setError(err.message);
+      } else {
+        setError(err.message || "Terjadi kesalahan saat memproses file.");
+      }
     } finally {
       setIsUploading(false);
       setLocationToReanalyze(null);

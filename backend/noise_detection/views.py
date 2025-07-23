@@ -4,6 +4,7 @@ Django Views for Noise Detection API
 
 import time
 import logging
+import math
 from datetime import datetime
 
 from django.conf import settings
@@ -23,6 +24,35 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import CustomUser
 from django.http import JsonResponse
+
+
+def check_identical_coordinates(latitude, longitude, exclude_id=None):
+    """
+    Check if there's already a noise area at the exact same coordinates
+    """
+    from .models import NoiseArea
+    
+    # Query untuk area dengan koordinat yang sama persis
+    query = NoiseArea.objects.filter(
+        latitude=latitude,
+        longitude=longitude
+    )
+    
+    # Exclude area yang sedang diupdate (untuk kasus PUT)
+    if exclude_id:
+        query = query.exclude(id=exclude_id)
+    
+    existing_area = query.first()
+    
+    if existing_area:
+        return {
+            'has_identical': True,
+            'existing_area': existing_area,
+            'message': f'Sudah ada area noise di koordinat yang sama persis ({latitude}, {longitude})',
+            'suggestion': 'Pilih koordinat yang berbeda atau edit area yang sudah ada'
+        }
+    
+    return {'has_identical': False}
 
 def audio_predict(request):
     if request.method == "POST":
@@ -547,6 +577,29 @@ class NoiseAreaListCreateView(APIView):
                         "received_data": data
                     }, status=status.HTTP_400_BAD_REQUEST)
             
+            # VALIDASI KOORDINAT IDENTIK
+            latitude = float(data['latitude'])
+            longitude = float(data['longitude'])
+            
+            identical_check = check_identical_coordinates(latitude, longitude)
+            
+            if identical_check['has_identical']:
+                logger.warning(f"⚠️ Koordinat identik terdeteksi: ({latitude}, {longitude})")
+                return Response({
+                    "status": "error",
+                    "error": identical_check['message'],
+                    "details": {
+                        "existing_area": {
+                            'id': identical_check['existing_area'].id,
+                            'latitude': identical_check['existing_area'].latitude,
+                            'longitude': identical_check['existing_area'].longitude,
+                            'noise_level': identical_check['existing_area'].noise_level,
+                            'user': identical_check['existing_area'].user.username if identical_check['existing_area'].user else 'Unknown'
+                        },
+                        "suggestion": identical_check['suggestion']
+                    }
+                }, status=status.HTTP_409_CONFLICT)
+            
             # Tambahkan user ke data jika belum ada
             if not data.get('user'):
                 data['user'] = request.user.id
@@ -623,7 +676,58 @@ class NoiseAreaDetailView(APIView):
                 "error": "Anda tidak memiliki izin untuk mengubah area ini"
             }, status=status.HTTP_403_FORBIDDEN)
 
-        serializer = NoiseAreaSerializer(area, data=request.data, partial=True, context={'request': request})
+        # VALIDASI KOORDINAT IDENTIK jika koordinat diubah
+        data = request.data.copy()
+        
+        # Ambil koordinat yang akan diupdate
+        new_latitude = data.get('latitude', area.latitude)
+        new_longitude = data.get('longitude', area.longitude)
+        
+        # Convert coordinates jika dalam format frontend
+        if 'coordinates' in data:
+            try:
+                coordinates = data.pop('coordinates')
+                new_latitude = coordinates[0]
+                new_longitude = coordinates[1]
+                data['latitude'] = new_latitude
+                data['longitude'] = new_longitude
+            except (IndexError, TypeError):
+                return Response({
+                    "status": "error",
+                    "error": "Invalid coordinates format"
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Cek apakah ada perubahan koordinat
+        coordinates_changed = (
+            float(new_latitude) != float(area.latitude) or 
+            float(new_longitude) != float(area.longitude)
+        )
+        
+        if coordinates_changed:
+            # Validasi koordinat identik, exclude area yang sedang diupdate
+            identical_check = check_identical_coordinates(
+                float(new_latitude), 
+                float(new_longitude), 
+                exclude_id=area.id
+            )
+            
+            if identical_check['has_identical']:
+                return Response({
+                    "status": "error",
+                    "error": identical_check['message'],
+                    "details": {
+                        "existing_area": {
+                            'id': identical_check['existing_area'].id,
+                            'latitude': identical_check['existing_area'].latitude,
+                            'longitude': identical_check['existing_area'].longitude,
+                            'noise_level': identical_check['existing_area'].noise_level,
+                            'user': identical_check['existing_area'].user.username if identical_check['existing_area'].user else 'Unknown'
+                        },
+                        "suggestion": identical_check['suggestion']
+                    }
+                }, status=status.HTTP_409_CONFLICT)
+
+        serializer = NoiseAreaSerializer(area, data=data, partial=True, context={'request': request})
         if serializer.is_valid():
             updated_area = serializer.save()
             return Response({
