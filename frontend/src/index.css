@@ -48,3 +48,28 @@ code {
   }
 }
 @import '~leaflet/dist/leaflet.css';
+
+/* Global CSS to hide Spline watermark */
+spline-viewer spline-watermark,
+spline-viewer [data-spline-watermark],
+spline-viewer div[style*="position: absolute"][style*="bottom"],
+spline-viewer div[style*="position: fixed"][style*="bottom"],
+spline-viewer a[href*="spline.design"],
+spline-viewer div:has(a[href*="spline.design"]),
+a[href*="spline.design"]:has-text("Built with Spline"),
+div:has(a[href*="spline.design"]) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+}
+
+/* Hide any element with Spline branding */
+*[title*="Built with Spline"],
+*[alt*="Built with Spline"],
+*:contains("Built with Spline") {
+  display: none !important;
+}

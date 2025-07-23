@@ -41,10 +41,51 @@ const ModernLandingPage = () => {
     script.async = true;
     document.head.appendChild(script);
     
+    // Function to remove Spline watermark
+    const removeSplineWatermark = () => {
+      // Wait for Spline viewer to load
+      setTimeout(() => {
+        const splineViewer = document.querySelector('spline-viewer');
+        if (splineViewer && splineViewer.shadowRoot) {
+          // Try to find and remove watermark in shadow DOM
+          const shadowRoot = splineViewer.shadowRoot;
+          const watermarkElements = shadowRoot.querySelectorAll('a[href*="spline.design"], div[style*="position: absolute"][style*="bottom"], div[style*="position: fixed"][style*="bottom"]');
+          watermarkElements.forEach(el => {
+            const htmlEl = el as HTMLElement;
+            if (el.textContent?.includes('Built with Spline') || el.getAttribute('href')?.includes('spline.design')) {
+              htmlEl.style.display = 'none';
+              htmlEl.style.visibility = 'hidden';
+              htmlEl.style.opacity = '0';
+              el.remove();
+            }
+          });
+        }
+        
+        // Also check for watermark in regular DOM
+        const regularWatermarks = document.querySelectorAll('a[href*="spline.design"], div[style*="position: absolute"][style*="bottom"]');
+        regularWatermarks.forEach(el => {
+          const htmlEl = el as HTMLElement;
+          if (el.textContent?.includes('Built with Spline') || el.getAttribute('href')?.includes('spline.design')) {
+            htmlEl.style.display = 'none';
+            htmlEl.style.visibility = 'hidden';
+            htmlEl.style.opacity = '0';
+            el.remove();
+          }
+        });
+      }, 2000);
+    };
+
+    // Remove watermark when script loads
+    script.onload = removeSplineWatermark;
+    
+    // Also try to remove watermark periodically
+    const interval = setInterval(removeSplineWatermark, 3000);
+    
     return () => {
       if (document.head.contains(script)) {
         document.head.removeChild(script);
       }
+      clearInterval(interval);
     };
   }, []);
 
@@ -383,6 +424,31 @@ const ModernLandingPage = () => {
         /* Additional CSS to ensure Spline viewer has transparent background */
         .spline-viewer canvas {
           background: transparent !important;
+        }
+
+        /* Hide Spline watermark */
+        .spline-viewer spline-watermark,
+        .spline-viewer [data-spline-watermark],
+        .spline-viewer div[style*="position: absolute"][style*="bottom"],
+        .spline-viewer div[style*="position: fixed"][style*="bottom"],
+        .spline-viewer a[href*="spline.design"],
+        .spline-viewer div:has(a[href*="spline.design"]) {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+
+        /* Alternative approach - hide any bottom-right positioned elements in spline viewer */
+        .spline-viewer > div:last-child {
+          display: none !important;
+        }
+
+        /* Hide any element containing "Built with Spline" text */
+        .spline-viewer *:has-text("Built with Spline"),
+        .spline-viewer *[title*="Built with Spline"],
+        .spline-viewer *[alt*="Built with Spline"] {
+          display: none !important;
         }
         
         .hero-badge {

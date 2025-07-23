@@ -268,7 +268,7 @@ class MapService {
         headers: accessToken ? {
           'Authorization': `Bearer ${accessToken}`
         } : {}
-      }, true);
+      }, false);
 
       if (!response.ok) {
         throw new Error("Failed to fetch noise areas");
