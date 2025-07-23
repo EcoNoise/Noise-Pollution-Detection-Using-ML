@@ -175,29 +175,31 @@ export class DailyAudioService {
    * Hari sebelum hari akses akan dikosongkan
    * Otomatis reset ketika terjadi pergantian minggu
    */
-  static async getWeeklyAudioSummary(): Promise<DailyAudioSummary[]> {
-    // Periksa apakah sudah terjadi pergantian minggu
-    if (this.hasWeekChanged()) {
+  static async getWeeklyAudioSummary(targetDate?: Date): Promise<DailyAudioSummary[]> {
+    const baseDate = targetDate || new Date();
+    
+    // Periksa apakah sudah terjadi pergantian minggu (hanya jika tidak ada targetDate)
+    if (!targetDate && this.hasWeekChanged()) {
       this.resetWeeklyData();
       console.log('🔄 Minggu baru dimulai! Data weekly summary telah direset.');
     }
 
     const summaries: DailyAudioSummary[] = [];
-    const today = new Date();
-    const currentDayOfWeek = today.getDay(); // 0 = Minggu, 1 = Senin, dst.
+    const currentDayOfWeek = baseDate.getDay(); // 0 = Minggu, 1 = Senin, dst.
     
-    // Hitung tanggal Senin minggu ini
+    // Hitung tanggal Senin minggu dari baseDate
     const mondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + mondayOffset);
+    const monday = new Date(baseDate);
+    monday.setDate(baseDate.getDate() + mondayOffset);
     
     // Buat array untuk 7 hari (Senin sampai Minggu)
     for (let i = 0; i < 7; i++) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
       
-      // Jika tanggal lebih dari hari ini, kosongkan data
-      if (date > today) {
+      // Jika targetDate diberikan, tampilkan semua data
+      // Jika tidak ada targetDate, hanya tampilkan data sampai hari ini
+      if (!targetDate && date > new Date()) {
         const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         summaries.push({
           date: date.toDateString(),
