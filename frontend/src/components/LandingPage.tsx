@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 
 interface LandingPageProps {
   isAuthenticated: boolean;
@@ -9,7 +9,7 @@ interface LandingPageProps {
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      'spline-viewer': {
+      "spline-viewer": {
         className?: string;
         url?: string;
         [key: string]: any;
@@ -18,15 +18,18 @@ declare global {
   }
 }
 
-const ModernLandingPage: React.FC<LandingPageProps> = ({ isAuthenticated, onLogout }) => {
+const ModernLandingPage: React.FC<LandingPageProps> = ({
+  isAuthenticated,
+  onLogout,
+}) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const splineRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   // Generate particles for background animation
@@ -41,40 +44,51 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({ isAuthenticated, onLogo
 
   // Load Spline viewer script
   useEffect(() => {
-    const script = document.createElement('script');
-    script.type = 'module';
-    script.src = 'https://unpkg.com/@splinetool/viewer@1.10.27/build/spline-viewer.js';
+    const script = document.createElement("script");
+    script.type = "module";
+    script.src =
+      "https://unpkg.com/@splinetool/viewer@1.10.27/build/spline-viewer.js";
     script.async = true;
     document.head.appendChild(script);
-    
+
     // Function to remove Spline watermark
     const removeSplineWatermark = () => {
       // Wait for Spline viewer to load
       setTimeout(() => {
-        const splineViewer = document.querySelector('spline-viewer');
+        const splineViewer = document.querySelector("spline-viewer");
         if (splineViewer && splineViewer.shadowRoot) {
           // Try to find and remove watermark in shadow DOM
           const shadowRoot = splineViewer.shadowRoot;
-          const watermarkElements = shadowRoot.querySelectorAll('a[href*="spline.design"], div[style*="position: absolute"][style*="bottom"], div[style*="position: fixed"][style*="bottom"]');
-          watermarkElements.forEach(el => {
+          const watermarkElements = shadowRoot.querySelectorAll(
+            'a[href*="spline.design"], div[style*="position: absolute"][style*="bottom"], div[style*="position: fixed"][style*="bottom"]'
+          );
+          watermarkElements.forEach((el) => {
             const htmlEl = el as HTMLElement;
-            if (el.textContent?.includes('Built with Spline') || el.getAttribute('href')?.includes('spline.design')) {
-              htmlEl.style.display = 'none';
-              htmlEl.style.visibility = 'hidden';
-              htmlEl.style.opacity = '0';
+            if (
+              el.textContent?.includes("Built with Spline") ||
+              el.getAttribute("href")?.includes("spline.design")
+            ) {
+              htmlEl.style.display = "none";
+              htmlEl.style.visibility = "hidden";
+              htmlEl.style.opacity = "0";
               el.remove();
             }
           });
         }
-        
+
         // Also check for watermark in regular DOM
-        const regularWatermarks = document.querySelectorAll('a[href*="spline.design"], div[style*="position: absolute"][style*="bottom"]');
-        regularWatermarks.forEach(el => {
+        const regularWatermarks = document.querySelectorAll(
+          'a[href*="spline.design"], div[style*="position: absolute"][style*="bottom"]'
+        );
+        regularWatermarks.forEach((el) => {
           const htmlEl = el as HTMLElement;
-          if (el.textContent?.includes('Built with Spline') || el.getAttribute('href')?.includes('spline.design')) {
-            htmlEl.style.display = 'none';
-            htmlEl.style.visibility = 'hidden';
-            htmlEl.style.opacity = '0';
+          if (
+            el.textContent?.includes("Built with Spline") ||
+            el.getAttribute("href")?.includes("spline.design")
+          ) {
+            htmlEl.style.display = "none";
+            htmlEl.style.visibility = "hidden";
+            htmlEl.style.opacity = "0";
             el.remove();
           }
         });
@@ -83,10 +97,10 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({ isAuthenticated, onLogo
 
     // Remove watermark when script loads
     script.onload = removeSplineWatermark;
-    
+
     // Also try to remove watermark periodically
     const interval = setInterval(removeSplineWatermark, 3000);
-    
+
     return () => {
       if (document.head.contains(script)) {
         document.head.removeChild(script);
@@ -96,7 +110,13 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({ isAuthenticated, onLogo
   }, []);
 
   // Alternative approach using ref for creating spline-viewer
-  const SplineViewer = ({ url, className }: { url: string; className?: string }) => {
+  const SplineViewer = ({
+    url,
+    className,
+  }: {
+    url: string;
+    className?: string;
+  }) => {
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -105,11 +125,11 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({ isAuthenticated, onLogo
 
       // Check if spline-viewer is loaded
       const checkAndCreateSpline = () => {
-        if (customElements.get('spline-viewer')) {
-          const splineViewer = document.createElement('spline-viewer') as any;
-          splineViewer.setAttribute('url', url);
+        if (customElements.get("spline-viewer")) {
+          const splineViewer = document.createElement("spline-viewer") as any;
+          splineViewer.setAttribute("url", url);
           if (className) splineViewer.className = className;
-          container.innerHTML = '';
+          container.innerHTML = "";
           container.appendChild(splineViewer);
         } else {
           // Retry after a short delay
@@ -718,7 +738,7 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({ isAuthenticated, onLogo
           }
         }
       `}</style>
-      
+
       <div className="main-container">
         {/* Particles */}
         <div className="particles-container">
@@ -727,50 +747,60 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({ isAuthenticated, onLogo
               key={particle.id}
               className="particle"
               style={{
-                left: particle.left + '%',
-                top: particle.top + '%',
-                width: particle.size + 'px',
-                height: particle.size + 'px',
-                animationDelay: particle.delay + 's',
-                animationDuration: particle.duration + 's',
+                left: particle.left + "%",
+                top: particle.top + "%",
+                width: particle.size + "px",
+                height: particle.size + "px",
+                animationDelay: particle.delay + "s",
+                animationDuration: particle.duration + "s",
               }}
             />
           ))}
         </div>
-        
+
         {/* Glow orbs */}
         <div className="glow-orb orb-1"></div>
         <div className="glow-orb orb-2"></div>
         <div className="glow-orb orb-3"></div>
-        
+
         {/* Header */}
-        <nav className={`navbar ${scrollY > 50 ? 'scrolled' : ''}`}>
+        <nav className={`navbar ${scrollY > 50 ? "scrolled" : ""}`}>
           <div className="nav-container">
             <a href="/" className="logo">
               <div className="logo-icon">N</div>
               EcoNoise
             </a>
-            
+
             <div className="nav-menu">
               {isAuthenticated ? (
                 <>
-                  <Link to="/home" className="signin-btn">Dashboard</Link>
-                  <button 
-                    onClick={onLogout} 
+                  <Link to="/home" className="signin-btn">
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={onLogout}
                     className="signup-btn"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
                   >
                     Logout
                   </button>
                 </>
               ) : (
                 <>
-                  <Link to="/login" className="signin-btn">Sign In</Link>
-                  <Link to="/register" className="signup-btn">Sign Up</Link>
+                  <Link to="/login" className="signin-btn">
+                    Sign In
+                  </Link>
+                  <Link to="/register" className="signup-btn">
+                    Sign Up
+                  </Link>
                 </>
               )}
-              
-              <button 
+
+              <button
                 className="mobile-menu-btn"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
               >
@@ -779,20 +809,19 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({ isAuthenticated, onLogo
             </div>
           </div>
         </nav>
-        
+
         {/* Hero Section */}
         <section className="hero-section">
           <div className="hero-wrapper">
             <div className="hero-content">
-              <h1 className="hero-title">
-                Sistem Deteksi Polusi Suara Cerdas
-              </h1>
-              
+              <h1 className="hero-title">Sistem Deteksi Polusi Suara Cerdas</h1>
+
               <p className="hero-subtitle">
-                Pantau dan analisis tingkat kebisingan lingkungan dengan teknologi AI terdepan. 
-                Dapatkan insight real-time dan lindungi komunitas Anda dari polusi suara berbahaya.
+                Pantau dan analisis tingkat kebisingan lingkungan dengan
+                teknologi AI terdepan. Dapatkan insight real-time dan lindungi
+                komunitas Anda dari polusi suara berbahaya.
               </p>
-              
+
               <div className="cta-buttons">
                 <a href="/home" className="btn-primary">
                   Mulai Monitoring
@@ -801,7 +830,7 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({ isAuthenticated, onLogo
                   Lihat Demo
                 </a>
               </div>
-              
+
               <div className="stats-grid">
                 <div className="stat-item">
                   <div className="stat-number">99.5%</div>
@@ -817,11 +846,11 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({ isAuthenticated, onLogo
                 </div>
               </div>
             </div>
-            
+
             <div className="hero-visual">
               <div className="spline-container">
                 {/* Method 1: Using declared JSX element */}
-                <spline-viewer 
+                <spline-viewer
                   className="spline-viewer"
                   url="https://prod.spline.design/RC9dCHF5tPWXvzup/scene.splinecode"
                 />
