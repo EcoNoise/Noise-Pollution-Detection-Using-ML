@@ -33,7 +33,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'photo')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'photo','date_joined', 'last_login', 'is_active')
 
     def to_representation(self, instance):
         """Ubah representasi untuk menyertakan URL foto."""
