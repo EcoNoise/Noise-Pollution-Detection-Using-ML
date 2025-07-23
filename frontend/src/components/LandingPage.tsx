@@ -280,12 +280,13 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
         .logo {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
+          gap: 0.5rem;
           color: #60a5fa;
           font-size: 1.5rem;
           font-weight: 800;
           text-decoration: none;
           transition: all 0.3s ease;
+          transform: translateX(-25px);
         }
         
         .logo:hover {
@@ -294,19 +295,32 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
         }
         
         .logo-icon {
-          width: 80px;
-          height: 80px;
+          width: 60px;
+          height: 60px;
           display: flex;
           align-items: center;
           justify-content: center;
           transition: all 0.3s ease;
+          flex-shrink: 0; 
+        }
+
+        .logo-svg {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: center;
+          filter: drop-shadow(0 4px 15px rgba(59, 130, 246, 0.3));
+          transition: all 0.3s ease;
         }
         
-        .logo:hover .logo-icon {
-          transform: rotate(5deg);
-          box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        .logo:hover .logo-svg {
+          transform: rotate(5deg) scale(1.1);
+          filter: drop-shadow(0 6px 20px rgba(59, 130, 246, 0.4));
         }
-        
+        .logo-text {
+        line-height: 1; /* Pastikan line-height konsisten */
+        vertical-align: middle; /* Untuk alignment yang lebih baik */
+      }
         .nav-menu {
           display: flex;
           align-items: center;
@@ -660,6 +674,15 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
         }
         
         @media (max-width: 768px) {
+          .logo {
+            font-size: 1.4rem; /* Sedikit lebih kecil di mobile */
+            gap: 0.5rem;
+          }
+          
+          .logo-icon {
+            width: 50px; /* Sesuaikan ukuran untuk mobile */
+            height: 50px;
+          }
           .nav-links {
             position: fixed;
             top: 100%;
@@ -761,7 +784,13 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
         <nav className={`navbar ${scrollY > 50 ? "scrolled" : ""}`}>
           <div className="nav-container">
             <a href="/" className="logo">
-              <div className="logo-icon">N</div>
+              <div className="logo-icon">
+                <img 
+                  src="/logo.svg" 
+                  alt="EcoNoise Logo" 
+                  className="logo-svg"
+                />
+              </div>
               EcoNoise
             </a>
             <div className="nav-menu">
