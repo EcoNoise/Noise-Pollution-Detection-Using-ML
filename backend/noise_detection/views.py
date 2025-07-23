@@ -369,6 +369,7 @@ class LoginView(APIView):
 
     def post(self, request):
         from django.contrib.auth import authenticate
+        from django.utils import timezone
 
         # Terima field 'username' atau 'loginField' dari frontend
         login_field = request.data.get("username") or request.data.get("loginField")
@@ -384,6 +385,10 @@ class LoginView(APIView):
         user = authenticate(username=login_field, password=password)
 
         if user:
+            # Update last_login secara manual
+            user.last_login = timezone.now()
+            user.save(update_fields=['last_login'])
+            
             refresh = RefreshToken.for_user(user)
             return Response({
                 "status": "success",
