@@ -1,5 +1,7 @@
 // src/components/MapComponent.tsx
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import PopupNotification from './PopupNotification';
+import { usePopup } from '../hooks/usePopup';
 import {
   MapContainer,
   TileLayer,
@@ -129,6 +131,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const navigate = useNavigate(); // NEW: Hook for navigation
   const [noiseLocations, setNoiseLocations] = useState<NoiseLocation[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const { popupState, hidePopup, showSuccess, showError, showWarning, showConfirm } = usePopup();
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isAddingNoise, setIsAddingNoise] = useState<boolean>(false);
@@ -346,8 +349,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const handleAddNoiseArea = () => {
     const isAuthenticated = !!localStorage.getItem("accessToken");
     if (!isAuthenticated) {
-      alert("Anda harus login untuk dapat menambahkan area analisis di peta.");
-      navigate("/login");
+      showWarning(
+        "Login Diperlukan", 
+        "Anda harus login untuk dapat menambahkan area analisis di peta.",
+        () => navigate("/login")
+      );
       return;
     }
 
@@ -420,8 +426,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         setIsAddingNoise(false);
         
         // Tampilkan notifikasi sukses
-        alert(`✅ Analisis berhasil!\n\nTingkat Kebisingan: ${newLocation.noiseLevel}\nSumber: ${newLocation.source}\nDampak Kesehatan: ${newLocation.healthImpact}`);
-        
+        showSuccess("Analisis Berhasil!",`Tingkat Kebisingan: ${newLocation.noiseLevel}\nSumber: ${newLocation.source}\nDampak Kesehatan: ${newLocation.healthImpact}`);
+
       } else {
         setError("Gagal membuat area kebisingan baru setelah analisis.");
       }
@@ -506,7 +512,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
       if (updatedLocation) {
         await loadNoiseLocations(); // Muat ulang data peta agar update
-        alert("Analisis ulang berhasil!");
+        showSuccess("Berhasil!", "Analisis ulang berhasil!");
       } else {
         setError("Gagal memperbarui setelah analisis ulang.");
       }
@@ -561,26 +567,30 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   };
 
   const handleClearAreas = async () => {
-    if (
-      window.confirm(
-        "Apakah Anda yakin ingin menghapus semua area berisik milik Anda?"
-      )
-    ) {
-      try {
-        setLoading(true);
-        const success = await mapService.clearAllNoiseLocations();
-        if (success) {
-          await loadNoiseLocations(); // Reload data after successful clearing
-        } else {
-          setError("Gagal menghapus area berisik");
+    showConfirm(
+      "Hapus Semua Area",
+      "Apakah Anda yakin ingin menghapus semua area berisik milik Anda?",
+      async () => {
+        try {
+          setLoading(true);
+          const success = await mapService.clearAllNoiseLocations();
+          if (success) {
+            await loadNoiseLocations();
+            showSuccess("Berhasil!", "Semua area berisik telah dihapus.");
+          } else {
+            showError("Gagal", "Gagal menghapus area berisik");
+          }
+        } catch (error) {
+          console.error("Error clearing noise areas:", error);
+          showError("Error", "Gagal menghapus area berisik");
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        console.error("Error clearing noise areas:", error);
-        setError("Gagal menghapus area berisik");
-      } finally {
-        setLoading(false);
-      }
-    }
+      },
+      undefined, // onCancel - default behavior
+      "Ya, Hapus",
+      "Batal"
+    );
   };
 
   // ENHANCED: Improved search result click handler
@@ -1000,6 +1010,17 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           />
         )}
       </MapContainer>
+      <PopupNotification 
+        isVisible={popupState.isVisible} 
+        title={popupState.config?.title || ''} 
+        message={popupState.config?.message || ''} 
+        type={popupState.config?.type || 'info'} 
+        onConfirm={popupState.onConfirm} 
+        onCancel={popupState.onCancel} 
+        onClose={hidePopup} 
+        confirmText={popupState.config?.confirmText} 
+        cancelText={popupState.config?.cancelText} 
+      />
     </div>
   );
 };

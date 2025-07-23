@@ -1,0 +1,227 @@
+/* src/styles/PopupNotification.module.css */
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.popup {
+  background: white;
+  border-radius: 12px;
+  min-width: 300px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease-out;
+  overflow: hidden;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  padding: 20px 20px 15px 20px;
+  border-bottom: 1px solid #e5e5e5;
+  position: relative;
+}
+
+.icon {
+  font-size: 24px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #f8f9fa;
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.closeButton {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.closeButton:hover {
+  background-color: #f5f5f5;
+  color: #666;
+}
+
+.content {
+  padding: 15px 20px 20px 20px;
+}
+
+.message {
+  margin: 0;
+  line-height: 1.5;
+  color: #555;
+  font-size: 16px;
+  white-space: pre-line; /* Memungkinkan line breaks */
+}
+
+.actions {
+  padding: 15px 20px 20px 20px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+
+.primaryButton {
+  background-color: #007AFF;
+  color: white;
+}
+
+.primaryButton:hover {
+  background-color: #0056CC;
+}
+
+.confirmButton {
+  background-color: #28a745;
+  color: white;
+}
+
+.confirmButton:hover {
+  background-color: #218838;
+}
+
+.cancelButton {
+  background-color: #6c757d;
+  color: white;
+}
+
+.cancelButton:hover {
+  background-color: #5a6268;
+}
+
+/* Type-specific styling */
+.success .icon {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.error .icon {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.warning .icon {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.info .icon {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.confirm .icon {
+  background-color: #e2e6ea;
+  color: #495057;
+}
+
+/* Border colors for different types */
+.success {
+  border-top: 4px solid #28a745;
+}
+
+.error {
+  border-top: 4px solid #dc3545;
+}
+
+.warning {
+  border-top: 4px solid #ffc107;
+}
+
+.info {
+  border-top: 4px solid #17a2b8;
+}
+
+.confirm {
+  border-top: 4px solid #6c757d;
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .popup {
+    margin: 20px;
+    width: calc(100% - 40px);
+  }
+  
+  .header {
+    padding: 15px;
+  }
+  
+  .content {
+    padding: 10px 15px 15px 15px;
+  }
+  
+  .actions {
+    padding: 10px 15px 15px 15px;
+    flex-direction: column;
+  }
+  
+  .button {
+    width: 100%;
+  }
+}
