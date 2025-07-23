@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Camera, Edit3, Shield, Loader } from "lucide-react";
+import { Camera, Edit3, Shield, Loader, Volume2, TrendingUp, Calendar, AlertTriangle, CheckCircle } from "lucide-react";
 import { getUserProfile, updateUserProfile } from "../services/profileService";
+import { DailyAudioService, DailyAudioSummary } from "../services/dailyAudioService";
 import HealthDashboard from "./HealthDashboard";
 
 // Interface ini mendefinisikan struktur data profil dari backend
@@ -17,6 +18,10 @@ const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Daily Audio Summary State
+  const [dailySummary, setDailySummary] = useState<DailyAudioSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
 
   // State untuk data yang akan di-edit
   const [editData, setEditData] = useState<Partial<UserProfile>>({});
@@ -41,6 +46,21 @@ const ProfilePage: React.FC = () => {
       }
     };
     fetchProfile();
+  }, []);
+
+  useEffect(() => {
+    const fetchDailySummary = async () => {
+      try {
+        setSummaryLoading(true);
+        const summary = await DailyAudioService.getTodayAudioSummary();
+        setDailySummary(summary);
+      } catch (err: any) {
+        console.error('Error fetching daily summary:', err);
+      } finally {
+        setSummaryLoading(false);
+      }
+    };
+    fetchDailySummary();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -228,6 +248,84 @@ const ProfilePage: React.FC = () => {
                   "Simpan Perubahan"
                 )}
               </button>
+            </div>
+          )}
+        </div>
+
+        {/* Daily Audio Summary Section */}
+        <div className="mt-8 bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-700">
+          <div className="flex items-center gap-3 mb-6">
+            <Volume2 className="text-blue-400" size={24} />
+            <h2 className="text-2xl font-bold text-white">Laporan Hari Ini</h2>
+            <Calendar className="text-slate-400" size={20} />
+          </div>
+
+          {summaryLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader className="animate-spin text-blue-500" size={32} />
+              <span className="ml-3 text-slate-300">Memuat data analisis...</span>
+            </div>
+          ) : dailySummary ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Total Analisis */}
+              <div className="bg-slate-700 rounded-xl p-6 border border-slate-600">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-slate-200">Total Analisis</h3>
+                  <TrendingUp className="text-blue-400" size={20} />
+                </div>
+                <p className="text-3xl font-bold text-white">{dailySummary.totalAnalysis}</p>
+                <p className="text-sm text-slate-400 mt-1">kali penggunaan mic</p>
+              </div>
+
+              {/* Rata-rata dB */}
+              <div className="bg-slate-700 rounded-xl p-6 border border-slate-600">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-slate-200">Rata-rata Suara</h3>
+                  <Volume2 className={`${
+                    dailySummary.riskLevel === 'safe' ? 'text-green-400' :
+                    dailySummary.riskLevel === 'moderate' ? 'text-yellow-400' : 'text-red-400'
+                  }`} size={20} />
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-3xl font-bold text-white">{dailySummary.averageNoiseLevel}</p>
+                  <span className="text-lg text-slate-300">dB</span>
+                </div>
+                {dailySummary.noiseReadings.length > 0 && (
+                  <p className="text-sm text-slate-400 mt-1">
+                    dari {dailySummary.noiseReadings.join(', ')} dB
+                  </p>
+                )}
+              </div>
+
+              {/* Rekomendasi */}
+              <div className="bg-slate-700 rounded-xl p-6 border border-slate-600 md:col-span-2 lg:col-span-1">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-slate-200">Status</h3>
+                  {dailySummary.riskLevel === 'safe' ? (
+                    <CheckCircle className="text-green-400" size={20} />
+                  ) : (
+                    <AlertTriangle className={`${
+                      dailySummary.riskLevel === 'moderate' ? 'text-yellow-400' : 'text-red-400'
+                    }`} size={20} />
+                  )}
+                </div>
+                <div className={`inline-flex px-3 py-1 rounded-full text-sm font-medium mb-3 ${
+                  dailySummary.riskLevel === 'safe' ? 'bg-green-900 text-green-300' :
+                  dailySummary.riskLevel === 'moderate' ? 'bg-yellow-900 text-yellow-300' : 'bg-red-900 text-red-300'
+                }`}>
+                  {dailySummary.riskLevel === 'safe' ? 'Aman' :
+                   dailySummary.riskLevel === 'moderate' ? 'Perhatian' : 'Bahaya'}
+                </div>
+                <p className="text-sm text-slate-300 leading-relaxed">
+                  {dailySummary.recommendation}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Volume2 className="mx-auto text-slate-500 mb-4" size={48} />
+              <p className="text-slate-400 text-lg">Belum ada data analisis hari ini</p>
+              <p className="text-slate-500 text-sm mt-2">Mulai analisis suara untuk melihat laporan harian</p>
             </div>
           )}
         </div>
