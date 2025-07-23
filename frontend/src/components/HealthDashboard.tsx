@@ -25,11 +25,9 @@ const HealthDashboard: React.FC = () => {
   const [showAddLog, setShowAddLog] = useState(false);
   const [weeklySummary, setWeeklySummary] = useState<DailyAudioSummary[]>([]);
 
-  // Add log form state (simplified)
+  // Histori form state (hanya tanggal)
   const [logForm, setLogForm] = useState({
     date: new Date().toISOString().split("T")[0],
-    commute_hours: 8,
-    commute_avg_noise: 60,
   });
 
   useEffect(() => {
@@ -62,7 +60,8 @@ const HealthDashboard: React.FC = () => {
   const handleAddLogSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createExposureLog(logForm);
+      // Hanya menggunakan tanggal untuk melihat histori
+      const selectedDate = logForm.date;
       setShowAddLog(false);
       fetchDashboardData();
     } catch (err: any) {
@@ -106,7 +105,7 @@ const HealthDashboard: React.FC = () => {
             onClick={() => setShowAddLog(true)}
             className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors text-white"
           >
-            + Tambah Log
+            Histori
           </button>
           <button
             onClick={() => setShowSettings(true)}
@@ -136,7 +135,7 @@ const HealthDashboard: React.FC = () => {
           </p>
           <div className="mt-4 text-sm text-blue-400">
             <p>
-              👆 Gunakan tombol "Pengaturan" dan "Tambah Log" di atas untuk
+              👆 Gunakan tombol "Pengaturan" dan "Histori" di atas untuk
               memulai
             </p>
           </div>
@@ -421,12 +420,12 @@ const HealthDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Add Log Modal */}
+      {/* Histori Modal */}
       {showAddLog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 rounded-lg p-6 w-full max-w-md border border-slate-700">
             <h3 className="text-lg font-semibold text-white mb-4">
-              Tambah Log Paparan
+              Histori
             </h3>
             <form onSubmit={handleAddLogSubmit} className="space-y-4">
               <div>
@@ -442,46 +441,29 @@ const HealthDashboard: React.FC = () => {
                   className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white"
                 />
               </div>
-              <div className="grid grid-cols-1 gap-2">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Jam Paparan Total
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="24"
-                    step="0.1"
-                    value={logForm.commute_hours}
-                    onChange={(e) =>
-                      setLogForm({
-                        ...logForm,
-                        commute_hours: parseFloat(e.target.value),
-                      })
-                    }
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-2">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Rata-rata Noise (dB)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="120"
-                    value={logForm.commute_avg_noise}
-                    onChange={(e) =>
-                      setLogForm({
-                        ...logForm,
-                        commute_avg_noise: parseFloat(e.target.value),
-                      })
-                    }
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white"
-                  />
-                </div>
+              <div className="text-sm text-slate-400 mt-2">
+                {(() => {
+                  const date = new Date(logForm.date);
+                  const weekNumber = Math.ceil((date.getDate() + new Date(date.getFullYear(), date.getMonth(), 1).getDay()) / 7);
+                  
+                  // Mendapatkan tanggal awal dan akhir minggu
+                  const dayOfWeek = date.getDay();
+                  const startDate = new Date(date);
+                  startDate.setDate(date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)); // Senin
+                  const endDate = new Date(startDate);
+                  endDate.setDate(startDate.getDate() + 6); // Minggu
+                  
+                  // Format tanggal
+                  const formatDate = (d: Date) => {
+                    return d.getDate() + ' ' + d.toLocaleString('id-ID', { month: 'long' }) + ' ' + d.getFullYear();
+                  };
+                  
+                  return (
+                    <div>
+                      <p>Grafik untuk Minggu ke-{weekNumber} ({startDate.getDate()}–{endDate.getDate()} {endDate.toLocaleString('id-ID', { month: 'long' })} {endDate.getFullYear()})</p>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="flex gap-2 pt-4">
                 <button
