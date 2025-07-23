@@ -33,6 +33,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             
             localStorage.setItem('accessToken', response.data.access);
             localStorage.setItem('refreshToken', response.data.refresh);
+            localStorage.setItem('userId', response.data.user_id);
             
             onLoginSuccess();
             navigate('/home'); 

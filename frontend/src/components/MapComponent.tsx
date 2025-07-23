@@ -1,5 +1,5 @@
 // src/components/MapComponent.tsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -16,6 +16,7 @@ import { mapService } from "../services/mapService";
 import { generateNoiseArea } from "../utils/mapUtils";
 import MapControls from "./MapControls";
 import MapPopup from "./MapPopup";
+import AreaFilter, { AreaFilters } from "./AreaFilter";
 import styles from "../styles/MapComponent.module.css";
 
 import "leaflet/dist/leaflet.css";
@@ -133,6 +134,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [isAddingNoise, setIsAddingNoise] = useState<boolean>(false);
   const [showNoiseForm, setShowNoiseForm] = useState<boolean>(false);
   const [showLegend, setShowLegend] = useState<boolean>(true);
+  const [showFilter, setShowFilter] = useState<boolean>(false);
   const [formDescription, setFormDescription] = useState<string>(""); // State untuk deskripsi
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
@@ -157,7 +159,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-
+  const [activeFilters, setActiveFilters] = useState<AreaFilters>({});
   const mapRef = useRef<LeafletMap | null>(null);
   const reanalysisFileInputRef = useRef<HTMLInputElement | null>(null);
   const [locationToReanalyze, setLocationToReanalyze] = useState<NoiseLocation | null>(null);
@@ -517,9 +519,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       } else {
         setError("Gagal menghapus area berisik");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting noise location:", error);
-      setError("Gagal menghapus area berisik");
+      // Tampilkan pesan error dari server jika ada
+      setError(error.message || "Gagal menghapus area berisik");
     } finally {
       setLoading(false);
     }
@@ -622,6 +625,32 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     });
     return null;
   };
+  const filteredNoiseLocations = useMemo(() => {
+    const { noiseLevel, source, healthImpact } = activeFilters;
+
+    if (!noiseLevel?.length && !source?.length && !healthImpact?.length) {
+      return noiseLocations;
+    }
+
+    // Fungsi helper untuk konversi noise level
+    const getNoiseLevelCategory = (level: number): string => {
+      if (level <= 40) return 'Tenang';
+      if (level <= 60) return 'Sedang';
+      if (level <= 80) return 'Berisik';
+      return 'Sangat Berisik';
+    };
+
+    return noiseLocations.filter((location) => {
+      const locationNoiseLevelCategory = getNoiseLevelCategory(location.noiseLevel);
+      const noiseLevelMatch =
+        !noiseLevel?.length || noiseLevel.includes(locationNoiseLevelCategory);
+      const sourceMatch =
+        !source?.length || source.includes(location.source);
+      const healthImpactMatch =
+        !healthImpact?.length || healthImpact.includes(location.healthImpact);
+      return noiseLevelMatch && sourceMatch && healthImpactMatch;
+    });
+  }, [noiseLocations, activeFilters]);
 
   return (
     <div className={`${styles.mapContainer} ${className || ""}`}>
@@ -682,13 +711,23 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         onLocateUser={handleLocateUser}
         onClearAreas={handleClearAreas}
         onToggleLegend={() => setShowLegend(!showLegend)}
+        onToggleFilter={() => setShowFilter(!showFilter)}
         onToggleTracking={() => setIsTrackingUser(!isTrackingUser)}
         isAddingNoise={isAddingNoise}
         showLegend={showLegend}
+        showFilter={showFilter}
         isTrackingUser={isTrackingUser}
         hasUserLocation={userLocation !== null}
       />
+      {showFilter && (
+        <AreaFilter
+          activeFilters={activeFilters}
+          onFilterChange={setActiveFilters}
+          noiseLocations={noiseLocations}
+        />
+      )}
 
+      {/* BARU: User location marker */}
       {/* UPDATED: Noise Panel is now the form for the new flow */}
       {showNoiseForm && selectedPosition && (
         <div className={styles.noisePanel}>
@@ -836,7 +875,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         <MapEvents />
 
         {/* Noise Areas as Circles */}
-        {noiseLocations.map((location) => {
+        {filteredNoiseLocations.map((location) => {
           const area = generateNoiseArea(location);
           return (
             <Circle
@@ -854,6 +893,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                 <MapPopup
                   location={location}
                   onDelete={handleDeleteNoiseLocation}
+                  onReanalyze={handleStartReanalysis}
+                  currentUserId={localStorage.getItem('userId')}
                 />
               </Popup>
             </Circle>

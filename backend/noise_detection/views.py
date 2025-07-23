@@ -388,6 +388,7 @@ class LoginView(APIView):
             return Response({
                 "status": "success",
                 "message": "Login berhasil.",
+                "user_id": str(user.id),
                 "refresh": str(refresh),
                 "access": str(refresh.access_token),
             })

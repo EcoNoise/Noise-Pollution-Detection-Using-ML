@@ -8,14 +8,18 @@ interface MapPopupProps {
   location: NoiseLocation;
   onDelete?: (id: string) => void;
   onReanalyze?: (location: NoiseLocation) => void; // Mengganti onEdit dengan onReanalyze
+  currentUserId?: string | null;
 }
 
-const MapPopup: React.FC<MapPopupProps> = ({ location, onDelete, onReanalyze }) => {
+const MapPopup: React.FC<MapPopupProps> = ({ location, onDelete, onReanalyze, currentUserId }) => {
   const handleDelete = () => {
     if (onDelete && window.confirm("Apakah Anda yakin ingin menghapus area ini?")) {
       onDelete(location.id);
     }
   };
+
+  // Gunakan canDelete dari server sebagai penanda utama, dan userId sebagai backup
+  const isOwner = location.canDelete || (currentUserId && location.userId === currentUserId);
 
   const handleReanalyze = () => {
     if (onReanalyze) {
@@ -69,15 +73,15 @@ const MapPopup: React.FC<MapPopupProps> = ({ location, onDelete, onReanalyze }) 
         </div>
 
         <div className={styles.popupActions}>
-          {onReanalyze && location.canDelete && (
+          {onReanalyze && isOwner && (
             <button
-              className={`${styles.popupButton} ${styles.editButton}`} // Menggunakan style tombol edit
+              className={`${styles.popupButton} ${styles.editButton}`}
               onClick={handleReanalyze}
             >
               Analisis Ulang
             </button>
           )}
-          {onDelete && location.canDelete && (
+          {onDelete && isOwner && (
             <button
               className={`${styles.popupButton} ${styles.deleteButton}`}
               onClick={handleDelete}
@@ -87,7 +91,7 @@ const MapPopup: React.FC<MapPopupProps> = ({ location, onDelete, onReanalyze }) 
           )}
         </div>
 
-        {!location.canDelete && (onDelete || onReanalyze) && (
+        {!isOwner && (onDelete || onReanalyze) && (
           <div className={styles.popupNote}>
             <small>Hanya pemilik yang dapat mengubah data ini.</small>
           </div>
