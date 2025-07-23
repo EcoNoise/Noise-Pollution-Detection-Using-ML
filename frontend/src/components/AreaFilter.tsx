@@ -28,18 +28,29 @@ const AreaFilter: React.FC<AreaFilterProps> = ({
     return 'Sangat Berisik';
   };
 
-  // Dapatkan unique values dari data aktual
-  const uniqueNoiseLevels = Array.from(
-    new Set(noiseLocations.map(location => getNoiseLevelCategory(location.noiseLevel)))
-  );
+  // Default values untuk setiap kategori filter - SELALU DITAMPILKAN
+  const defaultNoiseLevels = ['Tenang', 'Sedang', 'Berisik', 'Sangat Berisik'];
+  const defaultSources = ['street_music', 'construction', 'traffic', 'human_activities', 'other'];
+  const defaultHealthImpacts = ['Mild', 'Moderate', 'Severe'];
+
+  // Gabungkan default values dengan unique values dari data (jika ada)
+  // Tetapi pastikan default values selalu ada
+  const dataBasedNoiseLevels = noiseLocations.length > 0 
+    ? Array.from(new Set(noiseLocations.map(location => getNoiseLevelCategory(location.noiseLevel))))
+    : [];
   
-  const uniqueSources = Array.from(
-    new Set(noiseLocations.map(location => location.source))
-  );
+  const dataBasedSources = noiseLocations.length > 0
+    ? Array.from(new Set(noiseLocations.map(location => location.source)))
+    : [];
   
-  const uniqueHealthImpacts = Array.from(
-    new Set(noiseLocations.map(location => location.healthImpact))
-  );
+  const dataBasedHealthImpacts = noiseLocations.length > 0
+    ? Array.from(new Set(noiseLocations.map(location => location.healthImpact)))
+    : [];
+
+  // Gabungkan dan hilangkan duplikasi, prioritaskan urutan default
+  const uniqueNoiseLevels = Array.from(new Set([...defaultNoiseLevels, ...dataBasedNoiseLevels]));
+  const uniqueSources = Array.from(new Set([...defaultSources, ...dataBasedSources]));
+  const uniqueHealthImpacts = Array.from(new Set([...defaultHealthImpacts, ...dataBasedHealthImpacts]));
 
   const handleFilterChange = (category: keyof AreaFilters, value: string) => {
     const currentFilters = { ...activeFilters };
@@ -79,59 +90,53 @@ const AreaFilter: React.FC<AreaFilterProps> = ({
 
   return (
     <div className={styles.filterContainer}>
-      {uniqueNoiseLevels.length > 0 && (
-        <div className={styles.filterSection}>
-          <h3>Level Kebisingan</h3>
-          <div className={styles.filterOptions}>
-            {uniqueNoiseLevels.map((level) => (
-              <label key={level} className={styles.filterOption}>
-                <input
-                  type="checkbox"
-                  checked={activeFilters.noiseLevel?.includes(level) || false}
-                  onChange={() => handleFilterChange('noiseLevel', level)}
-                />
-                {level}
-              </label>
-            ))}
-          </div>
+      <div className={styles.filterSection}>
+        <h3>Level Kebisingan</h3>
+        <div className={styles.filterOptions}>
+          {uniqueNoiseLevels.map((level) => (
+            <label key={level} className={styles.filterOption}>
+              <input
+                type="checkbox"
+                checked={activeFilters.noiseLevel?.includes(level) || false}
+                onChange={() => handleFilterChange('noiseLevel', level)}
+              />
+              {level}
+            </label>
+          ))}
         </div>
-      )}
+      </div>
 
-      {uniqueSources.length > 0 && (
-        <div className={styles.filterSection}>
-          <h3>Sumber Kebisingan</h3>
-          <div className={styles.filterOptions}>
-            {uniqueSources.map((source) => (
-              <label key={source} className={styles.filterOption}>
-                <input
-                  type="checkbox"
-                  checked={activeFilters.source?.includes(source) || false}
-                  onChange={() => handleFilterChange('source', source)}
-                />
-                {translateSource(source)}
-              </label>
-            ))}
-          </div>
+      <div className={styles.filterSection}>
+        <h3>Sumber Kebisingan</h3>
+        <div className={styles.filterOptions}>
+          {uniqueSources.map((source) => (
+            <label key={source} className={styles.filterOption}>
+              <input
+                type="checkbox"
+                checked={activeFilters.source?.includes(source) || false}
+                onChange={() => handleFilterChange('source', source)}
+              />
+              {translateSource(source)}
+            </label>
+          ))}
         </div>
-      )}
+      </div>
 
-      {uniqueHealthImpacts.length > 0 && (
-        <div className={styles.filterSection}>
-          <h3>Dampak Kesehatan</h3>
-          <div className={styles.filterOptions}>
-            {uniqueHealthImpacts.map((impact) => (
-              <label key={impact} className={styles.filterOption}>
-                <input
-                  type="checkbox"
-                  checked={activeFilters.healthImpact?.includes(impact) || false}
-                  onChange={() => handleFilterChange('healthImpact', impact)}
-                />
-                {translateHealthImpact(impact)}
-              </label>
-            ))}
-          </div>
+      <div className={styles.filterSection}>
+        <h3>Dampak Kesehatan</h3>
+        <div className={styles.filterOptions}>
+          {uniqueHealthImpacts.map((impact) => (
+            <label key={impact} className={styles.filterOption}>
+              <input
+                type="checkbox"
+                checked={activeFilters.healthImpact?.includes(impact) || false}
+                onChange={() => handleFilterChange('healthImpact', impact)}
+              />
+              {translateHealthImpact(impact)}
+            </label>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 };
