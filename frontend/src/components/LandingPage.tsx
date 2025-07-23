@@ -274,23 +274,25 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({ isAuthenticated, onLogo
         }
         
         .logo-icon {
-          width: 40px;
-          height: 40px;
-          background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
-          border-radius: 10px;
+          width: 80px;
+          height: 80px;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: white;
-          font-weight: 700;
-          font-size: 1.2rem;
-          box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+          transition: all 0.3s ease;
+        }
+
+        .logo-svg {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          filter: drop-shadow(0 4px 15px rgba(59, 130, 246, 0.3));
           transition: all 0.3s ease;
         }
         
-        .logo:hover .logo-icon {
-          transform: rotate(5deg);
-          box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        .logo:hover .logo-svg {
+          transform: rotate(5deg) scale(1.1);
+          filter: drop-shadow(0 6px 20px rgba(59, 130, 246, 0.4));
         }
         
         .nav-menu {
@@ -746,10 +748,16 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({ isAuthenticated, onLogo
         {/* Header */}
         <nav className={`navbar ${scrollY > 50 ? 'scrolled' : ''}`}>
           <div className="nav-container">
-            <a href="/" className="logo">
-              <div className="logo-icon">N</div>
-              EcoNoise
-            </a>
+          <a href="/" className="logo">
+            <div className="logo-icon">
+              <img 
+                src="/logo.svg" 
+                alt="EcoNoise Logo" 
+                className="logo-svg"
+              />
+            </div>
+            EcoNoise
+          </a>
             
             <div className="nav-menu">
               {isAuthenticated ? (
