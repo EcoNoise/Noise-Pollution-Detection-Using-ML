@@ -24,6 +24,7 @@ const HealthDashboard: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showAddLog, setShowAddLog] = useState(false);
   const [weeklySummary, setWeeklySummary] = useState<DailyAudioSummary[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   // Histori form state (hanya tanggal)
   const [logForm, setLogForm] = useState({
@@ -39,12 +40,26 @@ const HealthDashboard: React.FC = () => {
       setLoading(true);
       const [dashboardData, weeklyData] = await Promise.all([
         getHealthDashboard(),
-        DailyAudioService.getWeeklyAudioSummary()
+        DailyAudioService.getWeeklyAudioSummary(selectedDate)
       ]);
       setDashboard(dashboardData);
       setWeeklySummary(weeklyData);
     } catch (err: any) {
       console.error("Error fetching dashboard data:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchWeeklyDataForDate = async (date: Date) => {
+    try {
+      setLoading(true);
+      const weeklyData = await DailyAudioService.getWeeklyAudioSummary(date);
+      setWeeklySummary(weeklyData);
+      setSelectedDate(date);
+    } catch (err: any) {
+      console.error("Error fetching weekly data:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -60,10 +75,10 @@ const HealthDashboard: React.FC = () => {
   const handleAddLogSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Hanya menggunakan tanggal untuk melihat histori
-      const selectedDate = logForm.date;
+      // Menggunakan tanggal yang dipilih untuk melihat histori mingguan
+      const selectedDate = new Date(logForm.date);
+      await fetchWeeklyDataForDate(selectedDate);
       setShowAddLog(false);
-      fetchDashboardData();
     } catch (err: any) {
       setError(err.message);
     }
@@ -107,13 +122,7 @@ const HealthDashboard: React.FC = () => {
           >
             Histori
           </button>
-          <button
-            onClick={() => setShowSettings(true)}
-            className="px-4 py-2 bg-slate-600 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 text-white"
-          >
-            <Settings size={16} />
-            Pengaturan
-          </button>
+          
         </div>
       </div>
 
@@ -151,13 +160,40 @@ const HealthDashboard: React.FC = () => {
                   Ringkasan Mingguan
                 </h3>
               </div>
-              <div className="text-sm text-gray-400">
-                {new Date().toLocaleDateString('id-ID', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-gray-400">
+                  {(() => {
+                    // Hitung tanggal awal dan akhir minggu dari selectedDate
+                    const currentDayOfWeek = selectedDate.getDay();
+                    const mondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+                    const monday = new Date(selectedDate);
+                    monday.setDate(selectedDate.getDate() + mondayOffset);
+                    const sunday = new Date(monday);
+                    sunday.setDate(monday.getDate() + 6);
+                    
+                    // Format tanggal
+                    const formatDate = (date: Date) => date.toLocaleDateString('id-ID', { 
+                      day: 'numeric', 
+                      month: 'short' 
+                    });
+                    
+                    return `${formatDate(monday)} - ${formatDate(sunday)}`;
+                  })()}
+                </div>
+                {/* Tombol kembali ke minggu saat ini */}
+                {(() => {
+                  const today = new Date();
+                  const isCurrentWeek = Math.abs(selectedDate.getTime() - today.getTime()) < 7 * 24 * 60 * 60 * 1000;
+                  
+                  return !isCurrentWeek && (
+                    <button
+                      onClick={() => fetchWeeklyDataForDate(new Date())}
+                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-medium transition-colors text-white"
+                    >
+                      Minggu Ini
+                    </button>
+                  );
+                })()}
               </div>
             </div>
 
