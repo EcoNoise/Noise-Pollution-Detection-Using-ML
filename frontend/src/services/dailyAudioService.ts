@@ -17,6 +17,41 @@ export interface DailyAudioSummary {
 export class DailyAudioService {
   // Key untuk menyimpan minggu terakhir di localStorage
   private static readonly LAST_WEEK_KEY = "lastWeekStart";
+  // Key untuk menyimpan hari terakhir di localStorage
+  private static readonly LAST_DAY_KEY = "lastDayDate";
+  // Key untuk cache data harian
+  private static readonly DAILY_CACHE_KEY = "dailyAudioSummaryCache";
+
+  /**
+   * Mendapatkan tanggal hari ini dalam format string
+   */
+  private static getCurrentDay(): string {
+    return new Date().toDateString();
+  }
+
+  /**
+   * Memeriksa apakah sudah terjadi pergantian hari
+   */
+  private static hasDayChanged(): boolean {
+    const currentDay = this.getCurrentDay();
+    const lastDay = localStorage.getItem(this.LAST_DAY_KEY);
+
+    if (!lastDay || lastDay !== currentDay) {
+      localStorage.setItem(this.LAST_DAY_KEY, currentDay);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Reset data daily summary (menghapus cache harian)
+   */
+  private static resetDailyData(): void {
+    // Hapus cache daily summary
+    localStorage.removeItem(this.DAILY_CACHE_KEY);
+    console.log("📅 Hari baru dimulai! Data laporan harian telah direset.");
+  }
 
   /**
    * Mendapatkan tanggal Senin minggu ini dalam format string
@@ -58,6 +93,24 @@ export class DailyAudioService {
    */
   static async getTodayAudioSummary(): Promise<DailyAudioSummary> {
     try {
+      // Periksa apakah sudah terjadi pergantian hari
+      if (this.hasDayChanged()) {
+        this.resetDailyData();
+      }
+
+      // Cek cache terlebih dahulu
+      const cachedData = localStorage.getItem(this.DAILY_CACHE_KEY);
+      if (cachedData) {
+        const parsed = JSON.parse(cachedData);
+        // Pastikan cache masih untuk hari ini
+        if (parsed.date === new Date().toDateString()) {
+          return parsed;
+        } else {
+          // Hapus cache yang sudah tidak valid
+          localStorage.removeItem(this.DAILY_CACHE_KEY);
+        }
+      }
+
       // Ambil history prediksi
       const history = await apiService.getPredictionHistory(100);
 
@@ -84,7 +137,7 @@ export class DailyAudioService {
       const { recommendation, riskLevel } =
         this.getRecommendation(averageNoiseLevel);
 
-      return {
+      const summary: DailyAudioSummary = {
         date: today,
         totalAnalysis: todayHistory.length,
         averageNoiseLevel,
@@ -92,6 +145,11 @@ export class DailyAudioService {
         recommendation,
         riskLevel,
       };
+
+      // Simpan ke cache
+      localStorage.setItem(this.DAILY_CACHE_KEY, JSON.stringify(summary));
+
+      return summary;
     } catch (error) {
       console.error("Error getting today audio summary:", error);
       return {
@@ -103,6 +161,18 @@ export class DailyAudioService {
         riskLevel: "safe",
       };
     }
+  }
+
+  /**
+   * Memaksa refresh data harian (menghapus cache dan mengambil data terbaru)
+   */
+  static async refreshTodayAudioSummary(): Promise<DailyAudioSummary> {
+    // Hapus cache untuk memaksa refresh
+    localStorage.removeItem(this.DAILY_CACHE_KEY);
+    console.log("🔄 Data laporan harian telah di-refresh");
+    
+    // Ambil data terbaru
+    return this.getTodayAudioSummary();
   }
 
   /**
