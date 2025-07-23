@@ -5,6 +5,7 @@ import {
   Settings,
   Activity,
   Clock,
+  Calendar,
 } from "lucide-react";
 import {
   getHealthDashboard,
@@ -67,6 +68,8 @@ const HealthDashboard: React.FC = () => {
       setError(err.message);
     }
   };
+
+
 
   const getDayName = (dateStr: string) => {
     const days = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
@@ -141,9 +144,21 @@ const HealthDashboard: React.FC = () => {
         <div className="space-y-6">
           {/* Weekly Summary */}
           <div className="bg-slate-700 rounded-lg p-6 border border-slate-600">
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingUp className="text-purple-400" size={20} />
-              <h4 className="font-semibold text-white">Ringkasan Mingguan</h4>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-blue-400" />
+                <h3 className="text-lg font-semibold text-white">
+                  Ringkasan Mingguan
+                </h3>
+              </div>
+              <div className="text-sm text-gray-400">
+                {new Date().toLocaleDateString('id-ID', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </div>
             </div>
 
             {/* Daily Exposure Chart */}
