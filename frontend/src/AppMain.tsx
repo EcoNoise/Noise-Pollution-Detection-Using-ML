@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 
-
 import {
   BrowserRouter as Router,
   Routes,
@@ -112,18 +111,9 @@ const SidebarLogo = styled(Box)({
   background: "transparent", // Hilangkan background gradient
   color: "white",
   fontWeight: "bold",
+  boxShadow: "0 4px 15px rgba(74, 144, 226, 0.3)",
 });
-const LogoImage = styled("img")({
-  width: "100%",
-  height: "100%",
-  objectFit: "contain",
-  filter: "drop-shadow(0 4px 15px rgba(74, 144, 226, 0.3))",
-  transition: "all 0.3s ease",
-  "&:hover": {
-    transform: "scale(1.1)",
-    filter: "drop-shadow(0 6px 20px rgba(74, 144, 226, 0.4))",
-  },
-});
+
 // Interface untuk NavItem props
 interface NavItemProps {
   active?: boolean;
@@ -199,13 +189,14 @@ const NavigationSidebar: React.FC<{
     navigate("/");
   };
 
+  const handleLogoClick = () => {
+    navigate("/");
+  };
+
   return (
     <Sidebar>
       <SidebarLogo>
-        <LogoImage 
-          src="/logo.svg" 
-          alt="EcoNoise Logo"
-        />
+        <VolumeX size={24} />
       </SidebarLogo>
       <Box
         sx={{
@@ -357,7 +348,15 @@ function App() {
       <Router>
         <Routes>
           {/* Rute tanpa sidebar */}
-          <Route path="/" element={<LandingPage isAuthenticated={isAuthenticated} onLogout={handleLogout} />} />
+          <Route
+            path="/"
+            element={
+              <LandingPage
+                isAuthenticated={isAuthenticated}
+                onLogout={handleLogout}
+              />
+            }
+          />
           <Route
             path="/login"
             element={<LoginPage onLoginSuccess={handleLogin} />}

@@ -12,7 +12,12 @@ interface MapPopupProps {
   currentUserId?: string | null;
 }
 
-const MapPopup: React.FC<MapPopupProps> = ({ location, onDelete, onReanalyze, currentUserId }) => {
+const MapPopup: React.FC<MapPopupProps> = ({
+  location,
+  onDelete,
+  onReanalyze,
+  currentUserId,
+}) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleDeleteClick = () => {
@@ -31,7 +36,8 @@ const MapPopup: React.FC<MapPopupProps> = ({ location, onDelete, onReanalyze, cu
   };
 
   // Gunakan canDelete dari server sebagai penanda utama, dan userId sebagai backup
-  const isOwner = location.canDelete || (currentUserId && location.userId === currentUserId);
+  const isOwner =
+    location.canDelete || (currentUserId && location.userId === currentUserId);
 
   const handleReanalyze = () => {
     if (onReanalyze) {
