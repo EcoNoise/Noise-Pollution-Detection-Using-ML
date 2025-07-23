@@ -112,6 +112,16 @@ const SidebarLogo = styled(Box)({
   color: "white",
   fontWeight: "bold",
   boxShadow: "0 4px 15px rgba(74, 144, 226, 0.3)",
+  cursor: "pointer",
+  transition: "all 0.3s ease",
+  "&:hover": {
+    transform: "translateY(-2px)",
+    boxShadow: "0 8px 25px rgba(74, 144, 226, 0.4)",
+    background: "linear-gradient(135deg, #5BA0F2 0%, #7C8DE2 100%)",
+  },
+  "&:active": {
+    transform: "translateY(0px)",
+  },
 });
 
 // Interface untuk NavItem props
@@ -189,9 +199,13 @@ const NavigationSidebar: React.FC<{
     navigate("/");
   };
 
+  const handleLogoClick = () => {
+    navigate("/");
+  };
+
   return (
     <Sidebar>
-      <SidebarLogo>
+      <SidebarLogo onClick={handleLogoClick}>
         <VolumeX size={24} />
       </SidebarLogo>
       <Box
