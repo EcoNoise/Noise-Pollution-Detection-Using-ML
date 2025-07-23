@@ -9,20 +9,39 @@ const API_BASE_URL = "http://localhost:8000/api";
 // Get API interceptor instance
 const apiInterceptor = APIInterceptor.getInstance();
 
-// Helper function to make authenticated API calls
+// Helper function to make API calls (with option for public access)
 const apiCall = async (
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  requiresAuth: boolean = true
 ): Promise<Response> => {
-  return apiInterceptor.fetch(`${API_BASE_URL}${url}`, options);
-};
-
-// Helper function to make public API calls (no auth required)
-const publicApiCall = async (
-  url: string,
-  options: RequestInit = {}
-): Promise<Response> => {
-  return apiInterceptor.fetchPublic(`${API_BASE_URL}${url}`, options);
+  try {
+    if (requiresAuth) {
+      return await apiInterceptor.fetch(`${API_BASE_URL}${url}`, options);
+    } else {
+      // For public endpoints, use regular fetch
+      const response = await fetch(`${API_BASE_URL}${url}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
+      return response;
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('No access token') && !requiresAuth) {
+      // If no token and endpoint is public, try without auth
+      return fetch(`${API_BASE_URL}${url}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
+    }
+    throw error;
+  }
 };
 
 class MapService {
@@ -53,17 +72,147 @@ class MapService {
     this.analysisRequestContext = null; // Clear after retrieval
     return context;
   }
+  async analyzeAudioAndAddArea(
+    audioFile: File,
+    position: [number, number],
+    address: string,
+    description: string
+  ): Promise<NoiseLocation | null> {
+    try {
+      // VALIDASI 1: Periksa format file audio
+      const allowedTypes = [
+        'audio/wav', 'audio/mp3', 'audio/mpeg', 
+        'audio/mp4', 'audio/m4a', 'audio/ogg',
+        'audio/webm', 'audio/flac'
+      ];
+      
+      if (!allowedTypes.includes(audioFile.type)) {
+        throw new Error(
+          `Format file tidak didukung: ${audioFile.type}. ` +
+          `Format yang didukung: WAV, MP3, M4A, OGG, WebM, FLAC`
+        );
+      }
 
+      // VALIDASI 2: Periksa ukuran file (maksimal 50MB)
+      const maxSize = 50 * 1024 * 1024; // 50MB dalam bytes
+      if (audioFile.size > maxSize) {
+        throw new Error(
+          `Ukuran file terlalu besar: ${(audioFile.size / 1024 / 1024).toFixed(1)}MB. ` +
+          `Maksimal ukuran file adalah 50MB.`
+        );
+      }
+
+      console.log('🔍 File audio details:', {
+        name: audioFile.name,
+        type: audioFile.type,
+        size: `${(audioFile.size / 1024 / 1024).toFixed(2)}MB`,
+        lastModified: new Date(audioFile.lastModified)
+      });
+
+      // LANGKAH 1: Siapkan FormData dengan validasi
+      const formData = new FormData();
+      formData.append("audio_file", audioFile); // Gunakan nama field yang sesuai dengan backend
+      
+      // TAMBAHAN: Log untuk debugging
+      console.log('📤 Mengirim request ke /audio/predict/ dengan file:', audioFile.name);
+
+      // LANGKAH 2: Kirim request dengan error handling yang lebih detail
+      const predictResponse = await apiCall("/audio/predict/", {
+        method: "POST",
+        body: formData,
+      });
+
+      console.log('📥 Response status:', predictResponse.status);
+
+      if (!predictResponse.ok) {
+        let errorMessage = "Analisis audio gagal";
+        
+        try {
+          const errorData = await predictResponse.json();
+          console.error('❌ Error detail dari server:', errorData);
+          
+          // Tangani berbagai jenis error dari server
+          if (errorData.detail) {
+            errorMessage = errorData.detail;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (typeof errorData === 'string') {
+            errorMessage = errorData;
+          }
+        } catch (parseError) {
+          // Jika response bukan JSON, coba ambil sebagai text
+          try {
+            const errorText = await predictResponse.text();
+            console.error('❌ Error response (text):', errorText);
+            errorMessage = `Server error: ${predictResponse.status} - ${errorText}`;
+          } catch (textError) {
+            errorMessage = `Server error: ${predictResponse.status} - ${predictResponse.statusText}`;
+          }
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const response = await predictResponse.json();
+      console.log('✅ Response analisis:', response);
+
+      // VALIDASI 3: Periksa hasil analisis
+      if (!response.predictions || !response.predictions.noise_level || !response.predictions.noise_source) {
+        console.error('❌ Response tidak lengkap:', response);
+        throw new Error("Hasil analisis tidak lengkap dari server");
+      }
+      
+      const analysisResult = response.predictions;
+
+      // LANGKAH 3: Tambahkan lokasi noise dengan hasil analisis
+      const newLocationData = {
+        coordinates: position,
+        noiseLevel: analysisResult.noise_level,
+        source: analysisResult.noise_source,
+        healthImpact: analysisResult.health_impact || "Tidak diketahui",
+        description: description || `Analisis dari file: ${audioFile.name}`,
+        address: address || "Alamat tidak spesifik",
+        radius: 100, // Radius default
+      };
+
+      console.log('🗺️ Menambahkan lokasi ke peta:', newLocationData);
+
+      const newLocation = await this.addNoiseLocation(newLocationData);
+      
+      if (!newLocation) {
+        throw new Error("Berhasil menganalisis audio, tetapi gagal menyimpan lokasi ke peta");
+      }
+
+      console.log('✅ Lokasi berhasil ditambahkan:', newLocation);
+      return newLocation;
+
+    } catch (error) {
+      console.error("❌ Error during analysis and add area process:", error);
+      
+      // Berikan pesan error yang lebih user-friendly
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to fetch')) {
+          throw new Error("Tidak dapat terhubung ke server. Periksa koneksi internet Anda.");
+        } else if (error.message.includes('NetworkError')) {
+          throw new Error("Terjadi kesalahan jaringan. Coba lagi dalam beberapa saat.");
+        }
+        throw error; // Re-throw error asli jika sudah jelas
+      } else {
+        throw new Error("Terjadi kesalahan tidak dikenal saat menganalisis audio.");
+      }
+    }
+  }
   // UPDATED: Add noise location via API
   async addNoiseLocation(
     location: Omit<NoiseLocation, "id" | "timestamp">
   ): Promise<NoiseLocation | null> {
     try {
+      console.log("Received coordinates:", location.coordinates);
       const requestData = {
-        latitude: Number(location.coordinates[1].toFixed(10)), // Bulatkan ke 10 decimal places
-        longitude: Number(location.coordinates[0].toFixed(10)), // Bulatkan ke 10 decimal places
+        latitude: location.coordinates[0],
+        longitude: location.coordinates[1],
         noise_level: location.noiseLevel,
-        noise_source: location.source, // Backend mengharapkan 'noise_source'
+        noise_source: location.source,
         health_impact: location.healthImpact,
         description: location.description || "",
         address: location.address || "",
@@ -72,7 +221,7 @@ class MapService {
 
       console.log("🔍 Data yang dikirim ke backend:", requestData);
 
-      const response = await apiCall("/areas/", {
+      const response = await apiCall("/noise-areas/", {
         method: "POST",
         body: JSON.stringify(requestData),
       });
@@ -89,12 +238,9 @@ class MapService {
         const apiArea = data.area;
         return {
           id: apiArea.id.toString(),
-          coordinates: [apiArea.longitude, apiArea.latitude] as [
-            number,
-            number
-          ],
+          coordinates: [apiArea.latitude, apiArea.longitude] as [number, number],
           noiseLevel: apiArea.noise_level,
-          source: apiArea.noise_source, // Backend mengirim 'noise_source'
+          source: apiArea.noise_source,
           healthImpact: apiArea.health_impact,
           description: apiArea.description,
           address: apiArea.address,
@@ -112,11 +258,17 @@ class MapService {
     }
   }
 
-  // UPDATED: Get all noise locations from API
+  // UPDATED: Get all noise locations from API with support for public access
   async getNoiseLocations(): Promise<NoiseLocation[]> {
     try {
-      // Gunakan apiCall (authenticated) untuk mendapatkan can_delete yang benar
-      const response = await apiCall("/areas/");
+      // Gunakan token jika ada, tapi tetap bisa diakses tanpa token
+      const accessToken = localStorage.getItem('accessToken');
+      console.log('🔑 Access Token Status:', !!accessToken);
+      const response = await apiCall("/noise-areas/", {
+        headers: accessToken ? {
+          'Authorization': `Bearer ${accessToken}`
+        } : {}
+      }, true);
 
       if (!response.ok) {
         throw new Error("Failed to fetch noise areas");
@@ -127,9 +279,9 @@ class MapService {
         // Convert API response to NoiseLocation format
         return data.areas.map((area: any) => ({
           id: area.id.toString(),
-          coordinates: [area.longitude, area.latitude] as [number, number],
+          coordinates: [area.latitude, area.longitude] as [number, number],    
           noiseLevel: area.noise_level,
-          source: area.noise_source, // Backend mengirim 'noise_source'
+          source: area.noise_source,
           healthImpact: area.health_impact,
           description: area.description,
           address: area.address,
@@ -137,38 +289,12 @@ class MapService {
           timestamp: new Date(area.created_at),
           userId: area.user_info?.id,
           userName: area.user_info?.username,
-          canDelete: area.can_delete,
+          canDelete: area.can_delete || false, // Menggunakan nilai dari backend atau false jika tidak ada
         }));
       }
       return [];
     } catch (error) {
       console.error("Error fetching noise locations:", error);
-      // Fallback ke public call jika user belum login
-      try {
-        const response = await publicApiCall("/areas/");
-        if (!response.ok) {
-          throw new Error("Failed to fetch noise areas");
-        }
-        const data = await response.json();
-        if (data.status === "success") {
-          return data.areas.map((area: any) => ({
-            id: area.id.toString(),
-            coordinates: [area.longitude, area.latitude] as [number, number],
-            noiseLevel: area.noise_level,
-            source: area.noise_source,
-            healthImpact: area.health_impact,
-            description: area.description,
-            address: area.address,
-            radius: area.radius,
-            timestamp: new Date(area.created_at),
-            userId: area.user_info?.id,
-            userName: area.user_info?.username,
-            canDelete: false, // Tidak bisa delete jika tidak login
-          }));
-        }
-      } catch (fallbackError) {
-        console.error("Error in fallback fetch:", fallbackError);
-      }
       return [];
     }
   }
@@ -176,7 +302,12 @@ class MapService {
   // UPDATED: Get noise location by ID from API
   async getNoiseLocationById(id: string): Promise<NoiseLocation | null> {
     try {
-      const response = await apiCall(`/areas/${id}/`);
+      // Gunakan requiresAuth: true karena ini membutuhkan autentikasi
+      const response = await apiCall(`/noise-areas/${id}/`, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }, true);
 
       if (!response.ok) {
         throw new Error("Failed to fetch noise area");
@@ -187,7 +318,7 @@ class MapService {
         const area = data.area;
         return {
           id: area.id.toString(),
-          coordinates: [area.longitude, area.latitude] as [number, number],
+          coordinates: [area.latitude, area.longitude] as [number, number],
           noiseLevel: area.noise_level,
           source: area.noise_source, // Backend mengirim 'noise_source'
           healthImpact: area.health_impact,
@@ -210,12 +341,17 @@ class MapService {
   // UPDATED: Remove noise location via API
   async removeNoiseLocation(id: string): Promise<boolean> {
     try {
-      const response = await apiCall(`/areas/${id}/`, {
+      const response = await apiCall(`/noise-areas/${id}/`, {
         method: "DELETE",
       });
 
+      if (response.status === 403) {
+        throw new Error("Anda tidak memiliki izin untuk menghapus area ini");
+      }
+
       if (!response.ok) {
-        throw new Error("Failed to delete noise area");
+        const data = await response.json();
+        throw new Error(data.error || "Gagal menghapus area");
       }
 
       const data = await response.json();
@@ -282,6 +418,136 @@ class MapService {
       return null;
     }
   }
+    async updateNoiseLocationWithAudio(
+    id: string,
+    audioFile: File,
+    updates: Partial<Omit<NoiseLocation, 'noiseLevel' | 'source' | 'healthImpact'>> // Exclude analysis fields from updates
+  ): Promise<NoiseLocation | null> {
+    try {
+      console.log('🔄 Memulai analisis ulang untuk area:', id);
+      console.log('📁 File audio:', audioFile.name, audioFile.type, `${(audioFile.size / 1024 / 1024).toFixed(2)}MB`);
+      
+      // Langkah 1: Upload audio baru untuk dianalisis ulang
+      const formData = new FormData();
+      formData.append("audio_file", audioFile);
+      
+      const predictResponse = await apiCall("/audio/predict/", {
+        method: "POST",
+        body: formData,
+      });
+
+      console.log('📥 Response status:', predictResponse.status);
+      
+      // Ambil response data
+      const predictData = await predictResponse.json();
+      console.log('📥 Hasil analisis:', predictData);
+
+      // Cek status setelah membaca data
+      if (!predictResponse.ok || !predictData.predictions) {
+        throw new Error(predictData.detail || "Analisis audio ulang gagal");
+      }
+
+      // Sekarang kita yakin data valid
+      const analysisResult = predictData;
+      
+      if (!analysisResult.predictions) {
+        throw new Error("Hasil analisis tidak valid");
+      }
+
+      // Langkah 2: Gabungkan hasil analisis dengan data pembaruan lainnya
+      console.log('Memproses hasil analisis untuk update:', analysisResult);
+      
+      // Pastikan predictions ada dan valid
+      if (!analysisResult.predictions) {
+        console.error('❌ Hasil analisis tidak memiliki predictions:', analysisResult);
+        throw new Error('Hasil analisis tidak valid');
+      }
+      
+      let currentLocation;
+      try {
+        // Dapatkan data lokasi saat ini
+        currentLocation = await this.getNoiseLocationById(id);
+        if (!currentLocation) {
+          throw new Error("Lokasi tidak ditemukan");
+        }
+      } catch (error) {
+        console.error("Error saat mengambil data lokasi:", error);
+        // Lanjutkan dengan data minimal yang diperlukan
+        currentLocation = {
+          coordinates: updates.coordinates || [0, 0],
+          address: updates.address || "Alamat tidak spesifik",
+          radius: updates.radius || 100,
+          description: ""
+        };
+      }
+
+      const updateData: any = {
+        // Data baru dari hasil analisis
+        noise_level: analysisResult.predictions.noise_level,
+        noise_source: analysisResult.predictions.noise_source,
+        health_impact: analysisResult.predictions.health_impact,
+        
+        // Gunakan koordinat yang ada jika tidak ada yang baru
+        latitude: updates.coordinates ? Number(updates.coordinates[0].toFixed(10)) : currentLocation.coordinates[0],
+        longitude: updates.coordinates ? Number(updates.coordinates[1].toFixed(10)) : currentLocation.coordinates[1],
+        
+        // Gunakan data yang ada jika tidak ada yang baru
+        address: updates.address || currentLocation.address,
+        radius: updates.radius || currentLocation.radius,
+        
+        // Update deskripsi dengan informasi analisis baru
+        description: `${currentLocation.description} (Dianalisis ulang: ${new Date().toLocaleString()})`
+      };
+      
+      console.log('📤 Data yang akan dikirim untuk update:', updateData);
+      
+      // Langkah 3: Kirim pembaruan ke backend menggunakan method PUT
+      console.log('Mengirim update ke server...');
+      const response = await apiCall(`/noise-areas/${id}/`, {
+        method: "PUT",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      console.log('📥 Response status update:', response.status);
+      const data = await response.json();
+      console.log('📥 Response data update:', data);
+
+      if (!response.ok) {
+        const errorMsg = data.detail || data.error || "Gagal memperbarui lokasi noise setelah analisis ulang";
+        throw new Error(errorMsg);
+      }
+
+      if (data.status === "success") {
+        const area = data.area;
+        
+        // Pastikan lokasi berhasil diupdate
+        const updatedLocation = {
+          id: area.id.toString(),
+          coordinates: [area.latitude, area.longitude] as [number, number], // Format [lat, lng] sesuai backend
+          noiseLevel: area.noise_level,
+          source: area.noise_source,
+          healthImpact: area.health_impact,
+          description: area.description,
+          address: area.address,
+          radius: area.radius,
+          timestamp: new Date(area.created_at),
+          userId: area.user_info?.id,
+          userName: area.user_info?.username,
+          canDelete: area.can_delete,
+        };
+        
+        console.log('✅ Berhasil memperbarui lokasi:', updatedLocation);
+        return updatedLocation;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error during update with audio analysis:", error);
+      throw error; // Lempar error agar bisa ditangani di komponen UI
+    }
+  }
 
   // Search locations using Nominatim (OpenStreetMap)
   async searchLocations(query: string): Promise<SearchResult[]> {
@@ -316,9 +582,9 @@ class MapService {
 
   // Get current location
   async getCurrentLocation(): Promise<[number, number] | null> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        resolve(null);
+        reject(new Error("Geolokasi tidak didukung oleh browser ini"));
         return;
       }
 
@@ -326,13 +592,30 @@ class MapService {
         (position) => {
           resolve([position.coords.latitude, position.coords.longitude]);
         },
-        () => {
-          resolve(null);
+        (error) => {
+          let errorMessage = "Gagal mendapatkan lokasi";
+          
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = "Akses lokasi ditolak. Silakan izinkan akses lokasi di pengaturan browser.";
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = "Informasi lokasi tidak tersedia. Pastikan GPS aktif.";
+              break;
+            case error.TIMEOUT:
+              errorMessage = "Permintaan lokasi timeout. Coba lagi.";
+              break;
+            default:
+              errorMessage = "Terjadi kesalahan saat mengakses lokasi.";
+              break;
+          }
+          
+          reject(new Error(errorMessage));
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 60000,
+          timeout: 10000, // Kurangi timeout menjadi 10 detik
+          maximumAge: 60000, // Izinkan cache lokasi hingga 1 menit
         }
       );
     });
@@ -342,7 +625,7 @@ class MapService {
   async clearAllNoiseLocations(): Promise<boolean> {
     try {
       // Get user's areas first
-      const response = await apiCall("/areas/my/");
+      const response = await apiCall("/my-noise-areas/");
 
       if (!response.ok) {
         throw new Error("Failed to fetch user areas");

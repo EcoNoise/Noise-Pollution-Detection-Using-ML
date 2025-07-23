@@ -11,7 +11,7 @@ load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+ML_MODELS_DIR = os.path.join(BASE_DIR, 'ml_models')
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv(
     "SECRET_KEY", "django-insecure-noise-detection-2025-change-in-production"
@@ -159,7 +159,14 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
-
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'authorization',  # <-- Header ini paling penting untuk otorisasi
+    'content-type',   # <-- Header ini penting untuk pengiriman file
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 # ML Models directory
 ML_MODELS_DIR = BASE_DIR / "ml_models"
 

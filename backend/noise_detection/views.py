@@ -22,7 +22,13 @@ logger = logging.getLogger(__name__)
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import CustomUser
+from django.http import JsonResponse
 
+def audio_predict(request):
+    if request.method == "POST":
+        # ...proses file audio...
+        return JsonResponse({"result": "success"})
+    return JsonResponse({"error": "Invalid method"}, status=405)
 class HealthView(APIView):
     """Health check endpoint"""
 
@@ -160,13 +166,18 @@ class AudioUploadPredictionView(APIView):
             except Exception as e:
                 logger.warning(f"Failed to save prediction history: {e}")
 
-            # Return results
+            # Format response sesuai yang diharapkan frontend
             return Response(
                 {
                     "status": "success",
-                    "predictions": predictions,
+                    "predictions": {
+                        "noise_level": predictions["noise_level"],
+                        "noise_source": predictions["noise_source"],
+                        "health_impact": predictions["health_impact"],
+                        "confidence_score": predictions.get("confidence_score", 0.8)
+                    },
                     "processing_time": round(processing_time, 3),
-                    "file_info": {"name": audio_file.name, "size": audio_file.size},
+                    "file_info": {"name": audio_file.name, "size": audio_file.size}
                 }
             )
 
@@ -235,7 +246,7 @@ class BatchPredictionView(APIView):
 
     def post(self, request):
         try:
-            files = request.FILES.getlist("audio_files")
+            files = request.FILES.getlist("audio")
 
             if not files:
                 return Response(
@@ -377,6 +388,7 @@ class LoginView(APIView):
             return Response({
                 "status": "success",
                 "message": "Login berhasil.",
+                "user_id": str(user.id),
                 "refresh": str(refresh),
                 "access": str(refresh.access_token),
             })
@@ -492,13 +504,54 @@ class NoiseAreaListCreateView(APIView):
     def post(self, request):
         """Membuat area noise baru"""
         try:
-            print(f"🔍 Data yang diterima backend: {request.data}")
-            print(f"🔍 User yang login: {request.user}")
-            print(f"🔍 User authenticated: {request.user.is_authenticated}")
+            logger.info("� Creating new noise area...")
+            logger.info(f"📦 Request data: {request.data}")
+            logger.info(f"� User: {request.user}, Authenticated: {request.user.is_authenticated}")
             
-            serializer = NoiseAreaSerializer(data=request.data, context={'request': request})
+            # Persiapkan data untuk serializer
+            data = request.data.copy()
+            
+            # Convert coordinates from frontend format to backend format
+            if 'coordinates' in data:
+                try:
+                    coordinates = data.pop('coordinates')
+                    data['latitude'] = coordinates[0]
+                    data['longitude'] = coordinates[1]
+                except (IndexError, TypeError):
+                    return Response({
+                        "status": "error",
+                        "error": "Invalid coordinates format",
+                        "received_data": data
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Convert camelCase to snake_case if needed
+            if 'noiseLevel' in data:
+                data['noise_level'] = data.pop('noiseLevel')
+            if 'noiseSource' in data:
+                data['noise_source'] = data.pop('noiseSource')
+            if 'healthImpact' in data:
+                data['health_impact'] = data.pop('healthImpact')
+            
+            # Pastikan field yang diperlukan ada
+            required_fields = ['latitude', 'longitude', 'noise_level', 'noise_source']
+            for field in required_fields:
+                if field not in data:
+                    return Response({
+                        "status": "error",
+                        "error": f"Missing required field: {field}",
+                        "received_data": data
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Tambahkan user ke data jika belum ada
+            if not data.get('user'):
+                data['user'] = request.user.id
+            
+            logger.info(f"🔄 Processed data for serializer: {data}")
+            
+            serializer = NoiseAreaSerializer(data=data, context={'request': request})
             if serializer.is_valid():
-                area = serializer.save()
+                logger.info("✅ Data valid, saving...")
+                area = serializer.save(user=request.user)  # Explicitly set user
                 return Response({
                     "status": "success",
                     "message": "Area noise berhasil ditambahkan",
@@ -927,3 +980,8 @@ class HealthDashboardView(APIView):
                 "status": "error",
                 "error": "Gagal mengambil data health dashboard"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+def audio_predict(request):
+    if request.method == "POST":
+        # ...proses file audio...
+        return JsonResponse({"result": "success"})
+    return JsonResponse({"error": "Invalid method"}, status=405)

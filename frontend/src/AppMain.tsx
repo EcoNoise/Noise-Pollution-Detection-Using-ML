@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 
+
 import {
   BrowserRouter as Router,
   Routes,
@@ -9,6 +10,7 @@ import {
   Link,
   useLocation,
   Navigate,
+  useNavigate,
 } from "react-router-dom";
 import { Container, Box, Typography, styled } from "@mui/material";
 import { VolumeX, Home, History, MapPin, User, LogOut } from "lucide-react";
@@ -180,7 +182,13 @@ const NavigationSidebar: React.FC<{
   isAuthenticated: boolean;
 }> = ({ onLogout, isAuthenticated }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const isActive = (path: string) => location.pathname.startsWith(path);
+
+  const handleLogout = () => {
+    onLogout();
+    navigate("/");
+  };
 
   return (
     <Sidebar>
@@ -236,7 +244,7 @@ const NavigationSidebar: React.FC<{
                 <User size={22} />
               </NavItem>
             </Link>
-            <NavItem onClick={onLogout}>
+            <NavItem onClick={handleLogout}>
               <LogOut size={22} />
             </NavItem>
           </>
