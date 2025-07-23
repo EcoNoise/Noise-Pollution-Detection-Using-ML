@@ -1,7 +1,7 @@
 // src/components/MapComponent.tsx
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import PopupNotification from './PopupNotification';
-import { usePopup } from '../hooks/usePopup';
+import PopupNotification from "./PopupNotification";
+import { usePopup } from "../hooks/usePopup";
 import {
   MapContainer,
   TileLayer,
@@ -131,7 +131,14 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const navigate = useNavigate(); // NEW: Hook for navigation
   const [noiseLocations, setNoiseLocations] = useState<NoiseLocation[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const { popupState, hidePopup, showSuccess, showError, showWarning, showConfirm } = usePopup();
+  const {
+    popupState,
+    hidePopup,
+    showSuccess,
+    showError,
+    showWarning,
+    showConfirm,
+  } = usePopup();
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isAddingNoise, setIsAddingNoise] = useState<boolean>(false);
@@ -165,7 +172,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [activeFilters, setActiveFilters] = useState<AreaFilters>({});
   const mapRef = useRef<LeafletMap | null>(null);
   const reanalysisFileInputRef = useRef<HTMLInputElement | null>(null);
-  const [locationToReanalyze, setLocationToReanalyze] = useState<NoiseLocation | null>(null);
+  const [locationToReanalyze, setLocationToReanalyze] =
+    useState<NoiseLocation | null>(null);
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const watchId = useRef<number | null>(null);
@@ -228,7 +236,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     try {
       // Prioritize position from the new flow; otherwise, get current location for the old flow
       let position = sharedData.position;
-      
+
       if (!position) {
         try {
           position = await mapService.getCurrentLocation();
@@ -350,7 +358,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     const isAuthenticated = !!localStorage.getItem("accessToken");
     if (!isAuthenticated) {
       showWarning(
-        "Login Diperlukan", 
+        "Login Diperlukan",
         "Anda harus login untuk dapat menambahkan area analisis di peta.",
         () => navigate("/login")
       );
@@ -372,35 +380,50 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       setError("Lokasi di peta belum dipilih.");
       return;
     }
-    
+
     if (!audioFile) {
       setError("Silakan pilih file audio untuk dianalisis.");
       return;
     }
 
     // VALIDASI TAMBAHAN: Periksa format dan ukuran file di frontend
-    const allowedTypes = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/mp4', 'audio/m4a', 'audio/ogg', 'audio/webm', 'audio/flac'];
+    const allowedTypes = [
+      "audio/wav",
+      "audio/mp3",
+      "audio/mpeg",
+      "audio/mp4",
+      "audio/m4a",
+      "audio/ogg",
+      "audio/webm",
+      "audio/flac",
+    ];
     if (!allowedTypes.includes(audioFile.type)) {
-      setError(`Format file tidak didukung: ${audioFile.type}. Gunakan format WAV, MP3, M4A, OGG, WebM, atau FLAC.`);
+      setError(
+        `Format file tidak didukung: ${audioFile.type}. Gunakan format WAV, MP3, M4A, OGG, WebM, atau FLAC.`
+      );
       return;
     }
 
     const maxSize = 50 * 1024 * 1024; // 50MB
     if (audioFile.size > maxSize) {
-      setError(`Ukuran file terlalu besar (${(audioFile.size / 1024 / 1024).toFixed(1)}MB). Maksimal 50MB.`);
+      setError(
+        `Ukuran file terlalu besar (${(audioFile.size / 1024 / 1024).toFixed(
+          1
+        )}MB). Maksimal 50MB.`
+      );
       return;
     }
 
     setIsUploading(true);
     setError("");
-    
+
     try {
-      console.log('🎵 Memulai analisis audio:', {
+      console.log("🎵 Memulai analisis audio:", {
         fileName: audioFile.name,
         fileSize: `${(audioFile.size / 1024 / 1024).toFixed(2)}MB`,
         fileType: audioFile.type,
         position: selectedPosition,
-        address: formAddress
+        address: formAddress,
       });
 
       const newLocation = await mapService.analyzeAudioAndAddArea(
@@ -411,12 +434,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       );
 
       if (newLocation) {
-        console.log('✅ Area berhasil ditambahkan:', newLocation);
-        
+        console.log("✅ Area berhasil ditambahkan:", newLocation);
+
         // Reload data dan zoom ke lokasi baru
         await loadNoiseLocations();
         zoomToLocation(newLocation.coordinates, 17);
-        
+
         // Reset form dan tutup panel
         setShowNoiseForm(false);
         setSelectedPosition(null);
@@ -424,30 +447,35 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         setFormDescription("");
         setAudioFile(null);
         setIsAddingNoise(false);
-        
-        // Tampilkan notifikasi sukses
-        showSuccess("Analisis Berhasil!",`Tingkat Kebisingan: ${newLocation.noiseLevel}\nSumber: ${newLocation.source}\nDampak Kesehatan: ${newLocation.healthImpact}`);
 
+        // Tampilkan notifikasi sukses
+        showSuccess(
+          "Analisis Berhasil!",
+          `Tingkat Kebisingan: ${newLocation.noiseLevel}\nSumber: ${newLocation.source}\nDampak Kesehatan: ${newLocation.healthImpact}`
+        );
       } else {
         setError("Gagal membuat area kebisingan baru setelah analisis.");
       }
     } catch (err: any) {
-      console.error('❌ Error saat analisis:', err);
-      
+      console.error("❌ Error saat analisis:", err);
+
       // Tampilkan error yang lebih user-friendly
-      let userMessage = err.message || "Terjadi kesalahan saat memproses file Anda.";
-      
+      let userMessage =
+        err.message || "Terjadi kesalahan saat memproses file Anda.";
+
       // Tangani berbagai jenis error khusus
-      if (userMessage.includes('400')) {
-        userMessage = "Server menolak file audio. Pastikan format file benar dan tidak rusak.";
-      } else if (userMessage.includes('401')) {
+      if (userMessage.includes("400")) {
+        userMessage =
+          "Server menolak file audio. Pastikan format file benar dan tidak rusak.";
+      } else if (userMessage.includes("401")) {
         userMessage = "Sesi Anda telah berakhir. Silakan login kembali.";
-      } else if (userMessage.includes('413')) {
+      } else if (userMessage.includes("413")) {
         userMessage = "Ukuran file terlalu besar. Maksimal 50MB.";
-      } else if (userMessage.includes('500')) {
-        userMessage = "Terjadi kesalahan pada server. Coba lagi dalam beberapa saat.";
+      } else if (userMessage.includes("500")) {
+        userMessage =
+          "Terjadi kesalahan pada server. Coba lagi dalam beberapa saat.";
       }
-      
+
       setError(userMessage);
     } finally {
       setIsUploading(false);
@@ -458,42 +486,57 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      
+
       // Reset error sebelumnya
       setError("");
-      
+
       // Validasi format file
-      const allowedTypes = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/mp4', 'audio/m4a', 'audio/ogg', 'audio/webm', 'audio/flac'];
+      const allowedTypes = [
+        "audio/wav",
+        "audio/mp3",
+        "audio/mpeg",
+        "audio/mp4",
+        "audio/m4a",
+        "audio/ogg",
+        "audio/webm",
+        "audio/flac",
+      ];
       if (!allowedTypes.includes(file.type)) {
         setError(`Format file tidak didukung: ${file.type}`);
         e.target.value = ""; // Reset input
         return;
       }
-      
+
       // Validasi ukuran file
       const maxSize = 50 * 1024 * 1024; // 50MB
       if (file.size > maxSize) {
-        setError(`File terlalu besar: ${(file.size / 1024 / 1024).toFixed(1)}MB. Maksimal 50MB.`);
+        setError(
+          `File terlalu besar: ${(file.size / 1024 / 1024).toFixed(
+            1
+          )}MB. Maksimal 50MB.`
+        );
         e.target.value = ""; // Reset input
         return;
       }
-      
-      console.log('📁 File dipilih:', {
+
+      console.log("📁 File dipilih:", {
         name: file.name,
         size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-        type: file.type
+        type: file.type,
       });
-      
+
       setAudioFile(file);
     }
   };
-    const handleStartReanalysis = (location: NoiseLocation) => {
+  const handleStartReanalysis = (location: NoiseLocation) => {
     setLocationToReanalyze(location); // Simpan info lokasi mana yang akan dianalisis
     reanalysisFileInputRef.current?.click(); // Buka jendela pilih file
   };
 
   // Fungsi ini berjalan setelah Anda memilih file audio
-  const handleReanalysisFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleReanalysisFileSelected = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (!file || !locationToReanalyze) return; // Batalkan jika tidak ada file
 
@@ -656,18 +699,19 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
     // Fungsi helper untuk konversi noise level
     const getNoiseLevelCategory = (level: number): string => {
-      if (level <= 40) return 'Tenang';
-      if (level <= 60) return 'Sedang';
-      if (level <= 80) return 'Berisik';
-      return 'Sangat Berisik';
+      if (level <= 40) return "Tenang";
+      if (level <= 60) return "Sedang";
+      if (level <= 80) return "Berisik";
+      return "Sangat Berisik";
     };
 
     return noiseLocations.filter((location) => {
-      const locationNoiseLevelCategory = getNoiseLevelCategory(location.noiseLevel);
+      const locationNoiseLevelCategory = getNoiseLevelCategory(
+        location.noiseLevel
+      );
       const noiseLevelMatch =
         !noiseLevel?.length || noiseLevel.includes(locationNoiseLevelCategory);
-      const sourceMatch =
-        !source?.length || source.includes(location.source);
+      const sourceMatch = !source?.length || source.includes(location.source);
       const healthImpactMatch =
         !healthImpact?.length || healthImpact.includes(location.healthImpact);
       return noiseLevelMatch && sourceMatch && healthImpactMatch;
@@ -680,7 +724,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       <input
         type="file"
         accept="audio/*"
-        style={{ display: 'none' }}
+        style={{ display: "none" }}
         ref={reanalysisFileInputRef}
         onChange={handleReanalysisFileSelected}
       />
@@ -753,7 +797,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       {/* UPDATED: Noise Panel is now the form for the new flow */}
       {showNoiseForm && selectedPosition && (
         <div className={styles.noisePanel}>
-          <div className={styles.noisePanelTitle}>Analisis Kebisingan di Lokasi</div>
+          <div className={styles.noisePanelTitle}>
+            Analisis Kebisingan di Lokasi
+          </div>
           <div className={styles.noiseForm}>
             <div className={styles.noiseLevel}>
               <span>Koordinat:</span>
@@ -777,18 +823,20 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
               className={styles.noiseInput}
             />
             <div className={styles.fileInputContainer}>
-                <label htmlFor="audio-upload" className={styles.fileInputLabel}>
-                    Pilih File Audio
-                </label>
-                <input
-                    id="audio-upload"
-                    type="file"
-                    accept="audio/*"
-                    onChange={handleFileChange} // <--- Handler baru
-                    className={styles.fileInput}
-                    disabled={isUploading}
-                />
-                {audioFile && <span className={styles.fileName}>{audioFile.name}</span>}
+              <label htmlFor="audio-upload" className={styles.fileInputLabel}>
+                Pilih File Audio
+              </label>
+              <input
+                id="audio-upload"
+                type="file"
+                accept="audio/*"
+                onChange={handleFileChange} // <--- Handler baru
+                className={styles.fileInput}
+                disabled={isUploading}
+              />
+              {audioFile && (
+                <span className={styles.fileName}>{audioFile.name}</span>
+              )}
             </div>
             <button
               onClick={handleUploadAndAnalyze} // <--- Handler baru
@@ -916,7 +964,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                   location={location}
                   onDelete={handleDeleteNoiseLocation}
                   onReanalyze={handleStartReanalysis}
-                  currentUserId={localStorage.getItem('userId')}
+                  currentUserId={localStorage.getItem("userId")}
                 />
               </Popup>
             </Circle>
@@ -1010,16 +1058,16 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           />
         )}
       </MapContainer>
-      <PopupNotification 
-        isVisible={popupState.isVisible} 
-        title={popupState.config?.title || ''} 
-        message={popupState.config?.message || ''} 
-        type={popupState.config?.type || 'info'} 
-        onConfirm={popupState.onConfirm} 
-        onCancel={popupState.onCancel} 
-        onClose={hidePopup} 
-        confirmText={popupState.config?.confirmText} 
-        cancelText={popupState.config?.cancelText} 
+      <PopupNotification
+        isVisible={popupState.isVisible}
+        title={popupState.config?.title || ""}
+        message={popupState.config?.message || ""}
+        type={popupState.config?.type || "info"}
+        onConfirm={popupState.onConfirm}
+        onCancel={popupState.onCancel}
+        onClose={hidePopup}
+        confirmText={popupState.config?.confirmText}
+        cancelText={popupState.config?.cancelText}
       />
     </div>
   );

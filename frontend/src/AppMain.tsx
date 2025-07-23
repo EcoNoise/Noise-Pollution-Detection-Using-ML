@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 
-
 import {
   BrowserRouter as Router,
   Routes,
@@ -345,7 +344,15 @@ function App() {
       <Router>
         <Routes>
           {/* Rute tanpa sidebar */}
-          <Route path="/" element={<LandingPage isAuthenticated={isAuthenticated} onLogout={handleLogout} />} />
+          <Route
+            path="/"
+            element={
+              <LandingPage
+                isAuthenticated={isAuthenticated}
+                onLogout={handleLogout}
+              />
+            }
+          />
           <Route
             path="/login"
             element={<LoginPage onLoginSuccess={handleLogin} />}

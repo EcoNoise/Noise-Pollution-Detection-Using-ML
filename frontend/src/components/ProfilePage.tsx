@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { Camera, Edit3, Shield, Loader, Volume2, TrendingUp, Calendar, AlertTriangle, CheckCircle, User, Clock, Mail, UserCheck } from "lucide-react";
+import {
+  Camera,
+  Edit3,
+  Shield,
+  Loader,
+  User,
+  Clock,
+  Mail,
+  UserCheck,
+  CheckCircle,
+  Calendar,
+} from "lucide-react";
 import { getUserProfile, updateUserProfile } from "../services/profileService";
-import { DailyAudioService, DailyAudioSummary } from "../services/dailyAudioService";
-import HealthDashboard from "./HealthDashboard";
 
 // Interface ini mendefinisikan struktur data profil dari backend
 interface UserProfile {
@@ -22,10 +31,6 @@ const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  
-  // Daily Audio Summary State
-  const [dailySummary, setDailySummary] = useState<DailyAudioSummary | null>(null);
-  const [summaryLoading, setSummaryLoading] = useState(true);
 
   // State untuk data yang akan di-edit
   const [editData, setEditData] = useState<Partial<UserProfile>>({});
@@ -49,21 +54,6 @@ const ProfilePage: React.FC = () => {
       }
     };
     fetchProfile();
-  }, []);
-
-  useEffect(() => {
-    const fetchDailySummary = async () => {
-      try {
-        setSummaryLoading(true);
-        const summary = await DailyAudioService.getTodayAudioSummary();
-        setDailySummary(summary);
-      } catch (err: any) {
-        console.error('Error fetching daily summary:', err);
-      } finally {
-        setSummaryLoading(false);
-      }
-    };
-    fetchDailySummary();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,9 +104,7 @@ const ProfilePage: React.FC = () => {
   const handleEditToggle = () => {
     if (isEditing) {
       setEditData(profile!);
-      setPhotoPreview(
-        profile?.photo || null
-      );
+      setPhotoPreview(profile?.photo || null);
       setPhotoFile(null);
     }
     setIsEditing(!isEditing);
@@ -125,12 +113,12 @@ const ProfilePage: React.FC = () => {
   const formatDate = (dateString?: string) => {
     if (!dateString) return "Tidak tersedia";
     try {
-      return new Date(dateString).toLocaleDateString('id-ID', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      return new Date(dateString).toLocaleDateString("id-ID", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
     } catch {
       return "Tidak tersedia";
@@ -243,7 +231,6 @@ const ProfilePage: React.FC = () => {
                   {profile.email}
                 </p>
               </div>
-
             </div>
           </div>
 
@@ -278,9 +265,13 @@ const ProfilePage: React.FC = () => {
             <div className="bg-slate-700 rounded-xl p-6 border border-slate-600">
               <div className="flex items-center gap-3 mb-3">
                 <User className="text-blue-400" size={20} />
-                <h3 className="text-lg font-semibold text-slate-200">Nama Depan</h3>
+                <h3 className="text-lg font-semibold text-slate-200">
+                  Nama Depan
+                </h3>
               </div>
-              <p className="text-2xl font-bold text-white">{profile.first_name || "Tidak diisi"}</p>
+              <p className="text-2xl font-bold text-white">
+                {profile.first_name || "Tidak diisi"}
+              </p>
               <p className="text-sm text-slate-400 mt-1">Nama depan Anda</p>
             </div>
 
@@ -288,27 +279,42 @@ const ProfilePage: React.FC = () => {
             <div className="bg-slate-700 rounded-xl p-6 border border-slate-600">
               <div className="flex items-center gap-3 mb-3">
                 <User className="text-blue-400" size={20} />
-                <h3 className="text-lg font-semibold text-slate-200">Nama Belakang</h3>
+                <h3 className="text-lg font-semibold text-slate-200">
+                  Nama Belakang
+                </h3>
               </div>
-              <p className="text-2xl font-bold text-white">{profile.last_name || "Tidak diisi"}</p>
+              <p className="text-2xl font-bold text-white">
+                {profile.last_name || "Tidak diisi"}
+              </p>
               <p className="text-sm text-slate-400 mt-1">Nama belakang Anda</p>
             </div>
 
             {/* Account Status */}
             <div className="bg-slate-700 rounded-xl p-6 border border-slate-600">
               <div className="flex items-center gap-3 mb-3">
-                <CheckCircle className={`${profile.is_active ? 'text-green-400' : 'text-red-400'}`} size={20} />
-                <h3 className="text-lg font-semibold text-slate-200">Status Akun</h3>
+                <CheckCircle
+                  className={`${
+                    profile.is_active ? "text-green-400" : "text-red-400"
+                  }`}
+                  size={20}
+                />
+                <h3 className="text-lg font-semibold text-slate-200">
+                  Status Akun
+                </h3>
               </div>
-              <div className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
-                profile.is_active 
-                  ? 'bg-green-900 text-green-300' 
-                  : 'bg-red-900 text-red-300'
-              }`}>
-                {profile.is_active ? 'Aktif' : 'Tidak Aktif'}
+              <div
+                className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
+                  profile.is_active
+                    ? "bg-green-900 text-green-300"
+                    : "bg-red-900 text-red-300"
+                }`}
+              >
+                {profile.is_active ? "Aktif" : "Tidak Aktif"}
               </div>
               <p className="text-sm text-slate-400 mt-2">
-                {profile.is_active ? 'Akun Anda dalam keadaan aktif' : 'Akun Anda tidak aktif'}
+                {profile.is_active
+                  ? "Akun Anda dalam keadaan aktif"
+                  : "Akun Anda tidak aktif"}
               </p>
             </div>
 
@@ -316,15 +322,18 @@ const ProfilePage: React.FC = () => {
             <div className="bg-slate-700 rounded-xl p-6 border border-slate-600">
               <div className="flex items-center gap-3 mb-3">
                 <UserCheck className="text-blue-400" size={20} />
-                <h3 className="text-lg font-semibold text-slate-200">Nama Lengkap</h3>
+                <h3 className="text-lg font-semibold text-slate-200">
+                  Nama Lengkap
+                </h3>
               </div>
               <p className="text-2xl font-bold text-white">
-                {profile.first_name && profile.last_name 
+                {profile.first_name && profile.last_name
                   ? `${profile.first_name} ${profile.last_name}`
-                  : "Nama belum lengkap"
-                }
+                  : "Nama belum lengkap"}
               </p>
-              <p className="text-sm text-slate-400 mt-1">Nama depan dan belakang</p>
+              <p className="text-sm text-slate-400 mt-1">
+                Nama depan dan belakang
+              </p>
             </div>
 
             {/* Email */}
@@ -333,113 +342,46 @@ const ProfilePage: React.FC = () => {
                 <Mail className="text-blue-400" size={20} />
                 <h3 className="text-lg font-semibold text-slate-200">Email</h3>
               </div>
-              <p className="text-lg font-semibold text-white">{profile.email}</p>
-              <p className="text-sm text-slate-400 mt-1">Email yang terdaftar</p>
+              <p className="text-lg font-semibold text-white">
+                {profile.email}
+              </p>
+              <p className="text-sm text-slate-400 mt-1">
+                Email yang terdaftar
+              </p>
             </div>
 
             {/* Registration Date */}
             <div className="bg-slate-700 rounded-xl p-6 border border-slate-600">
               <div className="flex items-center gap-3 mb-3">
                 <Calendar className="text-blue-400" size={20} />
-                <h3 className="text-lg font-semibold text-slate-200">Bergabung Sejak</h3>
+                <h3 className="text-lg font-semibold text-slate-200">
+                  Bergabung Sejak
+                </h3>
               </div>
-              <p className="text-lg font-semibold text-white">{formatDate(profile.date_joined)}</p>
-              <p className="text-sm text-slate-400 mt-1">Tanggal pembuatan akun</p>
+              <p className="text-lg font-semibold text-white">
+                {formatDate(profile.date_joined)}
+              </p>
+              <p className="text-sm text-slate-400 mt-1">
+                Tanggal pembuatan akun
+              </p>
             </div>
 
             {/* Last Login */}
             <div className="bg-slate-700 rounded-xl p-6 border border-slate-600">
               <div className="flex items-center gap-3 mb-3">
                 <Clock className="text-blue-400" size={20} />
-                <h3 className="text-lg font-semibold text-slate-200">Login Terakhir</h3>
+                <h3 className="text-lg font-semibold text-slate-200">
+                  Login Terakhir
+                </h3>
               </div>
-              <p className="text-lg font-semibold text-white">{formatDate(profile.last_login)}</p>
-              <p className="text-sm text-slate-400 mt-1">Waktu login terakhir</p>
+              <p className="text-lg font-semibold text-white">
+                {formatDate(profile.last_login)}
+              </p>
+              <p className="text-sm text-slate-400 mt-1">
+                Waktu login terakhir
+              </p>
             </div>
           </div>
-        </div>
-
-        {/* Daily Audio Summary Section */}
-        <div className="bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-700 mb-8">
-          <div className="flex items-center gap-3 mb-6">
-            <Volume2 className="text-blue-400" size={24} />
-            <h2 className="text-2xl font-bold text-white">Laporan Hari Ini</h2>
-            <Calendar className="text-slate-400" size={20} />
-          </div>
-
-          {summaryLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <Loader className="animate-spin text-blue-500" size={32} />
-              <span className="ml-3 text-slate-300">Memuat data analisis...</span>
-            </div>
-          ) : dailySummary ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Total Analisis */}
-              <div className="bg-slate-700 rounded-xl p-6 border border-slate-600">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-slate-200">Total Analisis</h3>
-                  <TrendingUp className="text-blue-400" size={20} />
-                </div>
-                <p className="text-3xl font-bold text-white">{dailySummary.totalAnalysis}</p>
-                <p className="text-sm text-slate-400 mt-1">kali penggunaan mic</p>
-              </div>
-
-              {/* Rata-rata dB */}
-              <div className="bg-slate-700 rounded-xl p-6 border border-slate-600">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-slate-200">Rata-rata Suara</h3>
-                  <Volume2 className={`${
-                    dailySummary.riskLevel === 'safe' ? 'text-green-400' :
-                    dailySummary.riskLevel === 'moderate' ? 'text-yellow-400' : 'text-red-400'
-                  }`} size={20} />
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-3xl font-bold text-white">{dailySummary.averageNoiseLevel}</p>
-                  <span className="text-lg text-slate-300">dB</span>
-                </div>
-                {dailySummary.noiseReadings.length > 0 && (
-                  <p className="text-sm text-slate-400 mt-1">
-                    dari {dailySummary.noiseReadings.join(', ')} dB
-                  </p>
-                )}
-              </div>
-
-              {/* Rekomendasi */}
-              <div className="bg-slate-700 rounded-xl p-6 border border-slate-600 md:col-span-2 lg:col-span-1">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-slate-200">Status</h3>
-                  {dailySummary.riskLevel === 'safe' ? (
-                    <CheckCircle className="text-green-400" size={20} />
-                  ) : (
-                    <AlertTriangle className={`${
-                      dailySummary.riskLevel === 'moderate' ? 'text-yellow-400' : 'text-red-400'
-                    }`} size={20} />
-                  )}
-                </div>
-                <div className={`inline-flex px-3 py-1 rounded-full text-sm font-medium mb-3 ${
-                  dailySummary.riskLevel === 'safe' ? 'bg-green-900 text-green-300' :
-                  dailySummary.riskLevel === 'moderate' ? 'bg-yellow-900 text-yellow-300' : 'bg-red-900 text-red-300'
-                }`}>
-                  {dailySummary.riskLevel === 'safe' ? 'Aman' :
-                   dailySummary.riskLevel === 'moderate' ? 'Perhatian' : 'Bahaya'}
-                </div>
-                <p className="text-sm text-slate-300 leading-relaxed">
-                  {dailySummary.recommendation}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <Volume2 className="mx-auto text-slate-500 mb-4" size={48} />
-              <p className="text-slate-400 text-lg">Belum ada data analisis hari ini</p>
-              <p className="text-slate-500 text-sm mt-2">Mulai analisis suara untuk melihat laporan harian</p>
-            </div>
-          )}
-        </div>
-
-        {/* Health Dashboard Section */}
-        <div className="mt-8">
-          <HealthDashboard />
         </div>
       </div>
     </div>
