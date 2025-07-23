@@ -103,18 +103,27 @@ const Sidebar = styled(Box)(({ theme }) => ({
 
 const SidebarLogo = styled(Box)({
   marginBottom: "30px",
-  width: "40px",
-  height: "40px",
+  width: "60px",        // Diperbesar dari 40px ke 60px
+  height: "60px",       // Diperbesar dari 40px ke 60px
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   borderRadius: "12px",
-  background: "linear-gradient(135deg, #4A90E2 0%, #6C7DD2 100%)",
+  background: "transparent", // Hilangkan background gradient
   color: "white",
   fontWeight: "bold",
-  boxShadow: "0 4px 15px rgba(74, 144, 226, 0.3)",
 });
-
+const LogoImage = styled("img")({
+  width: "100%",
+  height: "100%",
+  objectFit: "contain",
+  filter: "drop-shadow(0 4px 15px rgba(74, 144, 226, 0.3))",
+  transition: "all 0.3s ease",
+  "&:hover": {
+    transform: "scale(1.1)",
+    filter: "drop-shadow(0 6px 20px rgba(74, 144, 226, 0.4))",
+  },
+});
 // Interface untuk NavItem props
 interface NavItemProps {
   active?: boolean;
@@ -193,7 +202,10 @@ const NavigationSidebar: React.FC<{
   return (
     <Sidebar>
       <SidebarLogo>
-        <VolumeX size={24} />
+        <LogoImage 
+          src="/logo.svg" 
+          alt="EcoNoise Logo"
+        />
       </SidebarLogo>
       <Box
         sx={{
