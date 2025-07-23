@@ -6,6 +6,7 @@ import {
   Activity,
   Clock,
   Calendar,
+  Shield,
 } from "lucide-react";
 import {
   getHealthDashboard,
@@ -194,24 +195,79 @@ const HealthDashboard: React.FC = () => {
             </div>
 
             {/* Health Alerts */}
-            {(dashboard?.summary?.total_alerts || 0) > 0 && (
-                  <div className="bg-yellow-900/20 border border-yellow-500 rounded-lg p-4 mb-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertTriangle className="text-yellow-400" size={16} />
-                      <h5 className="font-medium text-yellow-400">
-                        Peringatan Kesehatan
-                      </h5>
-                    </div>
-                    <p className="text-sm text-yellow-300">
-                      Paparan tinggi terdeteksi{" "}
-                      {dashboard?.summary?.total_alerts || 0} hari dalam
-                      seminggu terakhir
-                    </p>
-                    <p className="text-xs text-yellow-400 mt-1">
-                      💡 Coba gunakan headphone peredam bising saat bepergian
-                    </p>
+            {(() => {
+              const highNoisedays = weeklySummary.filter(s => s.averageNoiseLevel > 70).length;
+              const dangerousNoiseDays = weeklySummary.filter(s => s.averageNoiseLevel > 85).length;
+              const avgNoise = weeklySummary.length > 0 
+                ? weeklySummary
+                    .filter(s => s.averageNoiseLevel > 0)
+                    .reduce((sum, s) => sum + s.averageNoiseLevel, 0) / 
+                  Math.max(weeklySummary.filter(s => s.averageNoiseLevel > 0).length, 1)
+                : 0;
+              
+              // Tentukan level peringatan berdasarkan ambang batas dB
+              let shouldShow = false;
+              let bgColor = 'bg-gray-900/20';
+              let borderColor = 'border-gray-500';
+              let textColor = 'text-gray-400';
+              let iconColor = 'text-gray-400';
+              let title = '';
+              let message = '';
+              let advice = '';
+              
+              if (dangerousNoiseDays > 0 || avgNoise > 85) {
+                // MERAH - Berbahaya
+                shouldShow = true;
+                bgColor = 'bg-red-900/20';
+                borderColor = 'border-red-500';
+                textColor = 'text-red-400';
+                iconColor = 'text-red-400';
+                title = 'PERINGATAN BAHAYA!';
+                message = dangerousNoiseDays > 0 
+                  ? `Paparan BERBAHAYA (>85 dB) terdeteksi ${dangerousNoiseDays} hari minggu ini`
+                  : `Rata-rata mingguan ${avgNoise.toFixed(1)} dB - SANGAT BERBAHAYA!`;
+                advice = 'SEGERA gunakan pelindung telinga - risiko kerusakan pendengaran permanen!';
+              } else if (highNoisedays > 0 || avgNoise > 70) {
+                // ORANGE - Tinggi
+                shouldShow = true;
+                bgColor = 'bg-orange-900/20';
+                borderColor = 'border-orange-500';
+                textColor = 'text-orange-400';
+                iconColor = 'text-orange-400';
+                title = 'Peringatan Tinggi';
+                message = highNoisedays > 0 
+                  ? `Paparan tinggi (70-85 dB) terdeteksi ${highNoisedays} hari minggu ini`
+                  : `Rata-rata mingguan ${avgNoise.toFixed(1)} dB - perlu perhatian`;
+                advice = 'Gunakan headphone peredam bising dan kurangi paparan noise';
+              } else if (avgNoise > 50) {
+                // KUNING - Normal tapi perlu perhatian
+                shouldShow = true;
+                bgColor = 'bg-yellow-900/20';
+                borderColor = 'border-yellow-500';
+                textColor = 'text-yellow-400';
+                iconColor = 'text-yellow-400';
+                title = 'Perhatian Normal';
+                message = `Rata-rata mingguan ${avgNoise.toFixed(1)} dB - dalam batas normal`;
+                advice = 'Tetap jaga kesehatan pendengaran dengan istirahat yang cukup';
+              }
+              
+              return shouldShow && (
+                <div className={`${bgColor} ${borderColor} border rounded-lg p-4 mb-4`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className={iconColor} size={16} />
+                    <h5 className={`font-medium ${textColor}`}>
+                      {title}
+                    </h5>
                   </div>
-                )}
+                  <p className={`text-sm ${textColor.replace('400', '300')}`}>
+                    {message}
+                  </p>
+                  <p className={`text-xs ${textColor} mt-1`}>
+                    {avgNoise > 85 ? '🚨' : avgNoise > 70 ? '⚠️' : '💡'} {advice}
+                  </p>
+                </div>
+              );
+            })()}
 
                 {/* Weekly Average Summary */}
                 <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
@@ -241,18 +297,95 @@ const HealthDashboard: React.FC = () => {
                   <p className="text-slate-400 text-sm">Senin - Minggu</p>
                 </div>
 
-            {/* Weekend Recovery */}
-            <div className="bg-green-900/20 border border-green-500 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="text-green-400" size={16} />
-                <h5 className="font-medium text-green-400">
-                  Pemulihan Akhir Pekan
-                </h5>
-              </div>
-              <p className="text-sm text-green-300">
-                Waktu pemulihan yang baik - lebih banyak waktu di rumah
-              </p>
-            </div>
+            {/* Recovery Status */}
+            {(() => {
+              const avgNoise = weeklySummary.length > 0 
+                ? weeklySummary
+                    .filter(s => s.averageNoiseLevel > 0)
+                    .reduce((sum, s) => sum + s.averageNoiseLevel, 0) / 
+                  Math.max(weeklySummary.filter(s => s.averageNoiseLevel > 0).length, 1)
+                : 0;
+              
+              const weekendData = weeklySummary.filter(s => {
+                const day = new Date(s.date).getDay();
+                return day === 0 || day === 6; // Sunday or Saturday
+              });
+              
+              const weekendAvg = weekendData.length > 0 
+                ? weekendData.reduce((sum, s) => sum + s.averageNoiseLevel, 0) / weekendData.length
+                : 0;
+              
+              // Tentukan status berdasarkan ambang batas dB
+              let bgColor = 'bg-gray-900/20';
+              let borderColor = 'border-gray-500';
+              let textColor = 'text-gray-400';
+              let iconColor = 'text-gray-400';
+              let title = 'Status Pemulihan';
+              let message = 'Tidak ada data';
+              let advice = 'Mulai rekam data untuk analisis';
+              let icon = '📊';
+              
+              if (avgNoise < 50) {
+                // HIJAU - Aman
+                bgColor = 'bg-green-900/20';
+                borderColor = 'border-green-500';
+                textColor = 'text-green-400';
+                iconColor = 'text-green-400';
+                title = 'Status Pemulihan Sangat Baik';
+                message = `Rata-rata mingguan ${avgNoise.toFixed(1)} dB dalam batas aman`;
+                advice = 'Pertahankan pola hidup sehat ini!';
+                icon = '✅';
+              } else if (avgNoise < 70) {
+                // KUNING - Normal
+                bgColor = 'bg-yellow-900/20';
+                borderColor = 'border-yellow-500';
+                textColor = 'text-yellow-400';
+                iconColor = 'text-yellow-400';
+                title = 'Status Pemulihan Normal';
+                message = `Rata-rata mingguan ${avgNoise.toFixed(1)} dB - masih dalam batas normal`;
+                advice = weekendAvg < avgNoise 
+                  ? 'Bagus! Weekend lebih tenang - lanjutkan pola ini'
+                  : 'Coba cari waktu istirahat lebih banyak di weekend';
+                icon = '⚠️';
+              } else if (avgNoise < 85) {
+                // ORANGE - Tinggi
+                bgColor = 'bg-orange-900/20';
+                borderColor = 'border-orange-500';
+                textColor = 'text-orange-400';
+                iconColor = 'text-orange-400';
+                title = 'Perlu Perhatian - Pemulihan Kurang';
+                message = `Rata-rata mingguan ${avgNoise.toFixed(1)} dB - tinggi, perlu perhatian`;
+                advice = 'Perbanyak waktu di tempat tenang dan gunakan pelindung telinga';
+                icon = '🔶';
+              } else {
+                // MERAH - Berbahaya
+                bgColor = 'bg-red-900/20';
+                borderColor = 'border-red-500';
+                textColor = 'text-red-400';
+                iconColor = 'text-red-400';
+                title = 'BAHAYA - Pemulihan Sangat Buruk';
+                message = `Rata-rata mingguan ${avgNoise.toFixed(1)} dB - BERBAHAYA!`;
+                advice = 'SEGERA cari lingkungan tenang dan konsultasi medis!';
+                icon = '🚨';
+              }
+              
+              return (
+                <div className={`${bgColor} ${borderColor} border rounded-lg p-4`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Shield className={iconColor} size={16} />
+                    <h5 className={`font-medium ${textColor}`}>
+                      {title}
+                    </h5>
+                  </div>
+                  <p className={`text-sm ${textColor.replace('400', '300')}`}>
+                    {message}
+                  </p>
+                  <p className={`text-xs ${textColor} mt-1`}>
+                    {icon} {advice}
+                  </p>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
