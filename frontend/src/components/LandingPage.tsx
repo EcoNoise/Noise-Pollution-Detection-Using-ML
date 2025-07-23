@@ -2007,26 +2007,53 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
                 </div>
                 <div className="tech-content">
                   <h3>AI Neural Network</h3>
-                  <p>Algoritma pembelajaran mendalam yang dapat mengidentifikasi pola suara kompleks dengan akurasi tinggi</p>
+                  <p>
+                    Algoritma pembelajaran mendalam yang dapat mengidentifikasi
+                    pola suara kompleks dengan akurasi tinggi
+                  </p>
                 </div>
               </div>
 
               <div className="tech-item processing">
                 <div className="tech-visual">
                   <div className="wave-spectrum">
-                    <div className="spectrum-bar" style={{height: '20%'}}></div>
-                    <div className="spectrum-bar" style={{height: '60%'}}></div>
-                    <div className="spectrum-bar" style={{height: '40%'}}></div>
-                    <div className="spectrum-bar" style={{height: '80%'}}></div>
-                    <div className="spectrum-bar" style={{height: '30%'}}></div>
-                    <div className="spectrum-bar" style={{height: '70%'}}></div>
-                    <div className="spectrum-bar" style={{height: '50%'}}></div>
+                    <div
+                      className="spectrum-bar"
+                      style={{ height: "20%" }}
+                    ></div>
+                    <div
+                      className="spectrum-bar"
+                      style={{ height: "60%" }}
+                    ></div>
+                    <div
+                      className="spectrum-bar"
+                      style={{ height: "40%" }}
+                    ></div>
+                    <div
+                      className="spectrum-bar"
+                      style={{ height: "80%" }}
+                    ></div>
+                    <div
+                      className="spectrum-bar"
+                      style={{ height: "30%" }}
+                    ></div>
+                    <div
+                      className="spectrum-bar"
+                      style={{ height: "70%" }}
+                    ></div>
+                    <div
+                      className="spectrum-bar"
+                      style={{ height: "50%" }}
+                    ></div>
                   </div>
                   <div className="processing-indicator"></div>
                 </div>
                 <div className="tech-content">
                   <h3>Real-time Processing</h3>
-                  <p>Pemrosesan data audio secara real-time dengan latency ultra-rendah untuk respons instan</p>
+                  <p>
+                    Pemrosesan data audio secara real-time dengan latency
+                    ultra-rendah untuk respons instan
+                  </p>
                 </div>
               </div>
 
@@ -2049,7 +2076,10 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
                 </div>
                 <div className="tech-content">
                   <h3>Predictive Analytics</h3>
-                  <p>Prediksi tren polusi suara masa depan berdasarkan data historis dan pola lingkungan</p>
+                  <p>
+                    Prediksi tren polusi suara masa depan berdasarkan data
+                    historis dan pola lingkungan
+                  </p>
                 </div>
               </div>
             </div>

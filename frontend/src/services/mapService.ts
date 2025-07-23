@@ -251,9 +251,15 @@ class MapService {
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
+        const errorData = await response.json().catch(() => null);
         console.error("❌ Error response dari backend:", errorData);
-        throw new Error("Failed to add noise area");
+
+        // Handle specific error for identical coordinates
+        if (response.status === 409) {
+          throw new Error("Koordinat sudah digunakan, pilih lokasi lain");
+        }
+
+        throw new Error(errorData?.error || "Failed to add noise area");
       }
 
       const data = await response.json();
@@ -281,7 +287,8 @@ class MapService {
       return null;
     } catch (error) {
       console.error("Error adding noise location:", error);
-      return null;
+      // Re-throw the error so it can be handled by the calling component
+      throw error;
     }
   }
 
@@ -428,7 +435,14 @@ class MapService {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update noise area");
+        const errorData = await response.json().catch(() => null);
+
+        // Handle specific error for identical coordinates
+        if (response.status === 409) {
+          throw new Error("Koordinat sudah digunakan, pilih lokasi lain");
+        }
+
+        throw new Error(errorData?.error || "Failed to update noise area");
       }
 
       const data = await response.json();
@@ -569,6 +583,11 @@ class MapService {
       console.log("📥 Response data update:", data);
 
       if (!response.ok) {
+        // Handle specific error for identical coordinates
+        if (response.status === 409) {
+          throw new Error("Koordinat sudah digunakan, pilih lokasi lain");
+        }
+
         const errorMsg =
           data.detail ||
           data.error ||
