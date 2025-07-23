@@ -25,24 +25,25 @@ from .views import (
 app_name = "noise_detection"
 
 urlpatterns = [
-    # Health check
+    # Health and Model Status
     path("health/", HealthView.as_view(), name="health"),
-    # Model status
-    path("models/status/", ModelStatusView.as_view(), name="model_status"),
-    # Audio prediction
-    path("predict/", AudioUploadPredictionView.as_view(), name="audio_prediction"),
-    path("predict/batch/", BatchPredictionView.as_view(), name="batch_prediction"),
-    # History
-    path("history/", PredictionHistoryView.as_view(), name="prediction_history"),
+    path("model-status/", ModelStatusView.as_view(), name="model_status"),
+    
+    # Audio Processing
+    path("audio/predict/", AudioUploadPredictionView.as_view(), name="audio_predict"),
+    path("audio/batch/", BatchPredictionView.as_view(), name="batch_predict"),
+    path("predictions/history/", PredictionHistoryView.as_view(), name="prediction_history"),
+    
     # Authentication
-    path("auth/register/", RegisterView.as_view(), name="auth_register"),
-    path("auth/login/", LoginView.as_view(), name="auth_login"),
-    path("auth/refresh/", RefreshTokenView.as_view(), name="auth_refresh"),
-    path("auth/me/", UserProfileView.as_view(), name="auth_me"),
+    path("auth/register/", RegisterView.as_view(), name="register"),
+    path("auth/login/", LoginView.as_view(), name="login"),
+    path("auth/refresh/", RefreshTokenView.as_view(), name="token_refresh"),
+    path("auth/me/", UserProfileView.as_view(), name="user_profile"),
+    
     # Noise Areas
-    path("areas/", NoiseAreaListCreateView.as_view(), name="noise_areas"),
-    path("areas/<int:pk>/", NoiseAreaDetailView.as_view(), name="noise_area_detail"),
-    path("areas/my/", UserNoiseAreasView.as_view(), name="user_noise_areas"),
+    path("noise-areas/", NoiseAreaListCreateView.as_view(), name="noise_areas"),
+    path("noise-areas/<str:pk>/", NoiseAreaDetailView.as_view(), name="noise_area_detail"),
+    path("my-noise-areas/", UserNoiseAreasView.as_view(), name="user_noise_areas"),
     # Health Dashboard
     path("health-profile/", HealthProfileView.as_view(), name="health_profile"),
     path("exposure-logs/", ExposureLogView.as_view(), name="exposure_logs"),

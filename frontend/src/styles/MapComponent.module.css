@@ -199,11 +199,12 @@
   cursor: not-allowed;
 }
 
+/* LEGEND - Adjusted positioning to avoid conflict with AreaFilter */
 .legend {
   position: absolute;
   bottom: 20px;
   right: 20px;
-  z-index: 1000;
+  z-index: 998; /* Lower than AreaFilter to avoid conflicts */
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -327,6 +328,13 @@
 }
 
 /* Responsive design */
+@media (max-width: 1024px) {
+  .searchContainer {
+    left: 80px;
+    width: 280px;
+  }
+}
+
 @media (max-width: 768px) {
   .mapContainer {
     margin-left: 0; /* Hilangkan margin di mobile */
@@ -334,7 +342,7 @@
 
   .searchContainer {
     left: 10px;
-    right: 10px;
+    right: 70px; /* Beri ruang untuk map controls */
     width: auto;
     min-width: auto;
   }
@@ -347,11 +355,14 @@
     left: 10px;
     right: 10px;
     min-width: auto;
+    bottom: 180px; /* Raised higher to accommodate AreaFilter */
   }
 
   .legend {
     right: 10px;
+    left: 10px;
     min-width: auto;
+    bottom: 20px;
   }
 }
 
@@ -360,5 +371,10 @@
     left: 10px;
     right: 10px;
     width: auto;
+  }
+  
+  .noisePanel {
+    padding: 12px;
+    bottom: 200px;
   }
 }

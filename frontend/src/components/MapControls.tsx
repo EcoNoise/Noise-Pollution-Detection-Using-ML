@@ -7,9 +7,11 @@ interface MapControlsProps {
   onLocateUser: () => void;
   onClearAreas: () => void;
   onToggleLegend: () => void;
+  onToggleFilter: () => void;
   onToggleTracking?: () => void; // BARU: Toggle tracking
   isAddingNoise: boolean;
   showLegend: boolean;
+  showFilter: boolean;
   isTrackingUser?: boolean; // BARU: Status tracking
   hasUserLocation?: boolean; // BARU: Apakah ada lokasi user
 }
@@ -19,9 +21,11 @@ const MapControls: React.FC<MapControlsProps> = ({
   onLocateUser,
   onClearAreas,
   onToggleLegend,
+  onToggleFilter,
   onToggleTracking,
   isAddingNoise,
   showLegend,
+  showFilter,
   isTrackingUser = false,
   hasUserLocation = false,
 }) => {
@@ -81,7 +85,15 @@ const MapControls: React.FC<MapControlsProps> = ({
           <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
         </svg>
       </button>
-
+            <button
+        className={`${styles.controlButton} ${showFilter ? styles.active : ""}`}
+        onClick={onToggleFilter}
+        title="Tampilkan/Sembunyikan Filter"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z" />
+        </svg>
+      </button>
       <button
         className={`${styles.controlButton} ${showLegend ? styles.active : ""}`}
         onClick={onToggleLegend}

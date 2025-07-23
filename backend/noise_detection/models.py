@@ -36,14 +36,14 @@ class NoiseArea(models.Model):
     """Model untuk menyimpan area berisik yang ditambahkan user di peta"""
     
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='noise_areas')
-    latitude = models.DecimalField(max_digits=20, decimal_places=15)
-    longitude = models.DecimalField(max_digits=20, decimal_places=15)
+    latitude = models.FloatField()  # Ubah ke FloatField untuk kompatibilitas dengan frontend
+    longitude = models.FloatField()  # Ubah ke FloatField untuk kompatibilitas dengan frontend
     noise_level = models.FloatField()
     noise_source = models.CharField(max_length=100, blank=True)
     health_impact = models.CharField(max_length=50, blank=True)
     description = models.TextField(blank=True)
     address = models.CharField(max_length=255, blank=True)
-    radius = models.IntegerField(default=50)  # radius dalam meter - DIPERKECIL dari 100 ke 50
+    radius = models.IntegerField(default=50)  # radius dalam meter
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
