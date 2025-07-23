@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+
+interface LandingPageProps {
+  isAuthenticated: boolean;
+  onLogout: () => void;
+}
+
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -12,7 +18,7 @@ declare global {
   }
 }
 
-const ModernLandingPage = () => {
+const ModernLandingPage: React.FC<LandingPageProps> = ({ isAuthenticated, onLogout }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const splineRef = useRef<HTMLDivElement>(null);
@@ -746,8 +752,23 @@ const ModernLandingPage = () => {
             </a>
             
             <div className="nav-menu">
-              <Link to="/login" className="signin-btn">Sign In</Link>
-              <Link to="/register" className="signup-btn">Sign Up</Link>
+              {isAuthenticated ? (
+                <>
+                  <Link to="/home" className="signin-btn">Dashboard</Link>
+                  <button 
+                    onClick={onLogout} 
+                    className="signup-btn"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" className="signin-btn">Sign In</Link>
+                  <Link to="/register" className="signup-btn">Sign Up</Link>
+                </>
+              )}
               
               <button 
                 className="mobile-menu-btn"
