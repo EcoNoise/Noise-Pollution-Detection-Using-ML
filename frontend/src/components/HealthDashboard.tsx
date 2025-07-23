@@ -13,6 +13,7 @@ import {
   HealthDashboard as HealthDashboardType,
   HealthProfile,
 } from "../services/healthService";
+import { DailyAudioService, DailyAudioSummary } from "../services/dailyAudioService";
 
 const HealthDashboard: React.FC = () => {
   const [dashboard, setDashboard] = useState<HealthDashboardType | null>(null);
@@ -20,6 +21,7 @@ const HealthDashboard: React.FC = () => {
   const [error, setError] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [showAddLog, setShowAddLog] = useState(false);
+  const [weeklySummary, setWeeklySummary] = useState<DailyAudioSummary[]>([]);
 
   // Add log form state (simplified)
   const [logForm, setLogForm] = useState({
@@ -35,8 +37,12 @@ const HealthDashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const dashboardData = await getHealthDashboard();
+      const [dashboardData, weeklyData] = await Promise.all([
+        getHealthDashboard(),
+        DailyAudioService.getWeeklyAudioSummary()
+      ]);
       setDashboard(dashboardData);
+      setWeeklySummary(weeklyData);
     } catch (err: any) {
       console.error("Error fetching dashboard data:", err);
       setError(err.message);
@@ -66,6 +72,11 @@ const HealthDashboard: React.FC = () => {
     const days = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
     const date = new Date(dateStr);
     return days[date.getDay()];
+  };
+
+  const getDayNameFromIndex = (index: number) => {
+    const days = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+    return days[index];
   };
 
   const getNoiseColor = (noise: number) => {
@@ -113,7 +124,7 @@ const HealthDashboard: React.FC = () => {
         <div className="bg-red-900/20 border border-red-500 rounded-lg p-4">
           <p className="text-red-400">Error: {error}</p>
         </div>
-      ) : !dashboard || !dashboard.summary ? (
+      ) : !dashboard && weeklySummary.length === 0 ? (
         <div className="text-slate-400 text-center py-8">
           <p>Belum ada data kesehatan tersedia.</p>
           <p className="text-sm mt-2">
@@ -141,30 +152,26 @@ const HealthDashboard: React.FC = () => {
                 Paparan Harian (Jam)
               </h5>
               <div className="space-y-2">
-                {(dashboard.recent_logs || []).map((log, index) => (
+                {weeklySummary.map((summary, index) => (
                   <div key={index} className="flex items-center gap-4">
                     <div className="w-8 text-xs text-slate-400 font-medium">
-                      {getDayName(log.date)}
+                      {getDayNameFromIndex(index)}
                     </div>
                     <div className="flex-1 bg-slate-600 rounded-full h-6 relative overflow-hidden">
                       <div
                         className="bg-gradient-to-r from-blue-500 to-purple-500 h-full rounded-full transition-all duration-300"
                         style={{
-                          width: `${getExposureBarWidth(
-                            log.total_exposure_hours || 0
-                          )}%`,
+                          width: `${summary.totalAnalysis > 0 ? getExposureBarWidth(summary.totalAnalysis / 3) : 0}%`,
                         }}
                       ></div>
                       <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-white">
-                        {(log.total_exposure_hours || 0).toFixed(1)}h
+                        {summary.totalAnalysis > 0 ? `${(summary.totalAnalysis / 3).toFixed(1)}h` : '-'}
                       </div>
                     </div>
                     <div
-                      className={`text-xs font-medium ${getNoiseColor(
-                        log.weighted_avg_noise || 0
-                      )}`}
+                      className={`text-xs font-medium ${summary.averageNoiseLevel > 0 ? getNoiseColor(summary.averageNoiseLevel) : 'text-slate-500'}`}
                     >
-                      {(log.weighted_avg_noise || 0).toFixed(1)} dB
+                      {summary.averageNoiseLevel > 0 ? `${summary.averageNoiseLevel.toFixed(1)} dB` : '-'}
                     </div>
                   </div>
                 ))}
@@ -172,7 +179,7 @@ const HealthDashboard: React.FC = () => {
             </div>
 
             {/* Health Alerts */}
-            {(dashboard.summary?.total_alerts || 0) > 0 && (
+            {(dashboard?.summary?.total_alerts || 0) > 0 && (
                   <div className="bg-yellow-900/20 border border-yellow-500 rounded-lg p-4 mb-4">
                     <div className="flex items-center gap-2 mb-2">
                       <AlertTriangle className="text-yellow-400" size={16} />
@@ -182,7 +189,7 @@ const HealthDashboard: React.FC = () => {
                     </div>
                     <p className="text-sm text-yellow-300">
                       Paparan tinggi terdeteksi{" "}
-                      {dashboard.summary?.total_alerts || 0} hari dalam
+                      {dashboard?.summary?.total_alerts || 0} hari dalam
                       seminggu terakhir
                     </p>
                     <p className="text-xs text-yellow-400 mt-1">
@@ -199,12 +206,24 @@ const HealthDashboard: React.FC = () => {
                   </div>
                   <p
                     className={`text-2xl font-bold ${getNoiseColor(
-                      dashboard.summary?.avg_noise_7days || 0
+                      weeklySummary.length > 0 
+                        ? weeklySummary
+                            .filter(s => s.averageNoiseLevel > 0)
+                            .reduce((sum, s) => sum + s.averageNoiseLevel, 0) / 
+                          Math.max(weeklySummary.filter(s => s.averageNoiseLevel > 0).length, 1)
+                        : 0
                     )}`}
                   >
-                    {(dashboard.summary?.avg_noise_7days || 0).toFixed(1)} dB
+                    {weeklySummary.length > 0 
+                      ? (weeklySummary
+                          .filter(s => s.averageNoiseLevel > 0)
+                          .reduce((sum, s) => sum + s.averageNoiseLevel, 0) / 
+                        Math.max(weeklySummary.filter(s => s.averageNoiseLevel > 0).length, 1)
+                        ).toFixed(1)
+                      : '0.0'
+                    } dB
                   </p>
-                  <p className="text-slate-400 text-sm">7 hari terakhir</p>
+                  <p className="text-slate-400 text-sm">Senin - Minggu</p>
                 </div>
 
             {/* Weekend Recovery */}

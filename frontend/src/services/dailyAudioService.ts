@@ -133,17 +133,39 @@ export class DailyAudioService {
   }
 
   /**
-   * Mendapatkan ringkasan mingguan
+   * Mendapatkan ringkasan mingguan dari Senin sampai Minggu
+   * Hari sebelum hari akses akan dikosongkan
    */
   static async getWeeklyAudioSummary(): Promise<DailyAudioSummary[]> {
     const summaries: DailyAudioSummary[] = [];
     const today = new Date();
+    const currentDayOfWeek = today.getDay(); // 0 = Minggu, 1 = Senin, dst.
     
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      const summary = await this.getAudioSummaryByDate(date);
-      summaries.push(summary);
+    // Hitung tanggal Senin minggu ini
+    const mondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayOffset);
+    
+    // Buat array untuk 7 hari (Senin sampai Minggu)
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      
+      // Jika tanggal lebih dari hari ini, kosongkan data
+      if (date > today) {
+        const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        summaries.push({
+          date: date.toDateString(),
+          totalAnalysis: 0,
+          averageNoiseLevel: 0,
+          noiseReadings: [],
+          recommendation: `Data untuk ${dayNames[date.getDay()]} belum tersedia`,
+          riskLevel: 'safe'
+        });
+      } else {
+        const summary = await this.getAudioSummaryByDate(date);
+        summaries.push(summary);
+      }
     }
     
     return summaries;
