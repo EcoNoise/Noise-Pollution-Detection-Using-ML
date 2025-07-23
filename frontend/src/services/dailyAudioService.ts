@@ -15,6 +15,44 @@ export interface DailyAudioSummary {
 }
 
 export class DailyAudioService {
+  // Key untuk menyimpan minggu terakhir di localStorage
+  private static readonly LAST_WEEK_KEY = 'lastWeekStart';
+  
+  /**
+   * Mendapatkan tanggal Senin minggu ini dalam format string
+   */
+  private static getCurrentWeekStart(): string {
+    const today = new Date();
+    const currentDayOfWeek = today.getDay();
+    const mondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayOffset);
+    return monday.toDateString();
+  }
+
+  /**
+   * Memeriksa apakah sudah terjadi pergantian minggu
+   */
+  private static hasWeekChanged(): boolean {
+    const currentWeekStart = this.getCurrentWeekStart();
+    const lastWeekStart = localStorage.getItem(this.LAST_WEEK_KEY);
+    
+    if (!lastWeekStart || lastWeekStart !== currentWeekStart) {
+      localStorage.setItem(this.LAST_WEEK_KEY, currentWeekStart);
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
+   * Reset data weekly summary (menghapus cache jika ada)
+   */
+  private static resetWeeklyData(): void {
+    // Hapus cache weekly summary jika ada
+    localStorage.removeItem('weeklyAudioSummaryCache');
+    console.log('Weekly summary data has been reset for new week');
+  }
   /**
    * Mendapatkan ringkasan analisis audio untuk hari ini
    */
@@ -135,8 +173,15 @@ export class DailyAudioService {
   /**
    * Mendapatkan ringkasan mingguan dari Senin sampai Minggu
    * Hari sebelum hari akses akan dikosongkan
+   * Otomatis reset ketika terjadi pergantian minggu
    */
   static async getWeeklyAudioSummary(): Promise<DailyAudioSummary[]> {
+    // Periksa apakah sudah terjadi pergantian minggu
+    if (this.hasWeekChanged()) {
+      this.resetWeeklyData();
+      console.log('🔄 Minggu baru dimulai! Data weekly summary telah direset.');
+    }
+
     const summaries: DailyAudioSummary[] = [];
     const today = new Date();
     const currentDayOfWeek = today.getDay(); // 0 = Minggu, 1 = Senin, dst.
@@ -170,4 +215,6 @@ export class DailyAudioService {
     
     return summaries;
   }
+
+
 }
