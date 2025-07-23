@@ -345,7 +345,7 @@ function App() {
       <Router>
         <Routes>
           {/* Rute tanpa sidebar */}
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<LandingPage isAuthenticated={isAuthenticated} onLogout={handleLogout} />} />
           <Route
             path="/login"
             element={<LoginPage onLoginSuccess={handleLogin} />}
