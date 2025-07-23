@@ -133,6 +133,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [isAddingNoise, setIsAddingNoise] = useState<boolean>(false);
   const [showNoiseForm, setShowNoiseForm] = useState<boolean>(false);
   const [showLegend, setShowLegend] = useState<boolean>(true);
+  const [formDescription, setFormDescription] = useState<string>(""); // State untuk deskripsi
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
   const [selectedPosition, setSelectedPosition] = useState<
     [number, number] | null
   >(null);
@@ -156,6 +159,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [error, setError] = useState<string>("");
 
   const mapRef = useRef<LeafletMap | null>(null);
+  const reanalysisFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [locationToReanalyze, setLocationToReanalyze] = useState<NoiseLocation | null>(null);
+
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const watchId = useRef<number | null>(null);
 
@@ -194,7 +200,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         },
         {
           enableHighAccuracy: true,
-          maximumAge: 30000,
+          maximumAge: 0,
           timeout: 10000,
         }
       );
@@ -327,7 +333,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       setSearchLocationMarker(null);
     }
   };
-
   const handleAddNoiseArea = () => {
     const isAuthenticated = !!localStorage.getItem("accessToken");
     if (!isAuthenticated) {
@@ -346,20 +351,163 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   };
 
   // NEW: Handler for the "Analisis Suara" button
-  const handleStartAnalysis = () => {
-    if (selectedPosition) {
-      // 1. Set the context in the service
-      mapService.setAnalysisRequest({
+  const handleUploadAndAnalyze = async () => {
+    if (!selectedPosition) {
+      setError("Lokasi di peta belum dipilih.");
+      return;
+    }
+    
+    if (!audioFile) {
+      setError("Silakan pilih file audio untuk dianalisis.");
+      return;
+    }
+
+    // VALIDASI TAMBAHAN: Periksa format dan ukuran file di frontend
+    const allowedTypes = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/mp4', 'audio/m4a', 'audio/ogg', 'audio/webm', 'audio/flac'];
+    if (!allowedTypes.includes(audioFile.type)) {
+      setError(`Format file tidak didukung: ${audioFile.type}. Gunakan format WAV, MP3, M4A, OGG, WebM, atau FLAC.`);
+      return;
+    }
+
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (audioFile.size > maxSize) {
+      setError(`Ukuran file terlalu besar (${(audioFile.size / 1024 / 1024).toFixed(1)}MB). Maksimal 50MB.`);
+      return;
+    }
+
+    setIsUploading(true);
+    setError("");
+    
+    try {
+      console.log('🎵 Memulai analisis audio:', {
+        fileName: audioFile.name,
+        fileSize: `${(audioFile.size / 1024 / 1024).toFixed(2)}MB`,
+        fileType: audioFile.type,
         position: selectedPosition,
-        address: formAddress,
+        address: formAddress
       });
-      // 2. Navigate to the HomePage to start recording
-      navigate("/home");
-    } else {
-      setError("Silakan pilih titik di peta terlebih dahulu.");
+
+      const newLocation = await mapService.analyzeAudioAndAddArea(
+        audioFile,
+        selectedPosition,
+        formAddress,
+        formDescription
+      );
+
+      if (newLocation) {
+        console.log('✅ Area berhasil ditambahkan:', newLocation);
+        
+        // Reload data dan zoom ke lokasi baru
+        await loadNoiseLocations();
+        zoomToLocation(newLocation.coordinates, 17);
+        
+        // Reset form dan tutup panel
+        setShowNoiseForm(false);
+        setSelectedPosition(null);
+        setFormAddress("");
+        setFormDescription("");
+        setAudioFile(null);
+        setIsAddingNoise(false);
+        
+        // Tampilkan notifikasi sukses
+        alert(`✅ Analisis berhasil!\n\nTingkat Kebisingan: ${newLocation.noiseLevel}\nSumber: ${newLocation.source}\nDampak Kesehatan: ${newLocation.healthImpact}`);
+        
+      } else {
+        setError("Gagal membuat area kebisingan baru setelah analisis.");
+      }
+    } catch (err: any) {
+      console.error('❌ Error saat analisis:', err);
+      
+      // Tampilkan error yang lebih user-friendly
+      let userMessage = err.message || "Terjadi kesalahan saat memproses file Anda.";
+      
+      // Tangani berbagai jenis error khusus
+      if (userMessage.includes('400')) {
+        userMessage = "Server menolak file audio. Pastikan format file benar dan tidak rusak.";
+      } else if (userMessage.includes('401')) {
+        userMessage = "Sesi Anda telah berakhir. Silakan login kembali.";
+      } else if (userMessage.includes('413')) {
+        userMessage = "Ukuran file terlalu besar. Maksimal 50MB.";
+      } else if (userMessage.includes('500')) {
+        userMessage = "Terjadi kesalahan pada server. Coba lagi dalam beberapa saat.";
+      }
+      
+      setError(userMessage);
+    } finally {
+      setIsUploading(false);
     }
   };
 
+  // TAMBAHAN: Handler untuk validasi file saat dipilih
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      
+      // Reset error sebelumnya
+      setError("");
+      
+      // Validasi format file
+      const allowedTypes = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/mp4', 'audio/m4a', 'audio/ogg', 'audio/webm', 'audio/flac'];
+      if (!allowedTypes.includes(file.type)) {
+        setError(`Format file tidak didukung: ${file.type}`);
+        e.target.value = ""; // Reset input
+        return;
+      }
+      
+      // Validasi ukuran file
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSize) {
+        setError(`File terlalu besar: ${(file.size / 1024 / 1024).toFixed(1)}MB. Maksimal 50MB.`);
+        e.target.value = ""; // Reset input
+        return;
+      }
+      
+      console.log('📁 File dipilih:', {
+        name: file.name,
+        size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+        type: file.type
+      });
+      
+      setAudioFile(file);
+    }
+  };
+    const handleStartReanalysis = (location: NoiseLocation) => {
+    setLocationToReanalyze(location); // Simpan info lokasi mana yang akan dianalisis
+    reanalysisFileInputRef.current?.click(); // Buka jendela pilih file
+  };
+
+  // Fungsi ini berjalan setelah Anda memilih file audio
+  const handleReanalysisFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !locationToReanalyze) return; // Batalkan jika tidak ada file
+
+    setIsUploading(true);
+    setError("");
+    try {
+      // Panggil service yang sudah Anda buat
+      const updatedLocation = await mapService.updateNoiseLocationWithAudio(
+        locationToReanalyze.id,
+        file,
+        {
+          description: locationToReanalyze.description,
+          address: locationToReanalyze.address,
+        }
+      );
+
+      if (updatedLocation) {
+        await loadNoiseLocations(); // Muat ulang data peta agar update
+        alert("Analisis ulang berhasil!");
+      } else {
+        setError("Gagal memperbarui setelah analisis ulang.");
+      }
+    } catch (err: any) {
+      setError(err.message || "Terjadi kesalahan saat memproses file.");
+    } finally {
+      setIsUploading(false);
+      setLocationToReanalyze(null);
+      if (e.target) e.target.value = ""; // Reset input
+    }
+  };
   const handleDeleteNoiseLocation = async (id: string) => {
     try {
       setLoading(true);
@@ -478,6 +626,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   return (
     <div className={`${styles.mapContainer} ${className || ""}`}>
       {/* Search Container and MapControls remain the same */}
+      <input
+        type="file"
+        accept="audio/*"
+        style={{ display: 'none' }}
+        ref={reanalysisFileInputRef}
+        onChange={handleReanalysisFileSelected}
+      />
       <div className={styles.searchContainer}>
         <input
           type="text"
@@ -537,15 +692,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       {/* UPDATED: Noise Panel is now the form for the new flow */}
       {showNoiseForm && selectedPosition && (
         <div className={styles.noisePanel}>
-          <div className={styles.noisePanelTitle}>Analisis Suara di Lokasi</div>
+          <div className={styles.noisePanelTitle}>Analisis Kebisingan di Lokasi</div>
           <div className={styles.noiseForm}>
-            <input
-              type="text"
-              placeholder="Alamat/Nama Lokasi (opsional)"
-              value={formAddress}
-              onChange={(e) => setFormAddress(e.target.value)}
-              className={styles.noiseInput}
-            />
             <div className={styles.noiseLevel}>
               <span>Koordinat:</span>
               <span className={styles.noiseLevelValue}>
@@ -553,11 +701,40 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                 {selectedPosition[1].toFixed(5)}
               </span>
             </div>
+            <input
+              type="text"
+              placeholder="Alamat/Nama Lokasi (opsional)"
+              value={formAddress}
+              onChange={(e) => setFormAddress(e.target.value)}
+              className={styles.noiseInput}
+            />
+            <input
+              type="text"
+              placeholder="Deskripsi (misal: 'suara dari proyek')"
+              value={formDescription}
+              onChange={(e) => setFormDescription(e.target.value)}
+              className={styles.noiseInput}
+            />
+            <div className={styles.fileInputContainer}>
+                <label htmlFor="audio-upload" className={styles.fileInputLabel}>
+                    Pilih File Audio
+                </label>
+                <input
+                    id="audio-upload"
+                    type="file"
+                    accept="audio/*"
+                    onChange={handleFileChange} // <--- Handler baru
+                    className={styles.fileInput}
+                    disabled={isUploading}
+                />
+                {audioFile && <span className={styles.fileName}>{audioFile.name}</span>}
+            </div>
             <button
-              onClick={handleStartAnalysis}
+              onClick={handleUploadAndAnalyze} // <--- Handler baru
               className={styles.submitButton}
+              disabled={isUploading || !audioFile}
             >
-              Analisis Suara
+              {isUploading ? "Menganalisis..." : "Upload & Analisis"}
             </button>
           </div>
         </div>

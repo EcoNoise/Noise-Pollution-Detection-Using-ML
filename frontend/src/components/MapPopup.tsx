@@ -6,23 +6,20 @@ import styles from "../styles/MapComponent.module.css";
 
 interface MapPopupProps {
   location: NoiseLocation;
-  onEdit?: (location: NoiseLocation) => void;
   onDelete?: (id: string) => void;
+  onReanalyze?: (location: NoiseLocation) => void; // Mengganti onEdit dengan onReanalyze
 }
 
-const MapPopup: React.FC<MapPopupProps> = ({ location, onEdit, onDelete }) => {
-  const handleEdit = () => {
-    if (onEdit) {
-      onEdit(location);
+const MapPopup: React.FC<MapPopupProps> = ({ location, onDelete, onReanalyze }) => {
+  const handleDelete = () => {
+    if (onDelete && window.confirm("Apakah Anda yakin ingin menghapus area ini?")) {
+      onDelete(location.id);
     }
   };
 
-  const handleDelete = () => {
-    if (
-      onDelete &&
-      window.confirm("Apakah Anda yakin ingin menghapus area berisik ini?")
-    ) {
-      onDelete(location.id);
+  const handleReanalyze = () => {
+    if (onReanalyze) {
+      onReanalyze(location);
     }
   };
 
@@ -71,30 +68,28 @@ const MapPopup: React.FC<MapPopupProps> = ({ location, onEdit, onDelete }) => {
           )}
         </div>
 
-        {(onEdit || (onDelete && location.canDelete)) && (
-          <div className={styles.popupActions}>
-            {onEdit && location.canDelete && (
-              <button
-                className={`${styles.popupButton} ${styles.editButton}`}
-                onClick={handleEdit}
-              >
-                Edit
-              </button>
-            )}
-            {onDelete && location.canDelete && (
-              <button
-                className={`${styles.popupButton} ${styles.deleteButton}`}
-                onClick={handleDelete}
-              >
-                Hapus
-              </button>
-            )}
-          </div>
-        )}
+        <div className={styles.popupActions}>
+          {onReanalyze && location.canDelete && (
+            <button
+              className={`${styles.popupButton} ${styles.editButton}`} // Menggunakan style tombol edit
+              onClick={handleReanalyze}
+            >
+              Analisis Ulang
+            </button>
+          )}
+          {onDelete && location.canDelete && (
+            <button
+              className={`${styles.popupButton} ${styles.deleteButton}`}
+              onClick={handleDelete}
+            >
+              Hapus
+            </button>
+          )}
+        </div>
 
-        {!location.canDelete && onDelete && (
+        {!location.canDelete && (onDelete || onReanalyze) && (
           <div className={styles.popupNote}>
-            <small>Hanya pemilik yang dapat menghapus area ini</small>
+            <small>Hanya pemilik yang dapat mengubah data ini.</small>
           </div>
         )}
       </div>
