@@ -1,7 +1,7 @@
 // src/components/MapPopup.tsx
 import React, { useState } from "react";
 import { NoiseLocation } from "../types/mapTypes";
-import { formatNoiseLevel, getNoiseDescription } from "../utils/mapUtils";
+import { formatNoiseLevel, getNoiseDescription, getTimeUntilExpiry } from "../utils/mapUtils";
 import ModernPopup from "./ModernPopup";
 import styles from "../styles/MapComponent.module.css";
 
@@ -77,6 +77,12 @@ const MapPopup: React.FC<MapPopupProps> = ({
             )}
             <strong>Waktu:</strong> {location.timestamp.toLocaleString("id-ID")}
             <br />
+            {location.expires_at && (
+              <>
+                <strong>Expire:</strong> {getTimeUntilExpiry(location.expires_at)}
+                <br />
+              </>
+            )}
             {location.userName && (
               <>
                 <strong>Ditambahkan oleh:</strong> {location.userName}
