@@ -93,7 +93,7 @@ export const apiService = {
     const formData = new FormData();
     formData.append('audio_file', file);
 
-    const response = await api.post('/predict/', formData, {
+    const response = await api.post('/audio/predict/', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -104,7 +104,7 @@ export const apiService = {
 
   // Get prediction history
   async getPredictionHistory(limit: number = 50): Promise<HistoryItem[]> {
-    const response = await api.get('/history/', {
+    const response = await api.get('/predictions/history/', {
       params: { limit },
     });
     return response.data.history || [];

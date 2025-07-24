@@ -1,0 +1,388 @@
+/* src/styles/PopupNotification.module.css */
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.6));
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+}
+
+.popup {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  min-width: 320px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+  position: relative;
+}
+
+.popup::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.8),
+    transparent
+  );
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-30px) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  padding: 24px 24px 16px 24px;
+  border-bottom: none;
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.05)
+  );
+}
+
+.icon {
+  font-size: 28px;
+  margin-right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0.1)
+  );
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+  letter-spacing: -0.02em;
+}
+
+.closeButton {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 20px;
+  color: #666;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 300;
+}
+
+.closeButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  color: #333;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.content {
+  padding: 20px 24px 24px 24px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.message {
+  margin: 0;
+  line-height: 1.6;
+  color: #2d2d2d;
+  font-size: 16px;
+  font-weight: 400;
+  white-space: pre-line;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.actions {
+  padding: 16px 24px 24px 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.05)
+  );
+}
+
+.button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 90px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s;
+}
+
+.button:hover::before {
+  left: 100%;
+}
+
+.button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+.primaryButton {
+  background: linear-gradient(135deg, #007aff, #0056cc);
+  color: white;
+  box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
+}
+
+.primaryButton:hover {
+  background: linear-gradient(135deg, #0056cc, #003d99);
+  box-shadow: 0 8px 25px rgba(0, 122, 255, 0.4);
+}
+
+.confirmButton {
+  background: linear-gradient(135deg, #28a745, #1e7e34);
+  color: white;
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.confirmButton:hover {
+  background: linear-gradient(135deg, #1e7e34, #155724);
+  box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+}
+
+.cancelButton {
+  background: linear-gradient(
+    135deg,
+    rgba(108, 117, 125, 0.9),
+    rgba(90, 98, 104, 0.9)
+  );
+  color: white;
+  box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+}
+
+.cancelButton:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(90, 98, 104, 0.9),
+    rgba(73, 80, 87, 0.9)
+  );
+  box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
+}
+
+/* Type-specific styling */
+.success .icon {
+  background: linear-gradient(
+    135deg,
+    rgba(212, 237, 218, 0.8),
+    rgba(155, 229, 155, 0.6)
+  );
+  color: #155724;
+  box-shadow: 0 8px 32px rgba(40, 167, 69, 0.2);
+}
+
+.error .icon {
+  background: linear-gradient(
+    135deg,
+    rgba(248, 215, 218, 0.8),
+    rgba(245, 183, 177, 0.6)
+  );
+  color: #721c24;
+  box-shadow: 0 8px 32px rgba(220, 53, 69, 0.2);
+}
+
+.warning .icon {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 243, 205, 0.8),
+    rgba(255, 235, 156, 0.6)
+  );
+  color: #856404;
+  box-shadow: 0 8px 32px rgba(255, 193, 7, 0.2);
+}
+
+.info .icon {
+  background: linear-gradient(
+    135deg,
+    rgba(209, 236, 241, 0.8),
+    rgba(178, 223, 219, 0.6)
+  );
+  color: #0c5460;
+  box-shadow: 0 8px 32px rgba(23, 162, 184, 0.2);
+}
+
+.confirm .icon {
+  background: linear-gradient(
+    135deg,
+    rgba(226, 230, 234, 0.8),
+    rgba(206, 212, 218, 0.6)
+  );
+  color: #495057;
+  box-shadow: 0 8px 32px rgba(108, 117, 125, 0.2);
+}
+
+/* Border effects for different types */
+.success {
+  border-left: 4px solid #28a745;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(40, 167, 69, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 4px 0 0 rgba(40, 167, 69, 0.1);
+}
+
+.error {
+  border-left: 4px solid #dc3545;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(220, 53, 69, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 4px 0 0 rgba(220, 53, 69, 0.1);
+}
+
+.warning {
+  border-left: 4px solid #ffc107;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 193, 7, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 4px 0 0 rgba(255, 193, 7, 0.1);
+}
+
+.info {
+  border-left: 4px solid #17a2b8;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(23, 162, 184, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 4px 0 0 rgba(23, 162, 184, 0.1);
+}
+
+.confirm {
+  border-left: 4px solid #6c757d;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(108, 117, 125, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 4px 0 0 rgba(108, 117, 125, 0.1);
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .popup {
+    margin: 16px;
+    width: calc(100% - 32px);
+    border-radius: 16px;
+  }
+
+  .header {
+    padding: 20px 20px 12px 20px;
+  }
+
+  .icon {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+    margin-right: 12px;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+
+  .closeButton {
+    width: 28px;
+    height: 28px;
+    font-size: 18px;
+    top: 14px;
+    right: 14px;
+  }
+
+  .content {
+    padding: 16px 20px 20px 20px;
+  }
+
+  .message {
+    font-size: 15px;
+  }
+
+  .actions {
+    padding: 12px 20px 20px 20px;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .button {
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 15px;
+  }
+}

@@ -11,7 +11,7 @@ load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+ML_MODELS_DIR = os.path.join(BASE_DIR, 'ml_models')
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv(
     "SECRET_KEY", "django-insecure-noise-detection-2025-change-in-production"
@@ -35,6 +35,7 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "corsheaders",
+    "rest_framework_simplejwt",
 ]
 
 LOCAL_APPS = [
@@ -123,19 +124,32 @@ MEDIA_ROOT = BASE_DIR / "media"
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Custom User Model
+AUTH_USER_MODEL = 'noise_detection.CustomUser'
+
+# Authentication backends
+AUTHENTICATION_BACKENDS = [
+    'noise_detection.authentication.EmailOrUsernameModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 # Django REST Framework
 REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny", # Ubah ke AllowAny agar endpoint bisa diakses
+    ],
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
     "DEFAULT_PARSER_CLASSES": [
         "rest_framework.parsers.JSONParser",
-        "rest_framework.parsers.MultiPartParser",
-        "rest_framework.parsers.FileUploadParser",
+        "rest_framework.parsers.MultiPartParser", # Pastikan ini ada
+        "rest_framework.parsers.FormParser",   # Pastikan ini ada
     ],
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
-    ],
+    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler'
 }
 
 # CORS settings
@@ -145,7 +159,14 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
-
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'authorization',  # <-- Header ini paling penting untuk otorisasi
+    'content-type',   # <-- Header ini penting untuk pengiriman file
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 # ML Models directory
 ML_MODELS_DIR = BASE_DIR / "ml_models"
 
@@ -153,6 +174,41 @@ ML_MODELS_DIR = BASE_DIR / "ml_models"
 AUDIO_UPLOAD_MAX_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_AUDIO_FORMATS = [".wav", ".mp3", ".m4a", ".flac", ".ogg", ".aac"]
 
+
+# JWT Configuration
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=23),  # Token berlaku 1 jam
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # Refresh token berlaku 7 hari
+    'ROTATE_REFRESH_TOKENS': True,  # Generate refresh token baru setiap refresh
+    'BLACKLIST_AFTER_ROTATION': True,  # Blacklist refresh token lama
+    'UPDATE_LAST_LOGIN': True,  # Update last login saat refresh
+    
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+    'JWK_URL': None,
+    'LEEWAY': 0,
+
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
+
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+
+    'JTI_CLAIM': 'jti',
+
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(hours=1),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=7),
+}
 
 # Logging configuration
 LOGGING = {
@@ -168,3 +224,6 @@ LOGGING = {
         "level": "INFO",
     },
 }
+# Media files (User uploads)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"

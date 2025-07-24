@@ -73,6 +73,7 @@ web_modules/
 .yarn-integrity
 
 # dotenv environment variables file
+.venv
 .env
 .env.local
 .env.development.local
@@ -174,6 +175,4 @@ workbox-*.js
 # Webpack
 .webpack/
 
-# Public uploads (if any)
-/public/uploads/
-/public/temp/
+
