@@ -522,6 +522,11 @@ class NoiseAreaListCreateView(APIView):
     def get(self, request):
         """Mengambil semua area noise dari semua user"""
         try:
+            # Cleanup expired areas sebelum mengembalikan data
+            expired_count = NoiseArea.cleanup_expired_areas()
+            if expired_count > 0:
+                logger.info(f"🧹 Cleaned up {expired_count} expired noise areas")
+            
             areas = NoiseArea.objects.all()
             serializer = NoiseAreaSerializer(areas, many=True, context={'request': request})
             return Response({
@@ -539,9 +544,23 @@ class NoiseAreaListCreateView(APIView):
     def post(self, request):
         """Membuat area noise baru"""
         try:
-            logger.info("� Creating new noise area...")
+            logger.info("🔍 Creating new noise area...")
             logger.info(f"📦 Request data: {request.data}")
-            logger.info(f"� User: {request.user}, Authenticated: {request.user.is_authenticated}")
+            logger.info(f"👤 User: {request.user}, Authenticated: {request.user.is_authenticated}")
+            
+            # RATE LIMITING CHECK
+            rate_limit_check = NoiseArea.check_user_daily_limit(request.user)
+            if not rate_limit_check['can_add']:
+                return Response({
+                    "status": "error",
+                    "error": f"Batas harian tercapai. Anda sudah menambahkan {rate_limit_check['current_count']} titik dalam 24 jam terakhir.",
+                    "details": {
+                        "current_count": rate_limit_check['current_count'],
+                        "limit": rate_limit_check['limit'],
+                        "remaining": rate_limit_check['remaining'],
+                        "reset_time": rate_limit_check['reset_time'].isoformat()
+                    }
+                }, status=status.HTTP_429_TOO_MANY_REQUESTS)
             
             # Persiapkan data untuk serializer
             data = request.data.copy()
@@ -785,6 +804,28 @@ class UserNoiseAreasView(APIView):
             return Response({
                 "status": "error",
                 "error": "Gagal mengambil data area noise user"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UserRateLimitStatusView(APIView):
+    """
+    Mengecek status rate limiting untuk user yang sedang login
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Mengambil status rate limiting user"""
+        try:
+            rate_limit_status = NoiseArea.check_user_daily_limit(request.user)
+            return Response({
+                "status": "success",
+                "rate_limit": rate_limit_status
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error checking rate limit status: {e}")
+            return Response({
+                "status": "error",
+                "error": "Gagal mengecek status rate limiting"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

@@ -46,6 +46,7 @@ class NoiseArea(models.Model):
     radius = models.IntegerField(default=50)  # radius dalam meter
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    expires_at = models.DateTimeField(null=True, blank=True)  # Waktu kedaluwarsa
     
     class Meta:
         ordering = ['-created_at']
@@ -57,6 +58,60 @@ class NoiseArea(models.Model):
     
     def __str__(self):
         return f"Area {self.id} - {self.noise_level}dB by {self.user.username}"
+    
+    @classmethod
+    def check_user_daily_limit(cls, user, limit=5):
+        """
+        Mengecek apakah user sudah mencapai batas harian untuk menambah noise area
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Hitung 24 jam terakhir
+        twenty_four_hours_ago = timezone.now() - timedelta(hours=24)
+        
+        # Hitung jumlah area yang dibuat user dalam 24 jam terakhir
+        recent_areas_count = cls.objects.filter(
+            user=user,
+            created_at__gte=twenty_four_hours_ago
+        ).count()
+        
+        return {
+            'can_add': recent_areas_count < limit,
+            'current_count': recent_areas_count,
+            'limit': limit,
+            'remaining': max(0, limit - recent_areas_count),
+            'reset_time': twenty_four_hours_ago + timedelta(hours=24)
+        }
+    
+    @classmethod
+    def cleanup_expired_areas(cls):
+        """
+        Menghapus area yang sudah kedaluwarsa
+        """
+        from django.utils import timezone
+        
+        expired_areas = cls.objects.filter(
+            expires_at__lte=timezone.now()
+        )
+        
+        count = expired_areas.count()
+        expired_areas.delete()
+        
+        return count
+    
+    def save(self, *args, **kwargs):
+        """
+        Override save method untuk set expires_at secara otomatis
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Set expires_at jika belum ada (untuk area baru)
+        if not self.expires_at and not self.pk:
+            self.expires_at = timezone.now() + timedelta(hours=24)
+        
+        super().save(*args, **kwargs)
     
     @property
     def color(self):

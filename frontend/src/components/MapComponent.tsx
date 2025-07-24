@@ -488,6 +488,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         userMessage = "Sesi Anda telah berakhir. Silakan login kembali.";
       } else if (userMessage.includes("413")) {
         userMessage = "Ukuran file terlalu besar. Maksimal 50MB.";
+      } else if (userMessage.includes("429")) {
+        userMessage = "Batas harian tercapai. Anda sudah menambahkan 5 titik dalam 24 jam terakhir.";
       } else if (userMessage.includes("500")) {
         userMessage =
           "Terjadi kesalahan pada server. Coba lagi dalam beberapa saat.";
