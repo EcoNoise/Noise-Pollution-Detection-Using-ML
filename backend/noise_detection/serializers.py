@@ -62,9 +62,9 @@ class NoiseAreaSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'latitude', 'longitude', 'noise_level', 'noise_source', 
             'health_impact', 'description', 'address', 'radius', 
-            'created_at', 'updated_at', 'user_info', 'color', 'can_delete'
+            'created_at', 'updated_at', 'user_info', 'color', 'can_delete', 'expires_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'user_info', 'color', 'can_delete']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'user_info', 'color', 'can_delete', 'expires_at']
     
     def get_user_info(self, obj):
         """Mengembalikan informasi user yang membuat area"""
