@@ -170,7 +170,7 @@ export class DailyAudioService {
     // Hapus cache untuk memaksa refresh
     localStorage.removeItem(this.DAILY_CACHE_KEY);
     console.log("🔄 Data laporan harian telah di-refresh");
-    
+
     // Ambil data terbaru
     return this.getTodayAudioSummary();
   }
