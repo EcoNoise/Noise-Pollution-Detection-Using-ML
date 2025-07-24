@@ -292,6 +292,7 @@ class MapService {
           userId: apiArea.user_info?.id,
           userName: apiArea.user_info?.username,
           canDelete: apiArea.can_delete,
+          expires_at: apiArea.expires_at ? new Date(apiArea.expires_at) : undefined,
         };
       }
       return null;
@@ -340,6 +341,7 @@ class MapService {
           userId: area.user_info?.id,
           userName: area.user_info?.username,
           canDelete: area.can_delete || false, // Menggunakan nilai dari backend atau false jika tidak ada
+          expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
         }));
       }
       return [];
@@ -383,6 +385,7 @@ class MapService {
           userId: area.user_info?.id,
           userName: area.user_info?.username,
           canDelete: area.can_delete,
+          expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
         };
       }
       return null;
@@ -471,6 +474,7 @@ class MapService {
           userId: area.user_info?.id,
           userName: area.user_info?.username,
           canDelete: area.can_delete,
+          expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
         };
       }
       return null;
@@ -622,6 +626,7 @@ class MapService {
           userId: area.user_info?.id,
           userName: area.user_info?.username,
           canDelete: area.can_delete,
+          expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
         };
 
         console.log("✅ Berhasil memperbarui lokasi:", updatedLocation);

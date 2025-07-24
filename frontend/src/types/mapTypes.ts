@@ -13,6 +13,7 @@ export interface NoiseLocation {
   userId?: string; // Added user ID field
   userName?: string; // Added user name field
   canDelete?: boolean; // Added permission field
+  expires_at?: Date; // Added expiration time field
 }
 
 export interface MapMarkerData {
