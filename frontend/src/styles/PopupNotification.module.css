@@ -34,23 +34,26 @@
   min-width: 320px;
   max-width: 420px;
   width: 90%;
-  box-shadow: 
-    0 25px 50px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   overflow: hidden;
   position: relative;
 }
 
 .popup::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.8),
+    transparent
+  );
 }
 
 @keyframes slideIn {
@@ -70,7 +73,11 @@
   padding: 24px 24px 16px 24px;
   border-bottom: none;
   position: relative;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.05)
+  );
 }
 
 .icon {
@@ -82,11 +89,14 @@
   width: 48px;
   height: 48px;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1));
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0.1)
+  );
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.1),
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.4);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -148,7 +158,11 @@
   display: flex;
   gap: 12px;
   justify-content: flex-end;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.05)
+  );
 }
 
 .button {
@@ -168,13 +182,18 @@
 }
 
 .button::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
   transition: left 0.5s;
 }
 
@@ -192,13 +211,13 @@
 }
 
 .primaryButton {
-  background: linear-gradient(135deg, #007AFF, #0056CC);
+  background: linear-gradient(135deg, #007aff, #0056cc);
   color: white;
   box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
 }
 
 .primaryButton:hover {
-  background: linear-gradient(135deg, #0056CC, #003d99);
+  background: linear-gradient(135deg, #0056cc, #003d99);
   box-shadow: 0 8px 25px rgba(0, 122, 255, 0.4);
 }
 
@@ -214,43 +233,71 @@
 }
 
 .cancelButton {
-  background: linear-gradient(135deg, rgba(108, 117, 125, 0.9), rgba(90, 98, 104, 0.9));
+  background: linear-gradient(
+    135deg,
+    rgba(108, 117, 125, 0.9),
+    rgba(90, 98, 104, 0.9)
+  );
   color: white;
   box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
 }
 
 .cancelButton:hover {
-  background: linear-gradient(135deg, rgba(90, 98, 104, 0.9), rgba(73, 80, 87, 0.9));
+  background: linear-gradient(
+    135deg,
+    rgba(90, 98, 104, 0.9),
+    rgba(73, 80, 87, 0.9)
+  );
   box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
 }
 
 /* Type-specific styling */
 .success .icon {
-  background: linear-gradient(135deg, rgba(212, 237, 218, 0.8), rgba(155, 229, 155, 0.6));
+  background: linear-gradient(
+    135deg,
+    rgba(212, 237, 218, 0.8),
+    rgba(155, 229, 155, 0.6)
+  );
   color: #155724;
   box-shadow: 0 8px 32px rgba(40, 167, 69, 0.2);
 }
 
 .error .icon {
-  background: linear-gradient(135deg, rgba(248, 215, 218, 0.8), rgba(245, 183, 177, 0.6));
+  background: linear-gradient(
+    135deg,
+    rgba(248, 215, 218, 0.8),
+    rgba(245, 183, 177, 0.6)
+  );
   color: #721c24;
   box-shadow: 0 8px 32px rgba(220, 53, 69, 0.2);
 }
 
 .warning .icon {
-  background: linear-gradient(135deg, rgba(255, 243, 205, 0.8), rgba(255, 235, 156, 0.6));
+  background: linear-gradient(
+    135deg,
+    rgba(255, 243, 205, 0.8),
+    rgba(255, 235, 156, 0.6)
+  );
   color: #856404;
   box-shadow: 0 8px 32px rgba(255, 193, 7, 0.2);
 }
 
 .info .icon {
-  background: linear-gradient(135deg, rgba(209, 236, 241, 0.8), rgba(178, 223, 219, 0.6));
+  background: linear-gradient(
+    135deg,
+    rgba(209, 236, 241, 0.8),
+    rgba(178, 223, 219, 0.6)
+  );
   color: #0c5460;
   box-shadow: 0 8px 32px rgba(23, 162, 184, 0.2);
 }
 
 .confirm .icon {
-  background: linear-gradient(135deg, rgba(226, 230, 234, 0.8), rgba(206, 212, 218, 0.6));
+  background: linear-gradient(
+    135deg,
+    rgba(226, 230, 234, 0.8),
+    rgba(206, 212, 218, 0.6)
+  );
   color: #495057;
   box-shadow: 0 8px 32px rgba(108, 117, 125, 0.2);
 }
@@ -258,46 +305,33 @@
 /* Border effects for different types */
 .success {
   border-left: 4px solid #28a745;
-  box-shadow: 
-    0 25px 50px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(40, 167, 69, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    inset 4px 0 0 rgba(40, 167, 69, 0.1);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(40, 167, 69, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 4px 0 0 rgba(40, 167, 69, 0.1);
 }
 
 .error {
   border-left: 4px solid #dc3545;
-  box-shadow: 
-    0 25px 50px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(220, 53, 69, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    inset 4px 0 0 rgba(220, 53, 69, 0.1);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(220, 53, 69, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 4px 0 0 rgba(220, 53, 69, 0.1);
 }
 
 .warning {
   border-left: 4px solid #ffc107;
-  box-shadow: 
-    0 25px 50px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(255, 193, 7, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    inset 4px 0 0 rgba(255, 193, 7, 0.1);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 193, 7, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 4px 0 0 rgba(255, 193, 7, 0.1);
 }
 
 .info {
   border-left: 4px solid #17a2b8;
-  box-shadow: 
-    0 25px 50px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(23, 162, 184, 0.1),
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(23, 162, 184, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.6),
     inset 4px 0 0 rgba(23, 162, 184, 0.1);
 }
 
 .confirm {
   border-left: 4px solid #6c757d;
-  box-shadow: 
-    0 25px 50px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(108, 117, 125, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(108, 117, 125, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6),
     inset 4px 0 0 rgba(108, 117, 125, 0.1);
 }
 
@@ -308,22 +342,22 @@
     width: calc(100% - 32px);
     border-radius: 16px;
   }
-  
+
   .header {
     padding: 20px 20px 12px 20px;
   }
-  
+
   .icon {
     width: 40px;
     height: 40px;
     font-size: 24px;
     margin-right: 12px;
   }
-  
+
   .title {
     font-size: 18px;
   }
-  
+
   .closeButton {
     width: 28px;
     height: 28px;
@@ -331,21 +365,21 @@
     top: 14px;
     right: 14px;
   }
-  
+
   .content {
     padding: 16px 20px 20px 20px;
   }
-  
+
   .message {
     font-size: 15px;
   }
-  
+
   .actions {
     padding: 12px 20px 20px 20px;
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .button {
     width: 100%;
     padding: 14px 20px;

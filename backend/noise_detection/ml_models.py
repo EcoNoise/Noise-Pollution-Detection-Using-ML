@@ -32,18 +32,18 @@ class ModelManager:
             )
             # Define source classes from metadata
             self.source_classes = [
-                "dog_bark",
-                "children_playing",
-                "car_horn",
-                "air_conditioner",
-                "street_music",
-                "gun_shot",
-                "siren",
-                "engine_idling",
-                "jackhammer",
-                "drilling",
+                "gonggongan_anjing",
+                "anak_bermain", 
+                "klakson_kendaraan",
+                "ac_outdoor",
+                "musik_jalanan",
+                "petasan_kembang_api",
+                "sirine_ambulans",
+                "mesin_kendaraan",
+                "alat_berat_konstruksi",
+                "pengeboran_jalan",
             ]
-            self.health_labels = ["Low", "Moderate", "High", "Severe"]
+            self.health_labels = ["Ringan", "Sedang", "Tinggi", "Berbahaya"]
             self._load_models()
             ModelManager._models_loaded = True
 
@@ -123,13 +123,11 @@ class ModelManager:
     def predict_noise_level(
         self, features: np.ndarray, use_optimized: bool = True
     ) -> float:
-        """Predict noise level in dB with improved accuracy"""
+        """Predict noise level in dB with intelligent model selection based on notebook analysis"""
         # Validate features first
         features = self._validate_features(features)
 
-        # Special handling for silence detection
-        # Check for silence based on different indicators
-
+        # Enhanced silence detection using multiple methods
         # Method 1: Check if first MFCC is extremely negative (indicates silence in librosa)
         first_mfcc = features[0] if len(features) > 0 else 0
         silence_by_mfcc = (
@@ -163,122 +161,255 @@ class ModelManager:
             # Return realistic silence range: 15-35 dB
             return np.random.uniform(20.0, 35.0)  # Random in realistic silence range
 
-        model_key = "noise_level_optimized" if use_optimized else "noise_level_original"
-
-        if model_key not in self.models:
-            model_key = "noise_level_original"  # Fallback
-
-        if model_key in self.models:
-            # Preprocess features
-            processed_features = self._preprocess_features(features)
-
-            # Special handling for optimized model if it has different requirements
-            if model_key == "noise_level_optimized":
-                # Try with the optimized model first
-                try:
-                    prediction = self.models[model_key].predict(
-                        processed_features.reshape(1, -1)
+        # INTELLIGENT MODEL SELECTION based on notebook analysis
+        # Based on notebook analysis: 
+        # - Optimized model: RMSE 0.000 (perfect but suspicious) but R² 0.000 (very bad)
+        # - Original model: RMSE 2.606 (higher) but R² 0.985 (excellent)
+        # Priority: Original model due to excellent R² score
+        predictions = {}
+        confidences = {}
+        feature_counts = {}
+        validation_scores = {}
+        
+        # Try original model FIRST (excellent R² = 0.985)
+        if "noise_level_original" in self.models:
+            try:
+                original_features = self._preprocess_features_original(features)
+                feature_counts["original"] = len(original_features)
+                
+                if len(original_features) == 126:  # Expected feature count for original
+                    prediction = self.models["noise_level_original"].predict(
+                        original_features.reshape(1, -1)
                     )
-                    return float(prediction[0])
-                except Exception as e:
-                    logger.warning(
-                        f"Optimized model failed: {e}, falling back to original"
-                    )
-                    # Fall back to original model
-                    if "noise_level_original" in self.models:
-                        # For original model, use all features (no feature selection)
-                        original_features = self._preprocess_features_original(features)
-                        prediction = self.models["noise_level_original"].predict(
+                    pred_value = float(prediction[0])
+                    predictions["original"] = pred_value
+                    
+                    # Original model has excellent R² = 0.985, so high confidence for reasonable predictions
+                    if 20 <= pred_value <= 120:
+                        confidences["original"] = 0.95  # Very high confidence due to excellent R²
+                        validation_scores["original"] = 1.0
+                    else:
+                        confidences["original"] = 0.8  # Still high confidence even for edge cases
+                        validation_scores["original"] = 0.8
+                    
+                    logger.debug(f"Original model prediction: {pred_value:.2f} dB (126 features, confidence: {confidences['original']:.3f})")
+                else:
+                    logger.warning(f"Feature count mismatch for original model: {len(original_features)} != 126")
+            except Exception as e:
+                logger.warning(f"Original model failed: {e}")
+
+        # Try optimized model as backup (suspicious R² = 0.000 despite perfect RMSE)
+        if use_optimized and "noise_level_optimized" in self.models:
+            try:
+                # Check if we can use feature selection
+                can_use_feature_selection = (
+                    self.selected_features is not None and 
+                    self.scaler is not None
+                )
+                
+                if can_use_feature_selection:
+                    processed_features = self._preprocess_features(features)
+                    feature_counts["optimized"] = len(processed_features)
+                    
+                    if len(processed_features) == 83:  # Expected feature count for optimized
+                        prediction = self.models["noise_level_optimized"].predict(
+                            processed_features.reshape(1, -1)
+                        )
+                        pred_value = float(prediction[0])
+                        predictions["optimized"] = pred_value
+                        
+                        # Lower confidence due to suspicious R² = 0.000
+                        if 20 <= pred_value <= 120:
+                            confidences["optimized"] = 0.6  # Lower confidence due to bad R²
+                            validation_scores["optimized"] = 0.8
+                        else:
+                            confidences["optimized"] = 0.3  # Very low confidence for unrealistic values
+                            validation_scores["optimized"] = 0.2
+                            logger.warning(f"Optimized model prediction out of range: {pred_value:.2f} dB")
+                        
+                        logger.debug(f"Optimized model prediction: {pred_value:.2f} dB (83 features, confidence: {confidences['optimized']:.3f})")
+                    else:
+                        logger.warning(f"Feature count mismatch for optimized model: {len(processed_features)} != 83")
+                else:
+                    # Try without feature selection if scaler/selector not available
+                    original_features = self._preprocess_features_original(features)
+                    if len(original_features) == 126:
+                        prediction = self.models["noise_level_optimized"].predict(
                             original_features.reshape(1, -1)
                         )
-                        return float(prediction[0])
-            else:
-                # Original model - use full features
-                original_features = self._preprocess_features_original(features)
-                prediction = self.models[model_key].predict(
-                    original_features.reshape(1, -1)
-                )
-                return float(prediction[0])
+                        pred_value = float(prediction[0])
+                        predictions["optimized_no_selection"] = pred_value
+                        
+                        if 20 <= pred_value <= 120:
+                            confidences["optimized_no_selection"] = 0.5  # Lower confidence for fallback
+                            validation_scores["optimized_no_selection"] = 0.7
+                        else:
+                            confidences["optimized_no_selection"] = 0.2
+                            validation_scores["optimized_no_selection"] = 0.1
+                        
+                        feature_counts["optimized_no_selection"] = len(original_features)
+                        logger.debug(f"Optimized model (no feature selection): {pred_value:.2f} dB (126 features)")
+                    else:
+                        logger.warning(f"Feature count mismatch for optimized model fallback: {len(original_features)} != 126")
+            except Exception as e:
+                logger.warning(f"Optimized model failed: {e}")
 
-        return 65.0  # Default fallback
+        # INTELLIGENT MODEL SELECTION based on confidence and validation
+        if predictions:
+            if len(predictions) > 1:
+                # Calculate combined score (confidence * validation)
+                combined_scores = {k: confidences[k] * validation_scores.get(k, 0.5) for k in predictions.keys()}
+                best_model = max(combined_scores.keys(), key=lambda k: combined_scores[k])
+                selected_prediction = predictions[best_model]
+                
+                logger.info(f"Selected {best_model} model for noise level (confidence: {confidences[best_model]:.3f}, "
+                           f"validation: {validation_scores.get(best_model, 0.5):.3f}, "
+                           f"combined: {combined_scores[best_model]:.3f}, "
+                           f"features: {feature_counts.get(best_model, 'unknown')})")
+            else:
+                # Use the only available prediction
+                model_type = list(predictions.keys())[0]
+                selected_prediction = predictions[model_type]
+                logger.info(f"Using {model_type} model (only available, confidence: {confidences[model_type]:.3f})")
+            
+            return max(min(selected_prediction, 120.0), 20.0)  # Clamp to realistic range
+
+        # Fallback if no models work
+        logger.warning("All noise level models failed, using feature-based fallback")
+        return self._fallback_noise_level_prediction(features)
+
+    def _fallback_noise_level_prediction(self, features: np.ndarray) -> float:
+        """Feature-based fallback for noise level prediction"""
+        try:
+            if len(features) >= 126:
+                # Use MFCC and spectral features for estimation
+                mfcc_energy = np.mean(np.abs(features[0:13]))  # MFCC coefficients
+                spectral_features = np.mean(features[39:45]) if len(features) >= 45 else 0
+                rms_energy = features[126] if len(features) > 126 else np.mean(features[120:126])
+                
+                # Estimate noise level based on feature energy
+                base_level = 45.0
+                mfcc_contribution = min(mfcc_energy * 1.5, 30)
+                spectral_contribution = min(spectral_features * 100, 25)
+                rms_contribution = min(abs(rms_energy) * 50, 20)
+                
+                estimated_level = base_level + mfcc_contribution + spectral_contribution + rms_contribution
+                return max(min(estimated_level, 95.0), 25.0)  # Realistic range
+            else:
+                return 55.0  # Default moderate level
+        except Exception as e:
+            logger.warning(f"Fallback prediction failed: {e}")
+            return 55.0
 
     def predict_noise_source(self, features: np.ndarray) -> Tuple[str, float]:
-        """Predict noise source and confidence with bias reduction"""
+        """Predict noise source with confidence-based selection (ORIGINAL MODEL PREFERRED based on notebook)"""
+        # Based on notebook analysis: Original model has 100% accuracy vs Safe version 10% accuracy (-90% improvement)
+        # ALWAYS use original model for noise source prediction
+        
         if "noise_source" in self.models:
-            # Validate features first
-            features = self._validate_features(
-                features
-            )  # Check for silence using the same method as noise level prediction
-            first_mfcc = features[0] if len(features) > 0 else 0
-            silence_by_mfcc = (
-                first_mfcc < -1000
-            )  # Librosa produces very negative values for silence
-
-            if silence_by_mfcc:
-                # For true silence, return air_conditioner (ambient sound)
-                return "air_conditioner", 0.2  # Low confidence for silence
-
-            # Noise source model is original model (126 features), not optimized
-            original_features = self._preprocess_features_original(features)
-            prediction = self.models["noise_source"].predict(
-                original_features.reshape(1, -1)
-            )
-            probabilities = self.models["noise_source"].predict_proba(
-                original_features.reshape(1, -1)
-            )
-
-            # Convert numeric prediction to source name
-            predicted_index = int(prediction[0])
-            logger.debug(f"Raw prediction index: {predicted_index}")
-            logger.debug(f"Available source classes: {self.source_classes}")
-
-            if 0 <= predicted_index < len(self.source_classes):
-                source = self.source_classes[predicted_index]
-                logger.debug(f"Mapped to source: {source}")
-            else:
-                logger.warning(
-                    f"Predicted index {predicted_index} out of range (0-{len(self.source_classes) - 1}), using 'unknown'"
+            try:
+                # Use original preprocessing (126 features, scaling only)
+                original_features = self._preprocess_features_original(features)
+                
+                if len(original_features) != 126:
+                    logger.warning(f"Feature count mismatch for noise source: {len(original_features)} != 126")
+                    return "unknown", 0.3
+                
+                prediction = self.models["noise_source"].predict(
+                    original_features.reshape(1, -1)
                 )
-                source = "unknown"
-
-            confidence = float(np.max(probabilities))
-
-            # Bias reduction: If confidence is too high for uncertain cases, reduce it
-            first_mfcc_abs = abs(first_mfcc)
-            if (
-                confidence > 0.9 and first_mfcc_abs > 500
-            ):  # High confidence on potentially low-energy audio
-                confidence = min(0.7, confidence)  # Cap confidence for uncertain audio
-                logger.debug(
-                    f"Reduced confidence for uncertain audio: {confidence:.3f}"
+                probabilities = self.models["noise_source"].predict_proba(
+                    original_features.reshape(1, -1)
                 )
 
-            return source, confidence
+                predicted_index = int(prediction[0])
+                logger.debug(f"Raw prediction index: {predicted_index}")
 
-        return "unknown", 0.5  # Default fallback
+                if 0 <= predicted_index < len(self.source_classes):
+                    source = self.source_classes[predicted_index]
+                    logger.debug(f"Mapped to source: {source}")
+                else:
+                    logger.warning(
+                        f"Predicted index {predicted_index} out of range (0-{len(self.source_classes) - 1}), using 'unknown'"
+                    )
+                    source = "unknown"
+
+                confidence = float(np.max(probabilities))
+
+                # Enhanced confidence adjustment based on feature analysis
+                first_mfcc = features[0] if len(features) > 0 else 0
+                spectral_energy = np.mean(features[39:45]) if len(features) >= 45 else 0
+                
+                # Reduce confidence for uncertain audio characteristics
+                if abs(first_mfcc) > 500 or spectral_energy < 0.001:
+                    confidence = min(0.7, confidence)
+                    logger.debug(f"Reduced confidence for uncertain audio: {confidence:.3f}")
+                
+                # High confidence for original model (perfect accuracy in notebook)
+                if confidence > 0.8:
+                    confidence = min(0.95, confidence * 1.1)  # Boost confidence for good predictions
+                
+                logger.info(f"Noise source prediction: {source} (confidence: {confidence:.3f}, original model)")
+                return source, confidence
+
+            except Exception as e:
+                logger.warning(f"Noise source prediction failed: {e}")
+
+        return "unknown", 0.3  # Low confidence fallback
 
     def predict_health_impact(self, features: np.ndarray, noise_level: float) -> str:
-        """Predict health impact category"""
+        """Predict health impact category (ORIGINAL MODEL PREFERRED based on notebook)"""
+        # Based on notebook analysis: Original model has 100% accuracy vs Safe version 37.2% accuracy (-62.8% improvement)
+        # ALWAYS use original model for health impact prediction
+        
         if "health_impact" in self.models:
-            # Health impact model is also original model (126 features)
-            original_features = self._preprocess_features_original(features)
-            prediction = self.models["health_impact"].predict(
-                original_features.reshape(1, -1)
-            )
+            try:
+                # Use original preprocessing (126 features, scaling only)
+                original_features = self._preprocess_features_original(features)
+                
+                if len(original_features) != 126:
+                    logger.warning(f"Feature count mismatch for health impact: {len(original_features)} != 126")
+                    return self._fallback_health_impact(noise_level)
+                
+                prediction = self.models["health_impact"].predict(
+                    original_features.reshape(1, -1)
+                )
 
-            # Map numeric prediction to label
-            impact_idx = int(np.clip(prediction[0], 0, len(self.health_labels) - 1))
-            return self.health_labels[impact_idx]
+                # Map numeric prediction to label with bounds checking
+                impact_idx = int(np.clip(prediction[0], 0, len(self.health_labels) - 1))
+                predicted_impact = self.health_labels[impact_idx]
+                
+                # Validate prediction against noise level for consistency
+                expected_impact = self._fallback_health_impact(noise_level)
+                
+                # If model prediction is drastically different from noise-based expectation, use fallback
+                impact_levels = {"Low": 0, "Moderate": 1, "High": 2, "Severe": 3}
+                predicted_level = impact_levels.get(predicted_impact, 1)
+                expected_level = impact_levels.get(expected_impact, 1)
+                
+                if abs(predicted_level - expected_level) > 2:  # More than 2 levels difference
+                    logger.warning(f"Health impact prediction inconsistent with noise level: {predicted_impact} vs expected {expected_impact}")
+                    return expected_impact
+                
+                logger.info(f"Health impact prediction: {predicted_impact} (original model, noise_level: {noise_level:.1f} dB)")
+                return predicted_impact
+                
+            except Exception as e:
+                logger.warning(f"Health impact prediction failed: {e}")
 
-        # Fallback based on noise level
-        if noise_level < 55:
-            return "Low"
-        elif noise_level < 70:
-            return "Moderate"
-        elif noise_level < 85:
-            return "High"
-        else:
-            return "Severe"
+        # Fallback based on noise level (WHO standards)
+        return self._fallback_health_impact(noise_level)
+
+    def _fallback_health_impact(self, noise_level: float) -> str:
+        """Fallback health impact prediction based on WHO noise standards"""
+        if noise_level < 55:  # WHO daytime limit
+            return "Ringan"
+        elif noise_level < 70:  # Moderate disturbance
+            return "Sedang"
+        elif noise_level < 85:  # High risk threshold
+            return "Tinggi"
+        else:  # Dangerous levels
+            return "Berbahaya"
 
     def _preprocess_features(self, features: np.ndarray) -> np.ndarray:
         """Apply feature scaling and selection"""
@@ -374,7 +505,7 @@ class ModelManager:
                 source_confidence = float(np.max(probabilities))
 
             # Predict health impact - use original model (126 features only)
-            health_impact = "Moderate"
+            health_impact = "Sedang"
             if "health_impact" in self.models:
                 original_features = self._preprocess_features_original(features)
                 prediction = self.models["health_impact"].predict(
@@ -386,13 +517,13 @@ class ModelManager:
             else:
                 # Fallback based on noise level
                 if noise_level < 55:
-                    health_impact = "Low"
+                    health_impact = "Ringan"
                 elif noise_level < 70:
-                    health_impact = "Moderate"
+                    health_impact = "Sedang"
                 elif noise_level < 85:
-                    health_impact = "High"
+                    health_impact = "Tinggi"
                 else:
-                    health_impact = "Severe"
+                    health_impact = "Berbahaya"
 
             logger.info(
                 f"✅ ML prediction successful: {noise_level} dB, {noise_source}, {health_impact}"
@@ -430,15 +561,15 @@ class ModelManager:
 
                     # More balanced source prediction
                     if spectral_features > 3000:
-                        noise_source = "siren"
+                        noise_source = "sirine_ambulans"
                     elif mfcc_energy > 8:
-                        noise_source = "jackhammer"
+                        noise_source = "alat_berat_konstruksi"
                     elif mfcc_energy > 5:
-                        noise_source = "car_horn"
+                        noise_source = "klakson_kendaraan"
                     elif mfcc_energy > 2:
-                        noise_source = "engine_idling"
+                        noise_source = "mesin_kendaraan"
                     else:
-                        noise_source = "air_conditioner"
+                        noise_source = "ac_outdoor"
 
                 else:
                     # Very basic fallback
@@ -447,13 +578,13 @@ class ModelManager:
 
                 # Health impact based on noise level
                 if noise_level < 55:
-                    health_impact = "Low"
+                    health_impact = "Ringan"
                 elif noise_level < 70:
-                    health_impact = "Moderate"
+                    health_impact = "Sedang"
                 elif noise_level < 85:
-                    health_impact = "High"
+                    health_impact = "Tinggi"
                 else:
-                    health_impact = "Severe"
+                    health_impact = "Berbahaya"
 
                 logger.warning(
                     f"⚠️ Using feature-based fallback: {noise_level} dB, {noise_source}"

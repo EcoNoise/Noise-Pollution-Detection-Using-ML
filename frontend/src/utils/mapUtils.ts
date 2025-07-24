@@ -78,14 +78,14 @@ export const getTimeUntilExpiry = (expiresAt: Date): string => {
   const now = new Date();
   const expiry = new Date(expiresAt);
   const diffMs = expiry.getTime() - now.getTime();
-  
+
   if (diffMs <= 0) {
     return "Sudah expired";
   }
-  
+
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  
+
   if (diffHours > 0) {
     return `${diffHours} jam ${diffMinutes} menit lagi`;
   } else {

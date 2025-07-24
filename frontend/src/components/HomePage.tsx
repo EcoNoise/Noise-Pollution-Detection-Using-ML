@@ -14,19 +14,18 @@ import {
   keyframes,
   CircularProgress,
 } from "@mui/material";
-import {
-  VolumeX,
-  Activity,
-  Clock,
-  Mic,
-  Square,
-  BarChart2,
-} from "lucide-react";
+import { VolumeX, Activity, Clock, Mic, Square, BarChart2 } from "lucide-react";
 import { apiService, PredictionResponse } from "../services/api";
 import { mapService } from "../services/mapService";
 import { DailyAudioService } from "../services/dailyAudioService";
 import AudioVisualizer from "./AudioVisualizer";
 import ModernPopup from "./ModernPopup";
+import { 
+  translateNoiseSource, 
+  translateHealthImpact, 
+  getHealthImpactDescription,
+  getNoiseSourceIcon 
+} from "../utils/translationUtils";
 
 type ChipColor =
   | "success"
@@ -352,7 +351,9 @@ const HomePage: React.FC = () => {
       // Refresh cache laporan harian setelah analisis berhasil
       try {
         await DailyAudioService.refreshTodayAudioSummary();
-        console.log("✅ Cache laporan harian berhasil di-refresh setelah analisis");
+        console.log(
+          "✅ Cache laporan harian berhasil di-refresh setelah analisis"
+        );
       } catch (refreshError) {
         console.warn("⚠️ Gagal refresh cache laporan harian:", refreshError);
       }
@@ -395,12 +396,16 @@ const HomePage: React.FC = () => {
 
   const getHealthColor = (impact: string): ChipColor => {
     switch (impact.toLowerCase()) {
+      case "ringan":
       case "low":
         return "success";
+      case "sedang":
       case "moderate":
         return "warning";
+      case "tinggi":
       case "high":
         return "error";
+      case "berbahaya":
       case "severe":
         return "error";
       default:
@@ -709,7 +714,14 @@ const HomePage: React.FC = () => {
                     </Typography>
                   </Box>
                   <Typography variant="h3" sx={{ fontWeight: "bold" }}>
-                    {result.predictions.health_impact}
+                    {translateHealthImpact(result.predictions.health_impact)}
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    color="rgba(255,255,255,0.7)" 
+                    sx={{ mt: 1, mb: 2 }}
+                  >
+                    {getHealthImpactDescription(result.predictions.health_impact)}
                   </Typography>
                   <Chip
                     label={`Keyakinan: ${(
@@ -731,8 +743,11 @@ const HomePage: React.FC = () => {
                       Prediksi Sumber Suara
                     </Typography>
                   </Box>
-                  <Typography variant="h4" sx={{ fontWeight: "bold" }}>
-                    {result.predictions.noise_source}
+                  <Typography variant="h4" sx={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: 1 }}>
+                    <span style={{ fontSize: "1.5rem" }}>
+                      {getNoiseSourceIcon(result.predictions.noise_source)}
+                    </span>
+                    {translateNoiseSource(result.predictions.noise_source)}
                   </Typography>
                 </CardContent>
               </StyledCard>

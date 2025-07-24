@@ -18,6 +18,7 @@ import { generateNoiseArea } from "../utils/mapUtils";
 import MapControls from "./MapControls";
 import MapPopup from "./MapPopup";
 import AreaFilter, { AreaFilters } from "./AreaFilter";
+import MapTutorial from "./MapTutorial";
 import styles from "../styles/MapComponent.module.css";
 
 import "leaflet/dist/leaflet.css";
@@ -179,9 +180,21 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const watchId = useRef<number | null>(null);
 
+  // Tutorial state
+  const [showTutorial, setShowTutorial] = useState<boolean>(false);
+
   useEffect(() => {
     loadNoiseLocations();
     handleLocateUser();
+
+    // Check if this is the first visit to show tutorial
+    const hasSeenTutorial = localStorage.getItem('hasSeenMapTutorial');
+    if (!hasSeenTutorial) {
+      // Delay tutorial to ensure map is loaded
+      setTimeout(() => {
+        setShowTutorial(true);
+      }, 1000);
+    }
 
     // UPDATED: Check for shared data from either flow
     const sharedData = mapService.getSharedNoiseData();
@@ -489,7 +502,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       } else if (userMessage.includes("413")) {
         userMessage = "Ukuran file terlalu besar. Maksimal 50MB.";
       } else if (userMessage.includes("429")) {
-        userMessage = "Batas harian tercapai. Anda sudah menambahkan 5 titik dalam 24 jam terakhir.";
+        userMessage =
+          "Batas harian tercapai. Anda sudah menambahkan 5 titik dalam 24 jam terakhir.";
       } else if (userMessage.includes("500")) {
         userMessage =
           "Terjadi kesalahan pada server. Coba lagi dalam beberapa saat.";
@@ -687,6 +701,22 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     setSearchLocationMarker(null);
   };
 
+  // Tutorial handlers
+  const handleTutorialComplete = () => {
+    setShowTutorial(false);
+    localStorage.setItem('hasSeenMapTutorial', 'true');
+    showSuccess('Tutorial Selesai!', 'Selamat menjelajahi peta kebisingan 🎉');
+  };
+
+  const handleTutorialSkip = () => {
+    setShowTutorial(false);
+    localStorage.setItem('hasSeenMapTutorial', 'true');
+  };
+
+  const handleShowTutorial = () => {
+    setShowTutorial(true);
+  };
+
   // PERBAIKAN: Fungsi untuk handle keyboard navigation pada search results
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -759,7 +789,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={handleSearchKeyDown}
-          className={styles.searchInput}
+          className={`${styles.searchInput} tutorial-search-input`}
+          id="search-location-input"
         />
 
         {searchResults.length > 0 && (
@@ -803,6 +834,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         onToggleLegend={() => setShowLegend(!showLegend)}
         onToggleFilter={() => setShowFilter(!showFilter)}
         onToggleTracking={() => setIsTrackingUser(!isTrackingUser)}
+        onShowTutorial={handleShowTutorial}
         isAddingNoise={isAddingNoise}
         showLegend={showLegend}
         showFilter={showFilter}
@@ -810,11 +842,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         hasUserLocation={userLocation !== null}
       />
       {showFilter && (
-        <AreaFilter
-          activeFilters={activeFilters}
-          onFilterChange={setActiveFilters}
-          noiseLocations={noiseLocations}
-        />
+        <div className="tutorial-filter-container" id="filter-container">
+          <AreaFilter
+            activeFilters={activeFilters}
+            onFilterChange={setActiveFilters}
+            noiseLocations={noiseLocations}
+          />
+        </div>
       )}
 
       {/* BARU: User location marker */}
@@ -875,7 +909,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
       {/* Legend, Loading, Error, and MapContainer JSX remain the same */}
       {showLegend && (
-        <div className={styles.legend}>
+        <div className={`${styles.legend} tutorial-legend-container`} id="legend-container">
           <div className={styles.legendTitle}>Legenda</div>
           {Object.entries(noiseColors).map(([key, color]) => {
             let label = "";
@@ -1083,6 +1117,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         )}
       </MapContainer>
       <PopupComponent />
+      
+      {/* Tutorial Component */}
+      <MapTutorial
+        isVisible={showTutorial}
+        onComplete={handleTutorialComplete}
+        onSkip={handleTutorialSkip}
+      />
     </div>
   );
 };

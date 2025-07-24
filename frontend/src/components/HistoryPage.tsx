@@ -32,11 +32,11 @@ const HistoryPage: React.FC = () => {
       fetchDailySummary();
     };
 
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener("focus", handleFocus);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener("focus", handleFocus);
     };
   }, []);
 
@@ -59,9 +59,7 @@ const HistoryPage: React.FC = () => {
         <div className="bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-700 mb-8">
           <div className="flex items-center gap-3 mb-6">
             <Volume2 className="text-blue-400" size={24} />
-            <h2 className="text-2xl font-bold text-white">
-              Laporan Hari Ini
-            </h2>
+            <h2 className="text-2xl font-bold text-white">Laporan Hari Ini</h2>
             <Calendar className="text-slate-400" size={20} />
           </div>
 
