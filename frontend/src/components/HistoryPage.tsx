@@ -21,6 +21,23 @@ const HistoryPage: React.FC = () => {
 
   useEffect(() => {
     fetchDailySummary();
+
+    // Auto-refresh setiap 2 menit untuk memastikan data terbaru
+    const interval = setInterval(() => {
+      fetchDailySummary();
+    }, 120000); // 2 menit
+
+    // Event listener untuk refresh ketika window kembali fokus
+    const handleFocus = () => {
+      fetchDailySummary();
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const fetchDailySummary = async () => {
@@ -35,8 +52,6 @@ const HistoryPage: React.FC = () => {
     }
   };
 
-
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-6xl mx-auto px-4 py-8">
@@ -44,7 +59,9 @@ const HistoryPage: React.FC = () => {
         <div className="bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-700 mb-8">
           <div className="flex items-center gap-3 mb-6">
             <Volume2 className="text-blue-400" size={24} />
-            <h2 className="text-2xl font-bold text-white">Laporan Hari Ini</h2>
+            <h2 className="text-2xl font-bold text-white">
+              Laporan Hari Ini
+            </h2>
             <Calendar className="text-slate-400" size={20} />
           </div>
 

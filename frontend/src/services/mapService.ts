@@ -203,6 +203,16 @@ class MapService {
       }
 
       console.log("✅ Lokasi berhasil ditambahkan:", newLocation);
+
+      // PERBAIKAN: Refresh cache laporan harian setelah analisis berhasil
+      try {
+        const { DailyAudioService } = await import("./dailyAudioService");
+        await DailyAudioService.refreshTodayAudioSummary();
+        console.log("🔄 Cache laporan harian telah di-refresh");
+      } catch (cacheError) {
+        console.warn("⚠️ Gagal refresh cache laporan harian:", cacheError);
+      }
+
       return newLocation;
     } catch (error) {
       console.error("❌ Error during analysis and add area process:", error);
@@ -615,6 +625,18 @@ class MapService {
         };
 
         console.log("✅ Berhasil memperbarui lokasi:", updatedLocation);
+
+        // PERBAIKAN: Refresh cache laporan harian setelah analisis ulang berhasil
+        try {
+          const { DailyAudioService } = await import("./dailyAudioService");
+          await DailyAudioService.refreshTodayAudioSummary();
+          console.log(
+            "🔄 Cache laporan harian telah di-refresh setelah analisis ulang"
+          );
+        } catch (cacheError) {
+          console.warn("⚠️ Gagal refresh cache laporan harian:", cacheError);
+        }
+
         return updatedLocation;
       }
       return null;

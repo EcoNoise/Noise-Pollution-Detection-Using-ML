@@ -37,6 +37,7 @@ import {
 } from "@mui/material";
 import { apiService, PredictionResponse } from "../services/api";
 import { mapService } from "../services/mapService";
+import { DailyAudioService } from "../services/dailyAudioService";
 import AudioVisualizer from "./AudioVisualizer";
 
 type ChipColor =
@@ -402,6 +403,14 @@ const HomePage: React.FC = () => {
       }
 
       const response = await apiService.uploadAudioFile(fileToUpload);
+
+      // Refresh cache laporan harian setelah analisis berhasil
+      try {
+        await DailyAudioService.refreshTodayAudioSummary();
+        console.log("✅ Cache laporan harian berhasil di-refresh setelah analisis");
+      } catch (refreshError) {
+        console.warn("⚠️ Gagal refresh cache laporan harian:", refreshError);
+      }
 
       if (mapRequestContext) {
         mapService.shareNoiseData({
