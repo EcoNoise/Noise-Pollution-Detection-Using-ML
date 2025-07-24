@@ -102,8 +102,8 @@ const Sidebar = styled(Box)(({ theme }) => ({
 
 const SidebarLogo = styled(Box)({
   marginBottom: "30px",
-  width: "60px",        // Diperbesar dari 40px ke 60px
-  height: "60px",       // Diperbesar dari 40px ke 60px
+  width: "60px", // Diperbesar dari 40px ke 60px
+  height: "60px", // Diperbesar dari 40px ke 60px
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -124,11 +124,9 @@ const LogoImage = styled("img")({
   filter: "drop-shadow(0 4px 15px rgba(74, 144, 226, 0.3))",
   transition: "all 0.3s ease",
   "&:hover": {
-    
     filter: "drop-shadow(0 6px 20px rgba(74, 144, 226, 0.4))",
   },
 });
-
 
 // Interface untuk NavItem props
 interface NavItemProps {
@@ -212,10 +210,7 @@ const NavigationSidebar: React.FC<{
   return (
     <Sidebar>
       <SidebarLogo onClick={handleLogoClick}>
-        <LogoImage 
-          src="/logo.svg" 
-          alt="EcoNoise Logo"
-        />
+        <LogoImage src="/logo.svg" alt="EcoNoise Logo" />
       </SidebarLogo>
       <Box
         sx={{

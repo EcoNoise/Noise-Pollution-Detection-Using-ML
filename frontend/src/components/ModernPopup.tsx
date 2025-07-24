@@ -1,13 +1,21 @@
 // src/components/ModernPopup.tsx
-import React from 'react';
-import { X, AlertTriangle, Trash2, LogIn, CheckCircle, Info, AlertCircle } from 'lucide-react';
-import styles from '../styles/ModernPopup.module.css';
+import React from "react";
+import {
+  X,
+  AlertTriangle,
+  Trash2,
+  LogIn,
+  CheckCircle,
+  Info,
+  AlertCircle,
+} from "lucide-react";
+import styles from "../styles/ModernPopup.module.css";
 
 interface ModernPopupProps {
   isVisible: boolean;
   title: string;
   message: string;
-  type: 'delete' | 'login' | 'success' | 'error' | 'warning' | 'info';
+  type: "delete" | "login" | "success" | "error" | "warning" | "info";
   onConfirm?: () => void;
   onCancel?: () => void;
   onClose: () => void;
@@ -23,24 +31,24 @@ const ModernPopup: React.FC<ModernPopupProps> = ({
   onConfirm,
   onCancel,
   onClose,
-  confirmText = 'Konfirmasi',
-  cancelText = 'Batal'
+  confirmText = "Konfirmasi",
+  cancelText = "Batal",
 }) => {
   if (!isVisible) return null;
 
   const getIcon = () => {
     switch (type) {
-      case 'delete':
+      case "delete":
         return <Trash2 size={32} />;
-      case 'login':
+      case "login":
         return <LogIn size={32} />;
-      case 'success':
+      case "success":
         return <CheckCircle size={32} />;
-      case 'error':
+      case "error":
         return <AlertCircle size={32} />;
-      case 'warning':
+      case "warning":
         return <AlertTriangle size={32} />;
-      case 'info':
+      case "info":
         return <Info size={32} />;
       default:
         return <Info size={32} />;
@@ -49,17 +57,17 @@ const ModernPopup: React.FC<ModernPopupProps> = ({
 
   const getTypeClass = () => {
     switch (type) {
-      case 'delete':
+      case "delete":
         return styles.delete;
-      case 'login':
+      case "login":
         return styles.login;
-      case 'success':
+      case "success":
         return styles.success;
-      case 'error':
+      case "error":
         return styles.error;
-      case 'warning':
+      case "warning":
         return styles.warning;
-      case 'info':
+      case "info":
         return styles.info;
       default:
         return styles.info;
@@ -68,7 +76,7 @@ const ModernPopup: React.FC<ModernPopupProps> = ({
 
   return (
     <div className={styles.overlay} onClick={onClose}>
-      <div 
+      <div
         className={`${styles.popup} ${getTypeClass()}`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -86,9 +94,7 @@ const ModernPopup: React.FC<ModernPopupProps> = ({
 
         {/* Icon container */}
         <div className={styles.iconContainer}>
-          <div className={styles.iconWrapper}>
-            {getIcon()}
-          </div>
+          <div className={styles.iconWrapper}>{getIcon()}</div>
           <div className={styles.iconGlow}></div>
         </div>
 
@@ -101,7 +107,7 @@ const ModernPopup: React.FC<ModernPopupProps> = ({
         {/* Actions */}
         <div className={styles.actions}>
           {onCancel && (
-            <button 
+            <button
               className={`${styles.button} ${styles.cancelButton}`}
               onClick={onCancel}
             >
@@ -109,7 +115,7 @@ const ModernPopup: React.FC<ModernPopupProps> = ({
             </button>
           )}
           {onConfirm && (
-            <button 
+            <button
               className={`${styles.button} ${styles.confirmButton}`}
               onClick={onConfirm}
             >

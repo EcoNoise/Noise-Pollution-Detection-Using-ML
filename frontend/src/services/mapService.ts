@@ -292,7 +292,9 @@ class MapService {
           userId: apiArea.user_info?.id,
           userName: apiArea.user_info?.username,
           canDelete: apiArea.can_delete,
-          expires_at: apiArea.expires_at ? new Date(apiArea.expires_at) : undefined,
+          expires_at: apiArea.expires_at
+            ? new Date(apiArea.expires_at)
+            : undefined,
         };
       }
       return null;

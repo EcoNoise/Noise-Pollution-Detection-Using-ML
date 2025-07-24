@@ -1,7 +1,12 @@
 // src/components/MapPopup.tsx
 import React, { useState } from "react";
 import { NoiseLocation } from "../types/mapTypes";
-import { formatNoiseLevel, getNoiseDescription, getTimeUntilExpiry } from "../utils/mapUtils";
+import {
+  formatNoiseLevel,
+  getNoiseDescription,
+  getTimeUntilExpiry,
+} from "../utils/mapUtils";
+import { translateNoiseSource, translateHealthImpact, getNoiseSourceIcon } from "../utils/translationUtils";
 import ModernPopup from "./ModernPopup";
 import styles from "../styles/MapComponent.module.css";
 
@@ -59,13 +64,13 @@ const MapPopup: React.FC<MapPopupProps> = ({
             <br />
             {location.source && (
               <>
-                <strong>Sumber:</strong> {location.source}
+                <strong>Sumber:</strong> {getNoiseSourceIcon(location.source)} {translateNoiseSource(location.source)}
                 <br />
               </>
             )}
             {location.healthImpact && (
               <>
-                <strong>Dampak Kesehatan:</strong> {location.healthImpact}
+                <strong>Dampak Kesehatan:</strong> {translateHealthImpact(location.healthImpact)}
                 <br />
               </>
             )}
@@ -79,7 +84,8 @@ const MapPopup: React.FC<MapPopupProps> = ({
             <br />
             {location.expires_at && (
               <>
-                <strong>Expire:</strong> {getTimeUntilExpiry(location.expires_at)}
+                <strong>Expire:</strong>{" "}
+                {getTimeUntilExpiry(location.expires_at)}
                 <br />
               </>
             )}

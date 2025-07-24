@@ -162,8 +162,8 @@ class AudioUploadPredictionView(APIView):
                 # Provide fallback predictions
                 predictions = {
                     "noise_level": 65.0,
-                    "noise_source": "unknown",
-                    "health_impact": "Moderate",
+                    "noise_source": "tidak_diketahui",
+                    "health_impact": "Sedang",
                     "confidence_score": 0.1,
                     "status": "success",
                     "note": "Used fallback predictions due to model error",
@@ -173,8 +173,8 @@ class AudioUploadPredictionView(APIView):
                 # Convert error to fallback prediction
                 predictions = {
                     "noise_level": 65.0,
-                    "noise_source": "unknown",
-                    "health_impact": "Moderate",
+                    "noise_source": "tidak_diketahui",
+                    "health_impact": "Sedang",
                     "confidence_score": 0.1,
                     "status": "success",
                     "note": "Used fallback predictions due to model compatibility issues",
@@ -216,9 +216,9 @@ class AudioUploadPredictionView(APIView):
 
             # Provide fallback response instead of error
             fallback_predictions = {
-                "noise_level": 65.0,
-                "noise_source": "unknown",
-                "health_impact": "Moderate",
+                "noise_level": 55.0,
+                "noise_source": "tidak_diketahui",
+                "health_impact": "Sedang",
                 "confidence_score": 0.1,
                 "status": "success",
                 "note": f"Used fallback predictions due to system error: {str(e)[:100]}",

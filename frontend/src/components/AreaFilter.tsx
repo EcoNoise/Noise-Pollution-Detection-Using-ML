@@ -2,6 +2,7 @@
 import React from 'react';
 import { NoiseLocation } from '../types/mapTypes';
 import styles from '../styles/AreaFilter.module.css';
+import { translateNoiseSource, translateHealthImpact } from '../utils/translationUtils';
 
 interface AreaFilterProps {
   onFilterChange: (filters: AreaFilters) => void;
@@ -30,8 +31,8 @@ const AreaFilter: React.FC<AreaFilterProps> = ({
 
   // Default values untuk setiap kategori filter - SELALU DITAMPILKAN
   const defaultNoiseLevels = ['Tenang', 'Sedang', 'Berisik', 'Sangat Berisik'];
-  const defaultSources = ['street_music', 'construction', 'traffic', 'human_activities', 'other'];
-  const defaultHealthImpacts = ['Mild', 'Moderate', 'Severe'];
+  const defaultSources = ['petasan_kembang_api', 'alat_berat_konstruksi', 'klakson_kendaraan', 'mesin_kendaraan', 'ac_outdoor', 'sirine_ambulans', 'tidak_diketahui'];
+  const defaultHealthImpacts = ['Ringan', 'Sedang', 'Tinggi', 'Berbahaya'];
 
   // Gabungkan default values dengan unique values dari data (jika ada)
   // Tetapi pastikan default values selalu ada
@@ -68,26 +69,6 @@ const AreaFilter: React.FC<AreaFilterProps> = ({
     onFilterChange(currentFilters);
   };
 
-  const translateSource = (source: string): string => {
-    const translations: { [key: string]: string } = {
-      street_music: 'Musik Jalanan',
-      construction: 'Konstruksi',
-      traffic: 'Lalu Lintas',
-      human_activities: 'Aktivitas Manusia',
-      other: 'Lainnya'
-    };
-    return translations[source] || source;
-  };
-
-  const translateHealthImpact = (impact: string): string => {
-    const translations: { [key: string]: string } = {
-      Mild: 'Ringan',
-      Moderate: 'Sedang',
-      Severe: 'Berat'
-    };
-    return translations[impact] || impact;
-  };
-
   return (
     <div className={styles.filterContainer}>
       <div className={styles.filterSection}>
@@ -116,7 +97,7 @@ const AreaFilter: React.FC<AreaFilterProps> = ({
                 checked={activeFilters.source?.includes(source) || false}
                 onChange={() => handleFilterChange('source', source)}
               />
-              {translateSource(source)}
+              {translateNoiseSource(source)}
             </label>
           ))}
         </div>

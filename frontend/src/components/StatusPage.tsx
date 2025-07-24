@@ -76,7 +76,7 @@ const StatusPage: React.FC = () => {
         secondary={description}
       />
       <Chip 
-        label={loaded ? 'Loaded' : 'Not Found'} 
+        label={loaded ? 'Dimuat' : 'Tidak Ditemukan'} 
         color={loaded ? 'success' : 'error'} 
         size="small"
         variant="outlined"
@@ -98,10 +98,10 @@ const StatusPage: React.FC = () => {
       <Box display="flex" alignItems="center" gap={2} mb={4}>
         <Settings size={32} />
         <Typography variant="h4">
-          System Status
+          Status Sistem
         </Typography>
         <Button variant="outlined" onClick={checkStatus} size="small">
-          Refresh Status
+          Perbarui Status
         </Button>
       </Box>
 
@@ -137,7 +137,7 @@ const StatusPage: React.FC = () => {
                 <Typography variant="h6">Database</Typography>
               </Box>
               <Chip 
-                label={error ? 'Unknown' : 'Connected'} 
+                label={error ? 'Tidak Diketahui' : 'Terhubung'} 
                 color={error ? 'default' : 'success'} 
                 icon={error ? <Activity size={16} /> : <CheckCircle size={16} />}
               />
@@ -150,10 +150,10 @@ const StatusPage: React.FC = () => {
             <CardContent>
               <Box display="flex" alignItems="center" gap={1} mb={2}>
                 <Brain size={24} color="#4caf50" />
-                <Typography variant="h6">ML Models</Typography>
+                <Typography variant="h6">Model ML</Typography>
               </Box>
               <Chip 
-                label={modelStatus ? `${modelStatus.loaded_models}/${modelStatus.total_models}` : 'Unknown'} 
+                label={modelStatus ? `${modelStatus.loaded_models}/${modelStatus.total_models}` : 'Tidak Diketahui'} 
                 color={modelStatus && modelStatus.loaded_models > 0 ? 'success' : 'warning'} 
                 icon={<Brain size={16} />}
               />
@@ -166,10 +166,10 @@ const StatusPage: React.FC = () => {
             <CardContent>
               <Box display="flex" alignItems="center" gap={1} mb={2}>
                 <Wifi size={24} color="#9c27b0" />
-                <Typography variant="h6">Network</Typography>
+                <Typography variant="h6">Jaringan</Typography>
               </Box>
               <Chip 
-                label={error ? 'Error' : 'Connected'} 
+                label={error ? 'Error' : 'Terhubung'} 
                 color={error ? 'error' : 'success'} 
                 icon={error ? <XCircle size={16} /> : <Wifi size={16} />}
               />
@@ -182,24 +182,24 @@ const StatusPage: React.FC = () => {
       {modelStatus && (
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            🤖 Machine Learning Models Status
+            🤖 Status Model Machine Learning
           </Typography>
           
           <Grid container spacing={2} mb={3}>
             <Grid item xs={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Total Models</Typography>
+              <Typography variant="body2" color="text.secondary">Total Model</Typography>
               <Typography variant="h4" color="primary.main">
                 {modelStatus.total_models}
               </Typography>
             </Grid>
             <Grid item xs={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Loaded Models</Typography>
+              <Typography variant="body2" color="text.secondary">Model Dimuat</Typography>
               <Typography variant="h4" color="success.main">
                 {modelStatus.loaded_models}
               </Typography>
             </Grid>
             <Grid item xs={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Load Rate</Typography>
+              <Typography variant="body2" color="text.secondary">Tingkat Pemuatan</Typography>
               <Typography variant="h4" color="info.main">
                 {((modelStatus.loaded_models / modelStatus.total_models) * 100).toFixed(0)}%
               </Typography>
@@ -207,39 +207,39 @@ const StatusPage: React.FC = () => {
             <Grid item xs={6} md={3}>
               <Typography variant="body2" color="text.secondary">Status</Typography>
               <Typography variant="h4" color={modelStatus.loaded_models > 0 ? "success.main" : "error.main"}>
-                {modelStatus.loaded_models > 0 ? "Ready" : "Error"}
+                {modelStatus.loaded_models > 0 ? "Siap" : "Error"}
               </Typography>
             </Grid>
           </Grid>
 
           <List>
             <ModelStatusItem
-              name="Noise Level (Original)"
+              name="Tingkat Kebisingan (Original)"
               loaded={modelStatus.models.noise_level_original || false}
               description="Model prediksi tingkat kebisingan versi original"
             />
             <ModelStatusItem
-              name="Noise Level (Optimized)"
+              name="Tingkat Kebisingan (Optimized)"
               loaded={modelStatus.models.noise_level_optimized || false}
               description="Model prediksi tingkat kebisingan versi optimized"
             />
             <ModelStatusItem
-              name="Noise Source"
+              name="Sumber Kebisingan"
               loaded={modelStatus.models.noise_source || false}
               description="Model klasifikasi sumber kebisingan"
             />
             <ModelStatusItem
-              name="Health Impact"
+              name="Dampak Kesehatan"
               loaded={modelStatus.models.health_impact || false}
               description="Model prediksi dampak kesehatan"
             />
             <ModelStatusItem
-              name="Feature Scaler"
+              name="Penskalaan Fitur"
               loaded={modelStatus.models.scaler || false}
               description="Preprocessor untuk normalisasi fitur"
             />
             <ModelStatusItem
-              name="Selected Features"
+              name="Fitur Terpilih"
               loaded={modelStatus.models.selected_features || false}
               description="Indeks fitur yang dipilih untuk training"
             />
@@ -251,7 +251,7 @@ const StatusPage: React.FC = () => {
       {lastChecked && (
         <Paper sx={{ p: 2 }}>
           <Typography variant="body2" color="text.secondary">
-            ⏰ Last checked: {lastChecked.toLocaleString('id-ID')}
+            ⏰ Terakhir diperiksa: {lastChecked.toLocaleString('id-ID')}
           </Typography>
         </Paper>
       )}
