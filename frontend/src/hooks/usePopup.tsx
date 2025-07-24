@@ -1,10 +1,13 @@
 // src/hooks/usePopup.tsx
 import { useState, useCallback } from 'react';
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import ModernPopup from '../components/ModernPopup';
 
 export interface PopupConfig {
   title: string;
   message: string;
-  type: 'success' | 'error' | 'warning' | 'info' | 'confirm';
+  type: 'success' | 'error' | 'warning' | 'info' | 'confirm' | 'login' | 'delete';
   confirmText?: string;
   cancelText?: string;
 }
@@ -72,6 +75,56 @@ export const usePopup = () => {
     }, onConfirm, onCancel);
   }, [showPopup]);
 
+  const showLogin = useCallback((title: string, message: string, onConfirm?: () => void) => {
+    showPopup({ title, message, type: 'login', confirmText: 'Login Sekarang', cancelText: 'Nanti Saja' }, onConfirm);
+  }, [showPopup]);
+
+  // Render popup component
+  const PopupComponent = () => {
+    if (!popupState.isVisible || !popupState.config) return null;
+
+    const handleConfirm = () => {
+      if (popupState.onConfirm) {
+        popupState.onConfirm();
+      }
+      hidePopup();
+    };
+
+    const handleCancel = () => {
+      if (popupState.onCancel) {
+        popupState.onCancel();
+      }
+      hidePopup();
+    };
+
+    const getPopupType = () => {
+      if (popupState.config?.type === 'confirm') {
+        return 'info'; // Default confirm type
+      }
+      return popupState.config?.type || 'info';
+    };
+
+    const shouldShowButtons = () => {
+      return popupState.config?.type === 'warning' || 
+             popupState.config?.type === 'confirm' || 
+             popupState.config?.type === 'login';
+    };
+
+    return (
+      <ModernPopup
+        isVisible={popupState.isVisible}
+        title={popupState.config.title}
+        message={popupState.config.message}
+        type={getPopupType() as any}
+        onConfirm={shouldShowButtons() ? handleConfirm : undefined}
+        onCancel={shouldShowButtons() ? handleCancel : undefined}
+        onClose={hidePopup}
+        confirmText={popupState.config.confirmText}
+        cancelText={popupState.config.cancelText}
+      />
+    );
+  };
+
   return {
     popupState,
     showPopup,
@@ -81,5 +134,7 @@ export const usePopup = () => {
     showWarning,
     showInfo,
     showConfirm,
+    showLogin,
+    PopupComponent,
   };
 };

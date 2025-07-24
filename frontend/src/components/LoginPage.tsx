@@ -172,15 +172,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               )}
             </button>
 
-            {/* Forgot Password Link */}
-            <div className="text-center">
-              <Link
-                to="/forgot-password"
-                className="text-sm text-blue-400 hover:text-blue-300 font-medium hover:underline transition-colors"
-              >
-                Lupa password?
-              </Link>
-            </div>
           </form>
 
           {/* Register Link */}
@@ -195,11 +186,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </Link>
             </p>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center mt-8 text-sm text-slate-400">
-          <p>Dengan masuk, Anda menyetujui syarat dan ketentuan kami</p>
         </div>
       </div>
     </div>
