@@ -1,5 +1,5 @@
 // src/components/AudioVisualizer.tsx
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
 interface AudioVisualizerProps { 
   stream: MediaStream | null; 
@@ -11,11 +11,45 @@ interface AudioVisualizerProps {
 const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ 
   stream, 
   isRecording, 
-  width = 350, 
-  height = 80 
+  width, 
+  height 
 }) => { 
   const canvasRef = useRef<HTMLCanvasElement>(null); 
   const smoothedDataArrayRef = useRef<Float32Array | null>(null);
+  const [canvasSize, setCanvasSize] = useState({ width: 350, height: 80 });
+
+  // Update canvas size based on screen size
+  useEffect(() => {
+    const updateCanvasSize = () => {
+      const screenWidth = window.innerWidth;
+      let newWidth = width || 350;
+      let newHeight = height || 80;
+      
+      if (!width) {
+        if (screenWidth < 768) {
+          // Mobile
+          newWidth = Math.min(screenWidth - 40, 300);
+        } else if (screenWidth < 1024) {
+          // Tablet
+          newWidth = 350;
+        } else {
+          // Desktop
+          newWidth = 400;
+        }
+      }
+      
+      if (!height) {
+        newHeight = screenWidth < 768 ? 60 : 80;
+      }
+      
+      setCanvasSize({ width: newWidth, height: newHeight });
+    };
+
+    updateCanvasSize();
+    window.addEventListener('resize', updateCanvasSize);
+    
+    return () => window.removeEventListener('resize', updateCanvasSize);
+  }, [width, height]);
 
   useEffect(() => { 
     if (!isRecording || !stream) return;
@@ -47,13 +81,13 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       animationFrameId = requestAnimationFrame(draw); 
       analyser.getByteFrequencyData(dataArray);
 
-      canvasCtx.clearRect(0, 0, width, height);
+      canvasCtx.clearRect(0, 0, canvasSize.width, canvasSize.height);
 
-      const barWidth = width / bufferLength * 0.8; 
-      let x = (width - (barWidth * bufferLength)) / 2;
-      const centerY = height / 2;
+      const barWidth = canvasSize.width / bufferLength * 0.8; 
+      let x = (canvasSize.width - (barWidth * bufferLength)) / 2;
+      const centerY = canvasSize.height / 2;
 
-      const gradient = canvasCtx.createLinearGradient(0, 0, 0, height); 
+      const gradient = canvasCtx.createLinearGradient(0, 0, 0, canvasSize.height); 
       gradient.addColorStop(0, '#60a5fa'); 
       gradient.addColorStop(0.6, '#a78bfa'); 
       gradient.addColorStop(1, '#e9d5ff');
@@ -65,7 +99,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         const smoothingFactor = 0.15; 
         smoothedDataArray[i] += (dataArray[i] - smoothedDataArray[i]) * smoothingFactor;
 
-        const barHeight = Math.max(2, smoothedDataArray[i] * (height / 256) * 0.7);
+        const barHeight = Math.max(2, smoothedDataArray[i] * (canvasSize.height / 256) * 0.7);
         const barY = centerY - barHeight / 2;
 
         canvasCtx.fillStyle = gradient;
@@ -82,19 +116,20 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       source.disconnect(); 
       audioContext.close().catch(console.error); 
     }; 
-  }, [isRecording, stream, width, height]);
+  }, [isRecording, stream, canvasSize]);
 
   return (
     <canvas 
       ref={canvasRef} 
-      width={width} 
-      height={height} 
+      width={canvasSize.width} 
+      height={canvasSize.height} 
       style={{ 
         display: isRecording ? 'block' : 'none', 
         marginTop: '20px', 
         marginBottom: '20px',
         borderRadius: '12px',
-        background: 'rgba(30, 41, 59, 0.3)'
+        background: 'rgba(30, 41, 59, 0.3)',
+        maxWidth: '100%'
       }} 
     />
   ); 

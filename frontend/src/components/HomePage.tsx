@@ -20,11 +20,11 @@ import { mapService } from "../services/mapService";
 import { DailyAudioService } from "../services/dailyAudioService";
 import AudioVisualizer from "./AudioVisualizer";
 import ModernPopup from "./ModernPopup";
-import { 
-  translateNoiseSource, 
-  translateHealthImpact, 
+import {
+  translateNoiseSource,
+  translateHealthImpact,
   getHealthImpactDescription,
-  getNoiseSourceIcon 
+  getNoiseSourceIcon,
 } from "../utils/translationUtils";
 
 type ChipColor =
@@ -72,6 +72,13 @@ const MicButton = styled(Button)<{ recording?: boolean }>(({ recording }) => ({
   cursor: "pointer",
   transition: "all 0.3s ease",
   animation: recording ? `${recordingPulse} 1.5s ease-in-out infinite` : "none",
+
+  // Responsive untuk mobile
+  "@media (max-width: 767px)": {
+    width: "80px",
+    height: "80px",
+    minWidth: "80px",
+  },
 
   "&:hover": {
     transform: "scale(1.05)",
@@ -459,26 +466,25 @@ const HomePage: React.FC = () => {
       sx={{
         maxWidth: 1200,
         mx: "auto",
-        p: 3,
+        p: { xs: 2, sm: 3 }, // Responsive padding
         color: "#fff",
         textAlign: "center",
+        minHeight: "100vh",
+        // Responsive untuk mobile dengan bottom navigation
+        "@media (max-width: 767px)": {
+          paddingBottom: "120px", // Extra space for bottom nav
+        },
       }}
     >
       {!isAuthenticated && (
         <Box
           sx={{
             position: "fixed",
-            top: 20,
-            right: 20,
-            display: "flex",
+            top: { xs: 16, sm: 20 },
+            right: { xs: 16, sm: 20 },
+            display: { xs: "none", md: "flex" }, // Sembunyikan di mobile karena ada bottom nav
             gap: 2,
             zIndex: 1000,
-            "@media (max-width: 600px)": {
-              flexDirection: "column",
-              gap: 1,
-              top: 16,
-              right: 16,
-            },
           }}
         >
           <Button
@@ -491,10 +497,10 @@ const HomePage: React.FC = () => {
               backgroundColor: "rgba(255, 255, 255, 0.05)",
               backdropFilter: "blur(10px)",
               borderRadius: "50px",
-              px: 3,
-              py: 1,
+              px: { xs: 2.5, sm: 3 },
+              py: { xs: 0.8, sm: 1 },
               fontWeight: 600,
-              fontSize: "0.9rem",
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
               textTransform: "none",
               transition: "all 0.3s ease",
               "&:hover": {
@@ -503,11 +509,6 @@ const HomePage: React.FC = () => {
                 color: "#3b82f6",
                 transform: "translateY(-2px)",
                 boxShadow: "0 8px 25px rgba(59, 130, 246, 0.2)",
-              },
-              "@media (max-width: 600px)": {
-                fontSize: "0.8rem",
-                px: 2.5,
-                py: 0.8,
               },
             }}
           >
@@ -521,10 +522,10 @@ const HomePage: React.FC = () => {
               background: "linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)",
               color: "#ffffff",
               borderRadius: "50px",
-              px: 3,
-              py: 1,
+              px: { xs: 2.5, sm: 3 },
+              py: { xs: 0.8, sm: 1 },
               fontWeight: 600,
-              fontSize: "0.9rem",
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
               textTransform: "none",
               boxShadow: "0 4px 15px rgba(59, 130, 246, 0.3)",
               transition: "all 0.3s ease",
@@ -532,11 +533,6 @@ const HomePage: React.FC = () => {
                 background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
                 transform: "translateY(-2px)",
                 boxShadow: "0 8px 25px rgba(59, 130, 246, 0.4)",
-              },
-              "@media (max-width: 600px)": {
-                fontSize: "0.8rem",
-                px: 2.5,
-                py: 0.8,
               },
             }}
           >
@@ -557,10 +553,24 @@ const HomePage: React.FC = () => {
         >
           {!isRecording && !audioBlob && (
             <Box width="100%" maxWidth={600}>
-              <GradientText variant="h3" gutterBottom>
+              <GradientText
+                variant="h3"
+                gutterBottom
+                sx={{
+                  fontSize: { xs: "1.8rem", sm: "2.5rem" },
+                }}
+              >
                 Deteksi Polusi Suara
               </GradientText>
-              <Typography variant="h6" color="rgba(255,255,255,0.7)" mb={6}>
+              <Typography
+                variant="h6"
+                color="rgba(255,255,255,0.7)"
+                mb={6}
+                sx={{
+                  fontSize: { xs: "1rem", sm: "1.25rem" },
+                  px: { xs: 2, sm: 0 },
+                }}
+              >
                 Analisis kebisingan dari rekaman mikrofon secara langsung.
               </Typography>
 
@@ -578,7 +588,14 @@ const HomePage: React.FC = () => {
                   <Mic size={32} />
                 </MicButton>
 
-                <Typography variant="body2" color="rgba(255,255,255,0.6)">
+                <Typography
+                  variant="body2"
+                  color="rgba(255,255,255,0.6)"
+                  sx={{
+                    fontSize: { xs: "0.8rem", sm: "0.875rem" },
+                    px: { xs: 2, sm: 0 },
+                  }}
+                >
                   Klik tombol mikrofon untuk memulai perekaman
                 </Typography>
               </Box>
@@ -639,12 +656,26 @@ const HomePage: React.FC = () => {
         <Box mt={!isAuthenticated ? 10 : 2} width="100%">
           <Box
             display="flex"
+            flexDirection={{ xs: "column", sm: "row" }}
             justifyContent="space-between"
-            alignItems="center"
+            alignItems={{ xs: "stretch", sm: "center" }}
             mb={4}
+            gap={{ xs: 2, sm: 0 }}
           >
-            <GradientText variant="h4">Hasil Analisis Audio</GradientText>
-            <Box display="flex" gap={2}>
+            <GradientText
+              variant="h4"
+              sx={{
+                fontSize: { xs: "1.5rem", sm: "2.125rem" },
+              }}
+            >
+              Hasil Analisis Audio
+            </GradientText>
+            <Box
+              display="flex"
+              gap={2}
+              flexDirection={{ xs: "column", sm: "row" }}
+              width={{ xs: "100%", sm: "auto" }}
+            >
               <Button
                 variant="contained"
                 onClick={shareToMap}
@@ -652,6 +683,10 @@ const HomePage: React.FC = () => {
                   bgcolor: "#3b82f6",
                   color: "#fff",
                   borderRadius: "50px",
+                  px: { xs: 3, sm: 2 },
+                  py: { xs: 1.5, sm: 1 },
+                  fontSize: { xs: "0.9rem", sm: "0.8rem" },
+                  width: { xs: "100%", sm: "auto" },
                   "&:hover": { bgcolor: "#2563eb" },
                 }}
               >
@@ -667,6 +702,10 @@ const HomePage: React.FC = () => {
                   color: "#fff",
                   borderColor: "rgba(255,255,255,0.3)",
                   borderRadius: "50px",
+                  px: { xs: 3, sm: 2 },
+                  py: { xs: 1.5, sm: 1 },
+                  fontSize: { xs: "0.9rem", sm: "0.8rem" },
+                  width: { xs: "100%", sm: "auto" },
                   "&:hover": { borderColor: "#fff" },
                 }}
               >
@@ -716,12 +755,14 @@ const HomePage: React.FC = () => {
                   <Typography variant="h3" sx={{ fontWeight: "bold" }}>
                     {translateHealthImpact(result.predictions.health_impact)}
                   </Typography>
-                  <Typography 
-                    variant="body2" 
-                    color="rgba(255,255,255,0.7)" 
+                  <Typography
+                    variant="body2"
+                    color="rgba(255,255,255,0.7)"
                     sx={{ mt: 1, mb: 2 }}
                   >
-                    {getHealthImpactDescription(result.predictions.health_impact)}
+                    {getHealthImpactDescription(
+                      result.predictions.health_impact
+                    )}
                   </Typography>
                   <Chip
                     label={`Keyakinan: ${(
@@ -743,7 +784,15 @@ const HomePage: React.FC = () => {
                       Prediksi Sumber Suara
                     </Typography>
                   </Box>
-                  <Typography variant="h4" sx={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography
+                    variant="h4"
+                    sx={{
+                      fontWeight: "bold",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
                     <span style={{ fontSize: "1.5rem" }}>
                       {getNoiseSourceIcon(result.predictions.noise_source)}
                     </span>

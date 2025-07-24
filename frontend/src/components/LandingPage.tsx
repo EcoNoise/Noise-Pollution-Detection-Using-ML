@@ -199,6 +199,14 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
           overflow: hidden;
           margin: 0;
           padding: 0;
+          padding-bottom: 0; /* Default untuk desktop */
+        }
+        
+        /* Responsive padding untuk bottom navigation */
+        @media (max-width: 767px) {
+          .main-container {
+            padding-bottom: 100px; /* Ruang untuk bottom navigation di mobile */
+          }
         }
         
         @keyframes gradientShift {
@@ -422,6 +430,78 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
         
         .mobile-menu-btn:hover {
           color: #60a5fa;
+        }
+
+        /* Mobile Menu Dropdown */
+        .mobile-menu-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 999;
+        }
+
+        .mobile-menu {
+          position: fixed;
+          top: 100%;
+          left: 0;
+          width: 100%;
+          background: rgba(10, 10, 15, 0.95);
+          backdrop-filter: blur(20px);
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          transform: translateY(-100%);
+          transition: all 0.3s ease;
+          z-index: 1000;
+          opacity: 0;
+          visibility: hidden;
+        }
+
+        .mobile-menu.active {
+          transform: translateY(0);
+          opacity: 1;
+          visibility: visible;
+        }
+
+        .mobile-menu-content {
+          padding: 2rem;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .mobile-menu-item {
+          display: block;
+          padding: 1rem 0;
+          color: #e5e7eb;
+          text-decoration: none;
+          font-weight: 500;
+          font-size: 1.1rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          transition: all 0.3s ease;
+          text-align: center;
+        }
+
+        .mobile-menu-item:hover {
+          color: #60a5fa;
+          background: rgba(96, 165, 250, 0.1);
+          border-radius: 8px;
+        }
+
+        .mobile-logout-btn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          width: 100%;
+          text-align: center;
+        }
+
+        /* Desktop auth buttons - hidden on mobile */
+        .desktop-auth {
+          display: flex;
+          gap: 1rem;
+          align-items: center;
         }
         
         /* Hero Section */
@@ -691,6 +771,7 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
           
           .hero-visual {
             order: -1;
+            transform: translateX(0); /* Reset transform di tablet */
           }
           
           .spline-container {
@@ -712,6 +793,21 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
             width: 50px; /* Sesuaikan ukuran untuk mobile */
             height: 50px;
           }
+
+          /* Hide desktop auth buttons on mobile */
+          .desktop-auth {
+            display: none;
+          }
+
+          /* Show mobile menu button */
+          .mobile-menu-btn {
+            display: block;
+          }
+          
+          .hero-visual {
+            transform: translateX(0); /* Reset transform di mobile */
+          }
+          
           .nav-links {
             position: fixed;
             top: 100%;
@@ -738,27 +834,34 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
           }
           
-          .mobile-menu-btn {
-            display: block;
-          }
-          
           .nav-menu {
             gap: 1rem;
           }
           
           .hero-section {
             padding: 6rem 1rem 2rem;
+            min-height: 90vh; /* Kurangi tinggi di mobile */
+          }
+          
+          .hero-title {
+            font-size: clamp(2rem, 8vw, 2.5rem); /* Lebih responsif */
+          }
+          
+          .hero-subtitle {
+            font-size: clamp(0.9rem, 4vw, 1.1rem); /* Lebih responsif */
           }
           
           .cta-buttons {
             flex-direction: column;
             align-items: center;
+            gap: 1rem;
           }
           
           .btn-primary,
           .btn-secondary {
             width: 100%;
             max-width: 280px;
+            padding: 0.875rem 1.5rem; /* Sedikit lebih kecil di mobile */
           }
           
           .spline-container {
@@ -767,6 +870,20 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
           
           .stats-grid {
             grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-top: 2rem;
+          }
+          
+          .stat-item {
+            padding: 0.75rem;
+          }
+          
+          .stat-number {
+            font-size: 1.25rem;
+          }
+          
+          .stat-label {
+            font-size: 0.8rem;
           }
         }
         
@@ -777,10 +894,32 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
           
           .hero-section {
             padding: 5rem 1rem 2rem;
+            min-height: 85vh;
+          }
+          
+          .hero-title {
+            font-size: clamp(1.75rem, 10vw, 2rem);
+            margin-bottom: 1rem;
+          }
+          
+          .hero-subtitle {
+            font-size: clamp(0.85rem, 5vw, 1rem);
+            margin-bottom: 2rem;
           }
           
           .spline-container {
             height: 300px;
+          }
+          
+          .btn-primary,
+          .btn-secondary {
+            max-width: 250px;
+            padding: 0.75rem 1.25rem;
+            font-size: 0.9rem;
+          }
+          
+          .stats-grid {
+            gap: 0.75rem;
           }
         }
 
@@ -1814,9 +1953,25 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
         }
 
         /* Responsive Design for New Sections */
-        @media (max-width: 768px) {
-          .features-grid {
+        @media (max-width: 968px) {
+          .minimal-tech-section {
+            padding: 4rem 1.5rem;
+          }
+          
+          .tech-showcase {
             grid-template-columns: 1fr;
+            gap: 2rem;
+          }
+          
+          .tech-item {
+            flex-direction: column;
+            text-align: center;
+            gap: 2rem;
+          }
+          
+          .tech-visual {
+            width: 100px;
+            height: 100px;
           }
           
           .data-content {
@@ -1843,6 +1998,62 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
           }
         }
 
+        @media (max-width: 768px) {
+          .features-grid {
+            grid-template-columns: 1fr;
+          }
+          
+          .minimal-tech-section {
+            padding: 4rem 1rem;
+          }
+          
+          .tech-content h3 {
+            font-size: 1.25rem;
+          }
+          
+          .tech-content p {
+            font-size: 0.9rem;
+          }
+          
+          .parallax-data-section .data-content {
+            padding: 3rem 1rem;
+          }
+          
+          .data-text h2 {
+            font-size: 2rem;
+          }
+          
+          .data-text p {
+            font-size: 1rem;
+          }
+          
+          .data-stats {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+          }
+          
+          .impact-section {
+            padding: 6rem 1rem;
+          }
+          
+          .impact-header h2 {
+            font-size: 2rem;
+          }
+          
+          .impact-header p {
+            font-size: 1rem;
+          }
+          
+          .impact-card {
+            padding: 2rem 1.5rem;
+          }
+          
+          .footer-links {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+          }
+        }
+
         @media (max-width: 480px) {
           .floating-features-section,
           .impact-section,
@@ -1850,12 +2061,52 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
             padding: 4rem 1rem;
           }
           
+          .minimal-tech-section {
+            padding: 3rem 1rem;
+          }
+          
+          .tech-content h3 {
+            font-size: 1.1rem;
+          }
+          
+          .tech-content p {
+            font-size: 0.85rem;
+          }
+          
           .parallax-data-section .data-content {
             padding: 2rem 1rem;
           }
           
+          .data-text h2 {
+            font-size: 1.75rem;
+          }
+          
+          .data-text p {
+            font-size: 0.9rem;
+          }
+          
+          .impact-header h2 {
+            font-size: 1.75rem;
+          }
+          
+          .impact-header p {
+            font-size: 0.9rem;
+          }
+          
+          .impact-card {
+            padding: 1.5rem 1rem;
+          }
+          
           .footer-links {
             grid-template-columns: 1fr;
+          }
+          
+          .footer-column h4 {
+            font-size: 1rem;
+          }
+          
+          .footer-column a {
+            font-size: 0.9rem;
           }
         }
       `}</style>
@@ -1894,33 +2145,36 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
               EcoNoise
             </a>
             <div className="nav-menu">
-              {isAuthenticated ? (
-                <>
-                  <Link to="/home" className="signin-btn">
-                    Dashboard
-                  </Link>
-                  <button
-                    onClick={onLogout}
-                    className="signup-btn"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link to="/login" className="signin-btn">
-                    Sign In
-                  </Link>
-                  <Link to="/register" className="signup-btn">
-                    Sign Up
-                  </Link>
-                </>
-              )}
+              {/* Desktop Auth Buttons */}
+              <div className="desktop-auth">
+                {isAuthenticated ? (
+                  <>
+                    <Link to="/home" className="signin-btn">
+                      Dashboard
+                    </Link>
+                    <button
+                      onClick={onLogout}
+                      className="signup-btn"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/login" className="signin-btn">
+                      Sign In
+                    </Link>
+                    <Link to="/register" className="signup-btn">
+                      Sign Up
+                    </Link>
+                  </>
+                )}
+              </div>
 
               <button
                 className="mobile-menu-btn"
@@ -1928,6 +2182,55 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
               >
                 ☰
               </button>
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          {isMenuOpen && (
+            <div
+              className="mobile-menu-overlay"
+              onClick={() => setIsMenuOpen(false)}
+            />
+          )}
+          <div className={`mobile-menu ${isMenuOpen ? "active" : ""}`}>
+            <div className="mobile-menu-content">
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    to="/home"
+                    className="mobile-menu-item"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={() => {
+                      onLogout();
+                      setIsMenuOpen(false);
+                    }}
+                    className="mobile-menu-item mobile-logout-btn"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className="mobile-menu-item"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="mobile-menu-item"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Sign Up
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </nav>
@@ -1955,7 +2258,7 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
 
               <div className="stats-grid">
                 <div className="stat-item">
-                  <div className="stat-number">99.5%</div>
+                  <div className="stat-number">80%</div>
                   <div className="stat-label">Akurasi Deteksi</div>
                 </div>
                 <div className="stat-item">
@@ -2006,10 +2309,10 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
                   </div>
                 </div>
                 <div className="tech-content">
-                  <h3>AI Neural Network</h3>
+                  <h3>Terintegrasi AI</h3>
                   <p>
-                    Algoritma pembelajaran mendalam yang dapat mengidentifikasi
-                    pola suara kompleks dengan akurasi tinggi
+                    Algoritma machine learning yang dapat mengidentifikasi pola
+                    suara kompleks dengan akurasi tinggi
                   </p>
                 </div>
               </div>
@@ -2049,7 +2352,7 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
                   <div className="processing-indicator"></div>
                 </div>
                 <div className="tech-content">
-                  <h3>Real-time Processing</h3>
+                  <h3>Pemmrosesann Real-Time</h3>
                   <p>
                     Pemrosesan data audio secara real-time dengan latency
                     ultra-rendah untuk respons instan
@@ -2075,7 +2378,7 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
                   <div className="prediction-arrow"></div>
                 </div>
                 <div className="tech-content">
-                  <h3>Predictive Analytics</h3>
+                  <h3>Analisis Prediksi Suara</h3>
                   <p>
                     Prediksi tren polusi suara masa depan berdasarkan data
                     historis dan pola lingkungan
@@ -2123,14 +2426,14 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
                   <div className="metric-trend up">↗ +2.3%</div>
                 </div>
                 <div className="metric-item">
-                  <div className="metric-value">1,247</div>
+                  <div className="metric-value">45</div>
                   <div className="metric-label">Deteksi Hari Ini</div>
                   <div className="metric-trend down">↘ -5.1%</div>
                 </div>
                 <div className="metric-item">
-                  <div className="metric-value">94%</div>
+                  <div className="metric-value">70%</div>
                   <div className="metric-label">Akurasi Model</div>
-                  <div className="metric-trend up">↗ +1.2%</div>
+                  <div className="metric-trend down">↘ +6.2%</div>
                 </div>
               </div>
             </div>
@@ -2144,7 +2447,7 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
               </p>
               <div className="data-stats">
                 <div className="stat">
-                  <span className="stat-number">2.4M+</span>
+                  <span className="stat-number">50+</span>
                   <span className="stat-text">Sampel Audio/Hari</span>
                 </div>
                 <div className="stat">

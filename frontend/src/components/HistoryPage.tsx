@@ -54,7 +54,7 @@ const HistoryPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8 pb-24 sm:pb-8">
         {/* Daily Audio Summary Section */}
         <div className="bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-700 mb-8">
           <div className="flex items-center gap-3 mb-6">

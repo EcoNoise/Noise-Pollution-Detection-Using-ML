@@ -22,6 +22,7 @@ import MapsPage from "./components/MapsPage"; // Import yang benar
 import RegisterPage from "./components/RegisterPage";
 import LoginPage from "./components/LoginPage";
 import ProfilePage from "./components/ProfilePage";
+import BottomNavigation from "./components/BottomNavigation";
 
 // Updated theme to match landing page
 const theme = createTheme({
@@ -98,6 +99,11 @@ const Sidebar = styled(Box)(({ theme }) => ({
   padding: "20px 0",
   borderRight: "1px solid #2D3748",
   overflow: "hidden",
+
+  // Responsif: sembunyikan di mobile
+  "@media (max-width: 767px)": {
+    display: "none",
+  },
 }));
 
 const SidebarLogo = styled(Box)({
@@ -187,6 +193,13 @@ const ContentWrapper = styled(Box)({
     background:
       "radial-gradient(circle at 20% 30%, rgba(74, 144, 226, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(108, 125, 210, 0.08) 0%, transparent 50%)",
     pointerEvents: "none",
+  },
+
+  // Responsif: hapus margin di mobile
+  "@media (max-width: 767px)": {
+    marginLeft: 0,
+    width: "100%",
+    paddingBottom: "100px", // Ruang untuk bottom navigation
   },
 });
 
@@ -280,6 +293,7 @@ const MainLayout: React.FC<{
   <Box sx={{ display: "flex" }}>
     <NavigationSidebar onLogout={onLogout} isAuthenticated={isAuthenticated} />
     <ContentWrapper>{children}</ContentWrapper>
+    <BottomNavigation isAuthenticated={isAuthenticated} onLogout={onLogout} />
   </Box>
 );
 

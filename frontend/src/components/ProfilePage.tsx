@@ -149,7 +149,7 @@ const ProfilePage: React.FC = () => {
     `https://ui-avatars.com/api/?name=${displayData.first_name}+${displayData.last_name}&background=3B82F6&color=fff&size=160`;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-4 sm:p-8">
+    <div className="min-h-screen bg-slate-900 text-white p-4 sm:p-8 pb-24 sm:pb-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-blue-400">Profil Saya</h1>
