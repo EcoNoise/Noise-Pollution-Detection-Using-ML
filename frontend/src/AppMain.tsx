@@ -124,7 +124,7 @@ const LogoImage = styled("img")({
   filter: "drop-shadow(0 4px 15px rgba(74, 144, 226, 0.3))",
   transition: "all 0.3s ease",
   "&:hover": {
-    transform: "scale(1.1)",
+    
     filter: "drop-shadow(0 6px 20px rgba(74, 144, 226, 0.4))",
   },
 });
@@ -206,11 +206,7 @@ const NavigationSidebar: React.FC<{
   };
 
   const handleLogoClick = () => {
-    if (isAuthenticated) {
-      navigate("/home"); // Jika login, ke home
-    } else {
-      navigate("/"); // Jika belum login, ke landing page
-    }
+    navigate("/"); // Logo selalu mengarah ke landing page
   };
 
   return (
