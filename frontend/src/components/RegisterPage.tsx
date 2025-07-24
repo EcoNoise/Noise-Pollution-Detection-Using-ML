@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { register } from "../services/authService";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 
 interface RegisterPageProps {
   onRegisterSuccess?: () => void;
@@ -259,6 +260,15 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
     <>
       {/* Dark background with solid color */}
       <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4 py-8">
+        {/* Back Button */}
+        <Link
+          to="/"
+          className="absolute top-6 left-6 inline-flex items-center px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-all duration-200 group"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+          Kembali
+        </Link>
+
         <div className="max-w-md w-full bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-700">
           {/* Header */}
           <div className="text-center mb-6">

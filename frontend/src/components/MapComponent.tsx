@@ -1,6 +1,5 @@
 // src/components/MapComponent.tsx
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import PopupNotification from "./PopupNotification";
 import { usePopup } from "../hooks/usePopup";
 import {
   MapContainer,
@@ -138,6 +137,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     showError,
     showWarning,
     showConfirm,
+    showLogin,
+    PopupComponent,
   } = usePopup();
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
@@ -367,7 +368,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const handleAddNoiseArea = () => {
     const isAuthenticated = !!localStorage.getItem("accessToken");
     if (!isAuthenticated) {
-      showWarning(
+      showLogin(
         "Login Diperlukan",
         "Anda harus login untuk dapat menambahkan area analisis di peta.",
         () => navigate("/login")
@@ -1079,17 +1080,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           />
         )}
       </MapContainer>
-      <PopupNotification
-        isVisible={popupState.isVisible}
-        title={popupState.config?.title || ""}
-        message={popupState.config?.message || ""}
-        type={popupState.config?.type || "info"}
-        onConfirm={popupState.onConfirm}
-        onCancel={popupState.onCancel}
-        onClose={hidePopup}
-        confirmText={popupState.config?.confirmText}
-        cancelText={popupState.config?.cancelText}
-      />
+      <PopupComponent />
     </div>
   );
 };

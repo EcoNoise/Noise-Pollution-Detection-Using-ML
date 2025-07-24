@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { NoiseLocation } from "../types/mapTypes";
 import { formatNoiseLevel, getNoiseDescription } from "../utils/mapUtils";
-import PopupNotification from "./PopupNotification";
+import ModernPopup from "./ModernPopup";
 import styles from "../styles/MapComponent.module.css";
 
 interface MapPopupProps {
@@ -119,11 +119,11 @@ const MapPopup: React.FC<MapPopupProps> = ({
       </div>
 
       {/* Delete Confirmation Popup */}
-      <PopupNotification
+      <ModernPopup
         isVisible={showDeleteConfirm}
         title="Konfirmasi Hapus"
         message="Apakah Anda yakin ingin menghapus area berisik ini? Tindakan ini tidak dapat dibatalkan."
-        type="confirm"
+        type="delete"
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
         onClose={handleDeleteCancel}
