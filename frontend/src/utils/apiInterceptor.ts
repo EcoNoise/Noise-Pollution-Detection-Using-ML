@@ -1,12 +1,12 @@
 // API Interceptor untuk handle auto-refresh dan 401 errors
-import TokenManager from "./tokenManager";
+import SessionManager from "./tokenManager";
 
 class APIInterceptor {
   private static instance: APIInterceptor;
-  private tokenManager: TokenManager;
+  private sessionManager: SessionManager;
 
   private constructor() {
-    this.tokenManager = TokenManager.getInstance();
+    this.sessionManager = SessionManager.getInstance();
   }
 
   static getInstance(): APIInterceptor {
@@ -20,7 +20,7 @@ class APIInterceptor {
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
     try {
       // Get valid access token (akan auto-refresh jika perlu)
-      const accessToken = await this.tokenManager.getValidAccessToken();
+      const accessToken = await this.sessionManager.getValidAccessToken();
 
       // Prepare headers - don't set Content-Type for FormData
       const headers: Record<string, string> = {
@@ -42,7 +42,7 @@ class APIInterceptor {
       // Jika masih 401, coba refresh sekali lagi
       if (response.status === 401) {
         try {
-          const newAccessToken = await this.tokenManager.refreshAccessToken();
+          const newAccessToken = await this.sessionManager.refreshAccessToken();
 
           // Prepare retry headers
           const retryHeaders: Record<string, string> = {
@@ -78,15 +78,15 @@ class APIInterceptor {
     } catch (error) {
       // Jika tidak ada token sama sekali
       if (error instanceof Error && error.message.includes("No access token")) {
-        this.handleAuthenticationFailure();
+        await this.handleAuthenticationFailure();
       }
       throw error;
     }
   }
 
   // Handle authentication failure
-  private handleAuthenticationFailure(): void {
-    this.tokenManager.clearTokens();
+  private async handleAuthenticationFailure(): Promise<void> {
+    await this.sessionManager.clearTokens();
 
     // Dispatch custom event untuk notify komponen lain
     window.dispatchEvent(new CustomEvent("auth:logout"));

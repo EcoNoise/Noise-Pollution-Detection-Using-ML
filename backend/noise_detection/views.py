@@ -54,11 +54,7 @@ def check_identical_coordinates(latitude, longitude, exclude_id=None):
     
     return {'has_identical': False}
 
-def audio_predict(request):
-    if request.method == "POST":
-        # ...proses file audio...
-        return JsonResponse({"result": "success"})
-    return JsonResponse({"error": "Invalid method"}, status=405)
+
 class HealthView(APIView):
     """Health check endpoint"""
 

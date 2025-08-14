@@ -1,134 +1,88 @@
-// Token Manager untuk handle auto-refresh dan 401 errors
-class TokenManager {
-  private static instance: TokenManager;
-  private refreshPromise: Promise<string> | null = null;
-  private isRefreshing = false;
+// Session Manager untuk handle Supabase authentication
+class SessionManager {
+  private static instance: SessionManager;
+  private supabase: any = null;
 
-  private constructor() {}
+  private constructor() {
+    this.initSupabase();
+  }
 
-  static getInstance(): TokenManager {
-    if (!TokenManager.instance) {
-      TokenManager.instance = new TokenManager();
+  private async initSupabase() {
+    const { supabase } = await import('../lib/supabase');
+    this.supabase = supabase;
+  }
+
+  static getInstance(): SessionManager {
+    if (!SessionManager.instance) {
+      SessionManager.instance = new SessionManager();
     }
-    return TokenManager.instance;
+    return SessionManager.instance;
   }
 
-  // Get access token dari localStorage
-  getAccessToken(): string | null {
-    return localStorage.getItem("accessToken");
+  // Get access token from Supabase session
+  async getAccessToken(): Promise<string | null> {
+    if (!this.supabase) await this.initSupabase();
+    const { data: { session } } = await this.supabase.auth.getSession();
+    return session?.access_token || null;
   }
 
-  // Get refresh token dari localStorage
-  getRefreshToken(): string | null {
-    return localStorage.getItem("refreshToken");
+  // Get refresh token from Supabase session
+  async getRefreshToken(): Promise<string | null> {
+    if (!this.supabase) await this.initSupabase();
+    const { data: { session } } = await this.supabase.auth.getSession();
+    return session?.refresh_token || null;
   }
 
-  // Set tokens ke localStorage
+  // Supabase handles token storage automatically
   setTokens(accessToken: string, refreshToken: string): void {
-    localStorage.setItem("accessToken", accessToken);
-    localStorage.setItem("refreshToken", refreshToken);
+    // No-op for Supabase as it handles tokens automatically
+    console.log('Supabase handles token storage automatically');
   }
 
-  // Clear tokens dari localStorage
-  clearTokens(): void {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+  // Clear session (sign out)
+  async clearTokens(): Promise<void> {
+    if (!this.supabase) await this.initSupabase();
+    await this.supabase.auth.signOut();
+    localStorage.removeItem("userId");
+    localStorage.removeItem("userEmail");
   }
 
-  // Check apakah token expired (basic check)
-  isTokenExpired(token: string): boolean {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const currentTime = Date.now() / 1000;
-      return payload.exp < currentTime;
-    } catch {
-      return true;
-    }
+  // Supabase handles token expiry automatically
+  async isTokenExpired(): Promise<boolean> {
+    if (!this.supabase) await this.initSupabase();
+    const { data: { session } } = await this.supabase.auth.getSession();
+    return !session;
   }
 
-  // Refresh access token
+  // Supabase handles token refresh automatically
   async refreshAccessToken(): Promise<string> {
-    // Jika sudah ada proses refresh yang berjalan, tunggu hasil nya
-    if (this.isRefreshing && this.refreshPromise) {
-      return this.refreshPromise;
+    if (!this.supabase) await this.initSupabase();
+    const { data: { session }, error } = await this.supabase.auth.refreshSession();
+    
+    if (error || !session) {
+      throw new Error("Unable to refresh session");
     }
-
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      throw new Error("No refresh token available");
-    }
-
-    this.isRefreshing = true;
-    this.refreshPromise = this.performRefresh(refreshToken);
-
-    try {
-      const newAccessToken = await this.refreshPromise;
-      return newAccessToken;
-    } finally {
-      this.isRefreshing = false;
-      this.refreshPromise = null;
-    }
+    
+    return session.access_token;
   }
 
-  private async performRefresh(refreshToken: string): Promise<string> {
-    const response = await fetch("http://127.0.0.1:8000/api/auth/refresh/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ refresh: refreshToken }),
-    });
-
-    if (!response.ok) {
-      // Jika refresh token juga expired, clear semua tokens
-      this.clearTokens();
-      throw new Error("Refresh token expired");
-    }
-
-    const data = await response.json();
-
-    // Update tokens di localStorage
-    this.setTokens(data.access, data.refresh);
-
-    return data.access;
-  }
-
-  // Get valid access token (refresh jika perlu)
+  // Get valid access token (Supabase handles refresh automatically)
   async getValidAccessToken(): Promise<string> {
-    let accessToken = this.getAccessToken();
-
+    const accessToken = await this.getAccessToken();
+    
     if (!accessToken) {
       throw new Error("No access token available");
     }
-
-    // Jika token expired, coba refresh
-    if (this.isTokenExpired(accessToken)) {
-      try {
-        accessToken = await this.refreshAccessToken();
-      } catch (error) {
-        throw new Error("Unable to refresh token");
-      }
-    }
-
+    
     return accessToken;
   }
 
-  // Check apakah user masih authenticated
-  isAuthenticated(): boolean {
-    const accessToken = this.getAccessToken();
-    const refreshToken = this.getRefreshToken();
-
-    if (!accessToken || !refreshToken) {
-      return false;
-    }
-
-    // Jika access token expired tapi refresh token masih ada, masih dianggap authenticated
-    if (this.isTokenExpired(accessToken)) {
-      return !this.isTokenExpired(refreshToken);
-    }
-
-    return true;
+  // Check if user is authenticated
+  async isAuthenticated(): Promise<boolean> {
+    if (!this.supabase) await this.initSupabase();
+    const { data: { session } } = await this.supabase.auth.getSession();
+    return !!session;
   }
 }
 
-export default TokenManager;
+export default SessionManager;

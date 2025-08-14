@@ -5,6 +5,10 @@ Django settings for noise_detection_backend project.
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import pymysql
+
+# Install PyMySQL as MySQLdb
+pymysql.install_as_MySQLdb()
 
 # Load environment variables
 load_dotenv()

@@ -1960,7 +1960,7 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
                 </div>
                 <div className="stat-item">
                   <div className="stat-number">24/7</div>
-                  <div className="stat-label">Monitoring Real-time</div>
+                  <div className="stat-label">Monitoring Map</div>
                 </div>
                 <div className="stat-item">
                   <div className="stat-number">500+</div>
@@ -2193,7 +2193,7 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
               <div className="footer-links">
                 <div className="footer-column">
                   <h4>Produk</h4>
-                  <a href="/monitoring">Real-time Monitoring</a>
+                  <a href="/monitoring">Monitoring Map</a>
                   <a href="/analytics">Analytics Dashboard</a>
                   <a href="/api">API Integration</a>
                   <a href="/mobile">Mobile App</a>

@@ -31,9 +31,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       const response = await login(loginField, password);
       console.log("Login berhasil:", response.data);
 
-      localStorage.setItem("accessToken", response.data.access);
-      localStorage.setItem("refreshToken", response.data.refresh);
-      localStorage.setItem("userId", response.data.user_id);
+      // Supabase authentication stores session automatically
+      // We can store user info if needed
+      if (response.data.user) {
+        localStorage.setItem("userId", response.data.user.id);
+        localStorage.setItem("userEmail", response.data.user.email || "");
+      }
 
       onLoginSuccess();
       navigate("/home");

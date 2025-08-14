@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
+import { supabase } from "./lib/supabase";
 
 import {
   BrowserRouter as Router,
@@ -294,14 +295,14 @@ const ProtectedRoute: React.FC<{
 
 // 4. Komponen App Utama: Mengatur semua routing
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    !!localStorage.getItem("accessToken")
-  );
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const handleLogin = () => setIsAuthenticated(true);
-  const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem("userId");
+    localStorage.removeItem("userEmail");
     setIsAuthenticated(false);
   };
 
@@ -320,41 +321,51 @@ function App() {
 
   // Check authentication status saat app load
   useEffect(() => {
-    const checkAuth = () => {
-      const accessToken = localStorage.getItem("accessToken");
-      const refreshToken = localStorage.getItem("refreshToken");
-
-      if (!accessToken || !refreshToken) {
-        setIsAuthenticated(false);
-        return;
-      }
-
-      // Basic token expiry check
+    const checkAuth = async () => {
       try {
-        const payload = JSON.parse(atob(accessToken.split(".")[1]));
-        const currentTime = Date.now() / 1000;
-
-        if (payload.exp < currentTime) {
-          // Access token expired, check refresh token
-          const refreshPayload = JSON.parse(atob(refreshToken.split(".")[1]));
-          if (refreshPayload.exp < currentTime) {
-            // Both tokens expired
-            handleLogout();
-          } else {
-            // Refresh token still valid, keep authenticated
-            setIsAuthenticated(true);
-          }
-        } else {
-          setIsAuthenticated(true);
-        }
+        const { data: { session } } = await supabase.auth.getSession();
+        setIsAuthenticated(!!session);
       } catch (error) {
-        // Invalid token format
-        handleLogout();
+        console.error('Error checking auth status:', error);
+        setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
       }
     };
 
     checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setIsAuthenticated(!!session);
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  if (loading) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+            background: 'linear-gradient(135deg, #0F1419 0%, #1A2332 50%, #2D3748 100%)'
+          }}
+        >
+          <Typography variant="h6" color="white">
+            Loading...
+          </Typography>
+        </Box>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>

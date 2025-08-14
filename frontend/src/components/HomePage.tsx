@@ -13,6 +13,8 @@ import {
   styled,
   keyframes,
   CircularProgress,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { VolumeX, Activity, Clock, Mic, Square, BarChart2 } from "lucide-react";
 import { apiService, PredictionResponse } from "../services/api";
@@ -20,11 +22,12 @@ import { mapService } from "../services/mapService";
 import { DailyAudioService } from "../services/dailyAudioService";
 import AudioVisualizer from "./AudioVisualizer";
 import ModernPopup from "./ModernPopup";
-import { 
-  translateNoiseSource, 
-  translateHealthImpact, 
+import RealTimeNoiseTab from "./RealTimeNoiseTab";
+import {
+  translateNoiseSource,
+  translateHealthImpact,
   getHealthImpactDescription,
-  getNoiseSourceIcon 
+  getNoiseSourceIcon,
 } from "../utils/translationUtils";
 
 type ChipColor =
@@ -102,13 +105,29 @@ const GradientText = styled(Typography)({
   fontWeight: 800,
 });
 
-interface UploadResult extends PredictionResponse {
+interface UploadResult {
+  status: string;
+  predictions: PredictionResponse;
+  file_info: {
+    name: string;
+    size: number;
+  };
+  processing_time: number;
   error?: string;
 }
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const [isAuthenticated] = useState(!!localStorage.getItem("accessToken"));
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { supabase } = await import('../lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session);
+    };
+    checkAuth();
+  }, []);
   const [result, setResult] = useState<UploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -133,6 +152,7 @@ const HomePage: React.FC = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -416,6 +436,8 @@ const HomePage: React.FC = () => {
   const getNoiseLevel = (
     level: number
   ): { label: string; color: ChipColor } => {
+    if (level === 0)
+      return { label: "Sedang dalam perbaikan", color: "default" };
     if (level < 55) return { label: "Tenang", color: "success" };
     if (level < 70) return { label: "Sedang", color: "warning" };
     if (level < 85) return { label: "Bising", color: "error" };
@@ -547,7 +569,38 @@ const HomePage: React.FC = () => {
 
       <audio ref={audioRef} src={audioUrl ?? ""} style={{ display: "none" }} />
 
-      {!result && !isProcessing && (
+      {/* Tab Navigation */}
+      <Box
+        sx={{ borderBottom: 1, borderColor: "rgba(255,255,255,0.2)", mb: 4 }}
+      >
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          centered
+          sx={{
+            "& .MuiTab-root": {
+              color: "rgba(255,255,255,0.7)",
+              fontWeight: 600,
+              textTransform: "none",
+              fontSize: "1rem",
+              "&.Mui-selected": {
+                color: "#3b82f6",
+              },
+            },
+            "& .MuiTabs-indicator": {
+              backgroundColor: "#3b82f6",
+              height: 3,
+              borderRadius: "2px",
+            },
+          }}
+        >
+          <Tab label="Rekam & Analisis" />
+          <Tab label="Monitor Real-time" />
+        </Tabs>
+      </Box>
+
+      {/* Tab Content */}
+      {activeTab === 0 && !result && !isProcessing && (
         <Box
           display="flex"
           flexDirection="column"
@@ -611,7 +664,20 @@ const HomePage: React.FC = () => {
         </Box>
       )}
 
-      {isProcessing && (
+      {/* Real-time Monitoring Tab */}
+      {activeTab === 1 && (
+        <Box
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          minHeight="calc(100vh - 200px)"
+        >
+          <RealTimeNoiseTab />
+        </Box>
+      )}
+
+      {activeTab === 0 && isProcessing && (
         <Box
           display="flex"
           flexDirection="column"
@@ -635,7 +701,7 @@ const HomePage: React.FC = () => {
         </Box>
       )}
 
-      {result && result.status === "success" && (
+      {activeTab === 0 && result && result.status === "success" && (
         <Box mt={!isAuthenticated ? 10 : 2} width="100%">
           <Box
             display="flex"
@@ -716,12 +782,14 @@ const HomePage: React.FC = () => {
                   <Typography variant="h3" sx={{ fontWeight: "bold" }}>
                     {translateHealthImpact(result.predictions.health_impact)}
                   </Typography>
-                  <Typography 
-                    variant="body2" 
-                    color="rgba(255,255,255,0.7)" 
+                  <Typography
+                    variant="body2"
+                    color="rgba(255,255,255,0.7)"
                     sx={{ mt: 1, mb: 2 }}
                   >
-                    {getHealthImpactDescription(result.predictions.health_impact)}
+                    {getHealthImpactDescription(
+                      result.predictions.health_impact
+                    )}
                   </Typography>
                   <Chip
                     label={`Keyakinan: ${(
@@ -743,7 +811,15 @@ const HomePage: React.FC = () => {
                       Prediksi Sumber Suara
                     </Typography>
                   </Box>
-                  <Typography variant="h4" sx={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography
+                    variant="h4"
+                    sx={{
+                      fontWeight: "bold",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
                     <span style={{ fontSize: "1.5rem" }}>
                       {getNoiseSourceIcon(result.predictions.noise_source)}
                     </span>
@@ -784,7 +860,7 @@ const HomePage: React.FC = () => {
         </Box>
       )}
 
-      {error && (
+      {activeTab === 0 && error && (
         <Alert
           severity="error"
           sx={{ my: 2, bgcolor: "rgba(244, 67, 54, 0.2)", color: "#fff" }}

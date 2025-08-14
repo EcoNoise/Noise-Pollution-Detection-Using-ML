@@ -1,6 +1,6 @@
 // src/services/mapService.ts
 import { NoiseLocation, SearchResult } from "../types/mapTypes";
-import { PredictionResult } from "./api"; // Import PredictionResult type
+import { PredictionResponse } from "./api"; // Import PredictionResponse type
 import APIInterceptor from "../utils/apiInterceptor";
 
 // API base URL
@@ -51,7 +51,7 @@ const apiCall = async (
 class MapService {
   // UPDATED: More specific type for shared data
   private sharedData: {
-    analysis: PredictionResult;
+    analysis: PredictionResponse;
     position?: [number, number];
     address?: string;
   } | null = null;
@@ -308,15 +308,17 @@ class MapService {
   // UPDATED: Get all noise locations from API with support for public access
   async getNoiseLocations(): Promise<NoiseLocation[]> {
     try {
-      // Gunakan token jika ada, tapi tetap bisa diakses tanpa token
-      const accessToken = localStorage.getItem("accessToken");
-      console.log("🔑 Access Token Status:", !!accessToken);
+      // Use Supabase session for authentication
+      const { supabase } = await import('../lib/supabase');
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("🔑 Session Status:", !!session);
+      
       const response = await apiCall(
         "/noise-areas/",
         {
-          headers: accessToken
+          headers: session
             ? {
-                Authorization: `Bearer ${accessToken}`,
+                Authorization: `Bearer ${session.access_token}`,
               }
             : {},
         },
@@ -779,7 +781,7 @@ class MapService {
 
   // UPDATED: Function to share analysis data back to the map
   shareNoiseData(data: {
-    analysis: PredictionResult;
+    analysis: PredictionResponse;
     position?: [number, number];
     address?: string;
   }) {
@@ -788,7 +790,7 @@ class MapService {
 
   // UPDATED: Function for MapComponent to retrieve the shared data
   getSharedNoiseData(): {
-    analysis: PredictionResult;
+    analysis: PredictionResponse;
     position?: [number, number];
     address?: string;
   } | null {
