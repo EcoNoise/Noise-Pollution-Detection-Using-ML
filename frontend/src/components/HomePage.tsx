@@ -122,8 +122,10 @@ const HomePage: React.FC = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { supabase } = await import('../lib/supabase');
-      const { data: { session } } = await supabase.auth.getSession();
+      const { supabase } = await import("../lib/supabase");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       setIsAuthenticated(!!session);
     };
     checkAuth();

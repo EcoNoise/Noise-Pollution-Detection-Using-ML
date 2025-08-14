@@ -379,10 +379,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     }
   };
   const handleAddNoiseArea = async () => {
-    const { supabase } = await import('../lib/supabase');
-    const { data: { session } } = await supabase.auth.getSession();
+    const { supabase } = await import("../lib/supabase");
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     const isAuthenticated = !!session;
-    
+
     if (!isAuthenticated) {
       showLogin(
         "Login Diperlukan",

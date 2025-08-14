@@ -174,7 +174,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 "Masuk"
               )}
             </button>
-
           </form>
 
           {/* Register Link */}

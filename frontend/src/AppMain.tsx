@@ -323,10 +323,12 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         setIsAuthenticated(!!session);
       } catch (error) {
-        console.error('Error checking auth status:', error);
+        console.error("Error checking auth status:", error);
         setIsAuthenticated(false);
       } finally {
         setLoading(false);
@@ -336,12 +338,12 @@ function App() {
     checkAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setIsAuthenticated(!!session);
-        setLoading(false);
-      }
-    );
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
+      setLoading(false);
+    });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -352,11 +354,12 @@ function App() {
         <CssBaseline />
         <Box
           sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '100vh',
-            background: 'linear-gradient(135deg, #0F1419 0%, #1A2332 50%, #2D3748 100%)'
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "100vh",
+            background:
+              "linear-gradient(135deg, #0F1419 0%, #1A2332 50%, #2D3748 100%)",
           }}
         >
           <Typography variant="h6" color="white">

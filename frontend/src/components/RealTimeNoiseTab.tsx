@@ -12,7 +12,6 @@ import {
   Switch,
   FormControlLabel,
   Divider,
-  Paper,
   styled,
   CircularProgress,
   Accordion,
@@ -48,25 +47,7 @@ const StyledCard = styled(Card)(({ theme }) => ({
   marginBottom: theme.spacing(2),
 }));
 
-const MetricCard = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(2),
-  textAlign: "center",
-  background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-  color: "white",
-}));
 
-const DbDisplay = styled(Typography)(({ theme }) => ({
-  fontSize: "3rem",
-  fontWeight: "bold",
-  textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
-}));
-
-const DbADisplay = styled(Typography)(({ theme }) => ({
-  fontSize: "2.5rem",
-  fontWeight: "bold",
-  color: "#4CAF50",
-  textShadow: "1px 1px 2px rgba(0,0,0,0.3)",
-}));
 
 interface RealTimeNoiseTabProps {
   className?: string;
@@ -512,16 +493,22 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       {currentReading && (
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid item xs={12} md={6}>
-            <MetricCard elevation={3}>
-              <Typography variant="h6" gutterBottom>
-                Tingkat Kebisingan
-              </Typography>
-              <DbDisplay>{currentReading.db.toFixed(1)} dB</DbDisplay>
-              <DbADisplay>{currentReading.dbA.toFixed(1)} dB(A)</DbADisplay>
-              <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
-                A-weighted untuk akurasi lebih tinggi
-              </Typography>
-            </MetricCard>
+            <Card>
+              <CardContent sx={{ textAlign: 'center' }}>
+                <Typography variant="h6" gutterBottom>
+                  Tingkat Kebisingan
+                </Typography>
+                <Typography sx={{ fontSize: '3rem', fontWeight: 'bold', color: 'primary.main' }}>
+                  {currentReading.db.toFixed(1)} dB
+                </Typography>
+                <Typography sx={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#4CAF50' }}>
+                  {currentReading.dbA.toFixed(1)} dB(A)
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
+                  A-weighted untuk akurasi lebih tinggi
+                </Typography>
+              </CardContent>
+            </Card>
           </Grid>
 
           <Grid item xs={12} md={6}>
