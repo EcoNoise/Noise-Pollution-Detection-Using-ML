@@ -1,51 +1,12 @@
 // src/services/mapService.ts
 import { NoiseLocation, SearchResult } from "../types/mapTypes";
 import { PredictionResponse } from "./api"; // Import PredictionResponse type
-import APIInterceptor from "../utils/apiInterceptor";
+import { supabase } from '../lib/supabase';
 
-// API base URL
-const API_BASE_URL = "http://localhost:8000/api";
-
-// Get API interceptor instance
-const apiInterceptor = APIInterceptor.getInstance();
-
-// Helper function to make API calls (with option for public access)
-const apiCall = async (
-  url: string,
-  options: RequestInit = {},
-  requiresAuth: boolean = true
-): Promise<Response> => {
-  try {
-    if (requiresAuth) {
-      return await apiInterceptor.fetch(`${API_BASE_URL}${url}`, options);
-    } else {
-      // For public endpoints, use regular fetch
-      const response = await fetch(`${API_BASE_URL}${url}`, {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...options.headers,
-        },
-      });
-      return response;
-    }
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("No access token") &&
-      !requiresAuth
-    ) {
-      // If no token and endpoint is public, try without auth
-      return fetch(`${API_BASE_URL}${url}`, {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...options.headers,
-        },
-      });
-    }
-    throw error;
-  }
+// Helper function to get current user
+const getCurrentUser = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
 };
 
 class MapService {
@@ -119,67 +80,33 @@ class MapService {
         lastModified: new Date(audioFile.lastModified),
       });
 
-      // LANGKAH 1: Siapkan FormData dengan validasi
-      const formData = new FormData();
-      formData.append("audio_file", audioFile); // Gunakan nama field yang sesuai dengan backend
-
-      // TAMBAHAN: Log untuk debugging
+      // LANGKAH 1: Analisis audio menggunakan TensorFlow.js
       console.log(
-        "📤 Mengirim request ke /audio/predict/ dengan file:",
+        "📤 Menganalisis audio dengan TensorFlow.js:",
         audioFile.name
       );
 
-      // LANGKAH 2: Kirim request dengan error handling yang lebih detail
-      const predictResponse = await apiCall("/audio/predict/", {
-        method: "POST",
-        body: formData,
-      });
-
-      console.log("📥 Response status:", predictResponse.status);
-
-      if (!predictResponse.ok) {
-        let errorMessage = "Analisis audio gagal";
-
-        try {
-          const errorData = await predictResponse.json();
-          console.error("❌ Error detail dari server:", errorData);
-
-          // Tangani berbagai jenis error dari server
-          if (errorData.detail) {
-            errorMessage = errorData.detail;
-          } else if (errorData.message) {
-            errorMessage = errorData.message;
-          } else if (typeof errorData === "string") {
-            errorMessage = errorData;
-          }
-        } catch (parseError) {
-          // Jika response bukan JSON, coba ambil sebagai text
-          try {
-            const errorText = await predictResponse.text();
-            console.error("❌ Error response (text):", errorText);
-            errorMessage = `Server error: ${predictResponse.status} - ${errorText}`;
-          } catch (textError) {
-            errorMessage = `Server error: ${predictResponse.status} - ${predictResponse.statusText}`;
-          }
-        }
-
-        throw new Error(errorMessage);
+      // LANGKAH 2: Gunakan apiService untuk analisis audio
+      const { apiService } = await import('./api');
+      const uploadResult = await apiService.uploadAudioFile(audioFile);
+      
+      if (uploadResult.status === "error") {
+        throw new Error("Analisis audio gagal");
       }
 
-      const response = await predictResponse.json();
-      console.log("✅ Response analisis:", response);
+      console.log("✅ Response analisis:", uploadResult);
 
       // VALIDASI 3: Periksa hasil analisis
       if (
-        !response.predictions ||
-        !response.predictions.noise_level ||
-        !response.predictions.noise_source
+        !uploadResult.predictions ||
+        !uploadResult.predictions.noise_level ||
+        !uploadResult.predictions.noise_source
       ) {
-        console.error("❌ Response tidak lengkap:", response);
-        throw new Error("Hasil analisis tidak lengkap dari server");
+        console.error("❌ Response tidak lengkap:", uploadResult);
+        throw new Error("Hasil analisis tidak lengkap dari TensorFlow.js");
       }
 
-      const analysisResult = response.predictions;
+      const analysisResult = uploadResult.predictions;
 
       // LANGKAH 3: Tambahkan lokasi noise dengan hasil analisis
       const newLocationData = {
@@ -255,49 +182,72 @@ class MapService {
 
       console.log("🔍 Data yang dikirim ke backend:", requestData);
 
-      const response = await apiCall("/noise-areas/", {
-        method: "POST",
-        body: JSON.stringify(requestData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        console.error("❌ Error response dari backend:", errorData);
-
-        // Handle specific error for identical coordinates
-        if (response.status === 409) {
-          throw new Error("Koordinat sudah digunakan, pilih lokasi lain");
-        }
-
-        throw new Error(errorData?.error || "Failed to add noise area");
+      // Get current user
+      const user = await getCurrentUser();
+      if (!user) {
+        throw new Error("User must be authenticated to add noise areas");
       }
 
-      const data = await response.json();
-      if (data.status === "success") {
-        // Convert API response to NoiseLocation format
-        const apiArea = data.area;
-        return {
-          id: apiArea.id.toString(),
-          coordinates: [apiArea.latitude, apiArea.longitude] as [
-            number,
-            number
-          ],
-          noiseLevel: apiArea.noise_level,
-          source: apiArea.noise_source,
-          healthImpact: apiArea.health_impact,
-          description: apiArea.description,
-          address: apiArea.address,
-          radius: apiArea.radius,
-          timestamp: new Date(apiArea.created_at),
-          userId: apiArea.user_info?.id,
-          userName: apiArea.user_info?.username,
-          canDelete: apiArea.can_delete,
-          expires_at: apiArea.expires_at
-            ? new Date(apiArea.expires_at)
-            : undefined,
-        };
+      // Check for duplicate coordinates
+      const { data: existingAreas, error: checkError } = await supabase
+        .from('noise_areas')
+        .select('id')
+        .eq('latitude', requestData.latitude)
+        .eq('longitude', requestData.longitude)
+        .limit(1);
+
+      if (checkError) {
+        console.error("❌ Error checking for duplicates:", checkError);
+        throw new Error("Failed to check for duplicate coordinates");
       }
-      return null;
+
+      if (existingAreas && existingAreas.length > 0) {
+        throw new Error("Koordinat sudah digunakan, pilih lokasi lain");
+      }
+
+      // Insert new noise area
+      const { data: insertedArea, error: insertError } = await supabase
+        .from('noise_areas')
+        .insert({
+          ...requestData,
+          user_id: user.id
+        })
+        .select('*')
+        .single();
+
+      if (insertError) {
+        console.error("❌ Error inserting noise area:", insertError);
+        throw new Error("Failed to add noise area");
+      }
+
+      // Get username from profiles table
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+
+      // Convert Supabase response to NoiseLocation format
+      return {
+        id: insertedArea.id.toString(),
+        coordinates: [insertedArea.latitude, insertedArea.longitude] as [
+          number,
+          number
+        ],
+        noiseLevel: insertedArea.noise_level,
+        source: insertedArea.noise_source,
+        healthImpact: insertedArea.health_impact,
+        description: insertedArea.description,
+        address: insertedArea.address,
+        radius: insertedArea.radius,
+        timestamp: new Date(insertedArea.created_at),
+        userId: insertedArea.user_id,
+        userName: profile?.username || 'Unknown',
+        canDelete: true,
+        expires_at: insertedArea.expires_at
+          ? new Date(insertedArea.expires_at)
+          : undefined,
+      };
     } catch (error) {
       console.error("Error adding noise location:", error);
       // Re-throw the error so it can be handled by the calling component
@@ -305,50 +255,44 @@ class MapService {
     }
   }
 
-  // UPDATED: Get all noise locations from API with support for public access
+  // Get all noise locations from Supabase
   async getNoiseLocations(): Promise<NoiseLocation[]> {
     try {
-      // Use Supabase session for authentication
-      const { supabase } = await import('../lib/supabase');
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log("🔑 Session Status:", !!session);
-      
-      const response = await apiCall(
-        "/noise-areas/",
-        {
-          headers: session
-            ? {
-                Authorization: `Bearer ${session.access_token}`,
-              }
-            : {},
-        },
-        false
-      );
+      const { data: noiseAreas, error } = await supabase
+        .from('noise_areas')
+        .select(`
+          *,
+          profiles!noise_areas_user_id_fkey (
+            id,
+            username
+          )
+        `);
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch noise areas");
+      if (error) {
+        console.error("Error fetching noise areas:", error);
+        return [];
       }
 
-      const data = await response.json();
-      if (data.status === "success") {
-        // Convert API response to NoiseLocation format
-        return data.areas.map((area: any) => ({
-          id: area.id.toString(),
-          coordinates: [area.latitude, area.longitude] as [number, number],
-          noiseLevel: area.noise_level,
-          source: area.noise_source,
-          healthImpact: area.health_impact,
-          description: area.description,
-          address: area.address,
-          radius: area.radius,
-          timestamp: new Date(area.created_at),
-          userId: area.user_info?.id,
-          userName: area.user_info?.username,
-          canDelete: area.can_delete || false, // Menggunakan nilai dari backend atau false jika tidak ada
-          expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
-        }));
+      if (!noiseAreas) {
+        return [];
       }
-      return [];
+
+      // Convert Supabase response to NoiseLocation format
+      return noiseAreas.map((area: any) => ({
+        id: area.id.toString(),
+        coordinates: [area.latitude, area.longitude] as [number, number],
+        noiseLevel: area.noise_level,
+        source: area.noise_source,
+        healthImpact: area.health_impact,
+        description: area.description,
+        address: area.address,
+        radius: area.radius,
+        timestamp: new Date(area.created_at),
+        userId: area.user_id,
+        userName: area.profiles?.username,
+        canDelete: true, // User can delete their own areas based on RLS
+        expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
+      }));
     } catch (error) {
       console.error("Error fetching noise locations:", error);
       return [];
@@ -358,41 +302,50 @@ class MapService {
   // UPDATED: Get noise location by ID from API
   async getNoiseLocationById(id: string): Promise<NoiseLocation | null> {
     try {
-      // Gunakan requiresAuth: true karena ini membutuhkan autentikasi
-      const response = await apiCall(
-        `/noise-areas/${id}/`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-        true
-      );
+      // Get current user for authentication
+      const user = await getCurrentUser();
+      if (!user) {
+        throw new Error("User must be authenticated to fetch noise areas");
+      }
 
-      if (!response.ok) {
+      // Fetch noise area from Supabase
+      const { data: area, error } = await supabase
+        .from('noise_areas')
+        .select(`
+          *,
+          profiles!noise_areas_user_id_fkey (
+            id,
+            username
+          )
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error("❌ Error fetching noise area:", error);
         throw new Error("Failed to fetch noise area");
       }
 
-      const data = await response.json();
-      if (data.status === "success") {
-        const area = data.area;
-        return {
-          id: area.id.toString(),
-          coordinates: [area.latitude, area.longitude] as [number, number],
-          noiseLevel: area.noise_level,
-          source: area.noise_source, // Backend mengirim 'noise_source'
-          healthImpact: area.health_impact,
-          description: area.description,
-          address: area.address,
-          radius: area.radius,
-          timestamp: new Date(area.created_at),
-          userId: area.user_info?.id,
-          userName: area.user_info?.username,
-          canDelete: area.can_delete,
-          expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
-        };
+      if (!area) {
+        return null;
       }
-      return null;
+
+      // Convert Supabase response to NoiseLocation format
+      return {
+        id: area.id.toString(),
+        coordinates: [area.latitude, area.longitude] as [number, number],
+        noiseLevel: area.noise_level,
+        source: area.noise_source,
+        healthImpact: area.health_impact,
+        description: area.description,
+        address: area.address,
+        radius: area.radius,
+        timestamp: new Date(area.created_at),
+        userId: area.user_id,
+        userName: area.profiles?.username || 'Unknown',
+        canDelete: area.user_id === user.id,
+        expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
+      };
     } catch (error) {
       console.error("Error fetching noise location:", error);
       return null;
@@ -402,43 +355,46 @@ class MapService {
   // UPDATED: Remove noise location via API
   async removeNoiseLocation(id: string): Promise<boolean> {
     try {
-      const response = await apiCall(`/noise-areas/${id}/`, {
-        method: "DELETE",
-      });
+      const user = await getCurrentUser();
+      if (!user) throw new Error('User not authenticated');
 
-      if (response.status === 403) {
-        throw new Error("Anda tidak memiliki izin untuk menghapus area ini");
+      const { error } = await supabase
+        .from('noise_areas')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error("Error removing noise location:", error);
+        return false;
       }
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Gagal menghapus area");
-      }
-
-      const data = await response.json();
-      return data.status === "success";
+      return true;
     } catch (error) {
       console.error("Error removing noise location:", error);
       return false;
     }
   }
 
-  // UPDATED: Update noise location via API
+  // Update noise location using Supabase
   async updateNoiseLocation(
     id: string,
     updates: Partial<NoiseLocation>
   ): Promise<NoiseLocation | null> {
     try {
+      const user = await getCurrentUser();
+      if (!user) throw new Error('User not authenticated');
+
       const updateData: any = {};
 
       if (updates.coordinates) {
-        updateData.latitude = Number(updates.coordinates[1].toFixed(10)); // Bulatkan ke 10 decimal places
-        updateData.longitude = Number(updates.coordinates[0].toFixed(10)); // Bulatkan ke 10 decimal places
+        updateData.latitude = Number(updates.coordinates[1].toFixed(10));
+        updateData.longitude = Number(updates.coordinates[0].toFixed(10));
       }
       if (updates.noiseLevel !== undefined)
         updateData.noise_level = updates.noiseLevel;
       if (updates.source !== undefined)
-        updateData.noise_source = updates.source; // Backend mengharapkan 'noise_source'
+        updateData.noise_source = updates.source;
       if (updates.healthImpact !== undefined)
         updateData.health_impact = updates.healthImpact;
       if (updates.description !== undefined)
@@ -446,42 +402,45 @@ class MapService {
       if (updates.address !== undefined) updateData.address = updates.address;
       if (updates.radius !== undefined) updateData.radius = updates.radius;
 
-      const response = await apiCall(`/areas/${id}/`, {
-        method: "PUT",
-        body: JSON.stringify(updateData),
-      });
+      const { data, error } = await supabase
+        .from('noise_areas')
+        .update(updateData)
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select('*')
+        .single();
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-
-        // Handle specific error for identical coordinates
-        if (response.status === 409) {
-          throw new Error("Koordinat sudah digunakan, pilih lokasi lain");
-        }
-
-        throw new Error(errorData?.error || "Failed to update noise area");
+      if (error) {
+        console.error("Error updating noise location:", error);
+        throw new Error("Failed to update noise area");
       }
 
-      const data = await response.json();
-      if (data.status === "success") {
-        const area = data.area;
-        return {
-          id: area.id.toString(),
-          coordinates: [area.longitude, area.latitude] as [number, number],
-          noiseLevel: area.noise_level,
-          source: area.noise_source, // Backend mengirim 'noise_source'
-          healthImpact: area.health_impact,
-          description: area.description,
-          address: area.address,
-          radius: area.radius,
-          timestamp: new Date(area.created_at),
-          userId: area.user_info?.id,
-          userName: area.user_info?.username,
-          canDelete: area.can_delete,
-          expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
-        };
+      if (!data) {
+        throw new Error("No data returned from update");
       }
-      return null;
+
+      // Get user profile for userName
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+
+      return {
+        id: data.id.toString(),
+        coordinates: [data.longitude, data.latitude] as [number, number],
+        noiseLevel: data.noise_level,
+        source: data.noise_source,
+        healthImpact: data.health_impact,
+        description: data.description,
+        address: data.address,
+        radius: data.radius,
+        timestamp: new Date(data.created_at),
+        userId: data.user_id,
+        userName: profile?.username,
+        canDelete: true,
+        expires_at: data.expires_at ? new Date(data.expires_at) : undefined,
+      };
     } catch (error) {
       console.error("Error updating noise location:", error);
       return null;
@@ -503,28 +462,14 @@ class MapService {
         `${(audioFile.size / 1024 / 1024).toFixed(2)}MB`
       );
 
-      // Langkah 1: Upload audio baru untuk dianalisis ulang
-      const formData = new FormData();
-      formData.append("audio_file", audioFile);
-
-      const predictResponse = await apiCall("/audio/predict/", {
-        method: "POST",
-        body: formData,
-      });
-
-      console.log("📥 Response status:", predictResponse.status);
-
-      // Ambil response data
-      const predictData = await predictResponse.json();
-      console.log("📥 Hasil analisis:", predictData);
-
-      // Cek status setelah membaca data
-      if (!predictResponse.ok || !predictData.predictions) {
-        throw new Error(predictData.detail || "Analisis audio ulang gagal");
-      }
-
-      // Sekarang kita yakin data valid
-      const analysisResult = predictData;
+      // Langkah 1: Analisis audio menggunakan TensorFlow.js
+      const { apiService } = await import('./api');
+      const uploadResult = await apiService.uploadAudioFile(audioFile);
+      const analysisResult = {
+        predictions: uploadResult.predictions
+      };
+      
+      console.log("📥 Hasil analisis:", analysisResult);
 
       if (!analysisResult.predictions) {
         throw new Error("Hasil analisis tidak valid");
@@ -586,69 +531,68 @@ class MapService {
 
       console.log("📤 Data yang akan dikirim untuk update:", updateData);
 
-      // Langkah 3: Kirim pembaruan ke backend menggunakan method PUT
-      console.log("Mengirim update ke server...");
-      const response = await apiCall(`/noise-areas/${id}/`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updateData),
-      });
+      // Langkah 3: Update ke Supabase
+      console.log("Mengirim update ke Supabase...");
+      const user = await getCurrentUser();
+      if (!user) throw new Error('User not authenticated');
 
-      console.log("📥 Response status update:", response.status);
-      const data = await response.json();
+      const { data, error } = await supabase
+        .from('noise_areas')
+        .update(updateData)
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select('*')
+        .single();
+
       console.log("📥 Response data update:", data);
 
-      if (!response.ok) {
-        // Handle specific error for identical coordinates
-        if (response.status === 409) {
-          throw new Error("Koordinat sudah digunakan, pilih lokasi lain");
-        }
-
-        const errorMsg =
-          data.detail ||
-          data.error ||
-          "Gagal memperbarui lokasi noise setelah analisis ulang";
-        throw new Error(errorMsg);
+      if (error) {
+        console.error("Error updating noise location:", error);
+        throw new Error("Gagal memperbarui lokasi noise setelah analisis ulang");
       }
 
-      if (data.status === "success") {
-        const area = data.area;
-
-        // Pastikan lokasi berhasil diupdate
-        const updatedLocation = {
-          id: area.id.toString(),
-          coordinates: [area.latitude, area.longitude] as [number, number], // Format [lat, lng] sesuai backend
-          noiseLevel: area.noise_level,
-          source: area.noise_source,
-          healthImpact: area.health_impact,
-          description: area.description,
-          address: area.address,
-          radius: area.radius,
-          timestamp: new Date(area.created_at),
-          userId: area.user_info?.id,
-          userName: area.user_info?.username,
-          canDelete: area.can_delete,
-          expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
-        };
-
-        console.log("✅ Berhasil memperbarui lokasi:", updatedLocation);
-
-        // PERBAIKAN: Refresh cache laporan harian setelah analisis ulang berhasil
-        try {
-          const { DailyAudioService } = await import("./dailyAudioService");
-          await DailyAudioService.refreshTodayAudioSummary();
-          console.log(
-            "🔄 Cache laporan harian telah di-refresh setelah analisis ulang"
-          );
-        } catch (cacheError) {
-          console.warn("⚠️ Gagal refresh cache laporan harian:", cacheError);
-        }
-
-        return updatedLocation;
+      if (!data) {
+        throw new Error("No data returned from update");
       }
-      return null;
+
+      // Get user profile for userName
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+
+      // Pastikan lokasi berhasil diupdate
+      const updatedLocation = {
+        id: data.id.toString(),
+        coordinates: [data.longitude, data.latitude] as [number, number],
+        noiseLevel: data.noise_level,
+        source: data.noise_source,
+        healthImpact: data.health_impact,
+        description: data.description,
+        address: data.address,
+        radius: data.radius,
+        timestamp: new Date(data.created_at),
+        userId: data.user_id,
+        userName: profile?.username,
+        canDelete: true,
+        expires_at: data.expires_at ? new Date(data.expires_at) : undefined,
+      };
+
+      console.log("✅ Berhasil memperbarui lokasi:", updatedLocation);
+
+      // PERBAIKAN: Refresh cache laporan harian setelah analisis ulang berhasil
+      try {
+        const { DailyAudioService } = await import("./dailyAudioService");
+        await DailyAudioService.refreshTodayAudioSummary();
+        console.log(
+          "🔄 Cache laporan harian telah di-refresh setelah analisis ulang"
+        );
+      } catch (cacheError) {
+        console.warn("⚠️ Gagal refresh cache laporan harian:", cacheError);
+      }
+
+      return updatedLocation;
     } catch (error) {
       console.error("Error during update with audio analysis:", error);
       throw error; // Lempar error agar bisa ditangani di komponen UI
@@ -729,47 +673,46 @@ class MapService {
     });
   }
 
-  // UPDATED: Clear all noise locations (only user's own areas)
+  // Clear all noise locations (only user's own areas) using Supabase
   async clearAllNoiseLocations(): Promise<boolean> {
     try {
-      // Get user's areas first
-      const response = await apiCall("/my-noise-areas/");
+      const user = await getCurrentUser();
+      if (!user) throw new Error('User not authenticated');
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch user areas");
+      const { error } = await supabase
+        .from('noise_areas')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error("Error clearing noise locations:", error);
+        return false;
       }
 
-      const data = await response.json();
-      if (data.status === "success") {
-        // Delete each area
-        const deletePromises = data.areas.map((area: any) =>
-          this.removeNoiseLocation(area.id.toString())
-        );
-
-        const results = await Promise.all(deletePromises);
-        return results.every((result) => result === true);
-      }
-      return false;
+      return true;
     } catch (error) {
       console.error("Error clearing noise locations:", error);
       return false;
     }
   }
 
-  // UPDATED: Export noise data (user's own areas)
+  // Export noise data (user's own areas) using Supabase
   async exportNoiseData(): Promise<string | null> {
     try {
-      const response = await apiCall("/areas/my/");
+      const user = await getCurrentUser();
+      if (!user) throw new Error('User not authenticated');
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch user areas");
+      const { data: noiseAreas, error } = await supabase
+        .from('noise_areas')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error("Error exporting noise data:", error);
+        return null;
       }
 
-      const data = await response.json();
-      if (data.status === "success") {
-        return JSON.stringify(data.areas, null, 2);
-      }
-      return null;
+      return JSON.stringify(noiseAreas, null, 2);
     } catch (error) {
       console.error("Error exporting noise data:", error);
       return null;

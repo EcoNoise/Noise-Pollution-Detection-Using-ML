@@ -1,24 +1,31 @@
 // File: src/services/profileService.ts
-import APIInterceptor from "../utils/apiInterceptor";
+import { supabase } from '../lib/supabase';
 
-// Tentukan alamat base URL backend Anda
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
-
-// Get API interceptor instance
-const apiInterceptor = APIInterceptor.getInstance();
+// Helper function to get current user
+const getCurrentUser = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+};
 
 /**
- * Mengambil data profil pengguna yang sedang login.
+ * Mengambil data profil pengguna yang sedang login dari Supabase.
  */
 export const getUserProfile = async (): Promise<any> => {
   try {
-    const response = await apiInterceptor.fetch(`${API_BASE_URL}/api/auth/me/`);
+    const user = await getCurrentUser();
+    if (!user) throw new Error('User not authenticated');
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching user profile:", error);
+      throw error;
     }
 
-    const data = await response.json();
     return data;
   } catch (error) {
     console.error("Error fetching user profile:", error);
@@ -27,23 +34,25 @@ export const getUserProfile = async (): Promise<any> => {
 };
 
 /**
- * Memperbarui data profil pengguna.
+ * Memperbarui data profil pengguna di Supabase.
  */
-export const updateUserProfile = async (formData: FormData): Promise<any> => {
+export const updateUserProfile = async (profileData: any): Promise<any> => {
   try {
-    const response = await apiInterceptor.fetch(
-      `${API_BASE_URL}/api/auth/me/`,
-      {
-        method: "PUT",
-        body: formData, // FormData tidak perlu Content-Type header
-      }
-    );
+    const user = await getCurrentUser();
+    if (!user) throw new Error('User not authenticated');
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(profileData)
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating user profile:", error);
+      throw error;
     }
 
-    const data = await response.json();
     return data;
   } catch (error) {
     console.error("Error updating user profile:", error);
