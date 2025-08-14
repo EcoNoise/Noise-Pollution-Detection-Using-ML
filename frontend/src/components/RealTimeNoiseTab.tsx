@@ -34,6 +34,7 @@ import {
 } from "@mui/icons-material";
 import { useRealTimeNoise } from "../hooks/useRealTimeNoise";
 import { apiService, PredictionResponse } from "../services/api";
+import audioClassificationService from "../services/audioClassificationService";
 import {
   translateNoiseSource,
   translateHealthImpact,
@@ -68,6 +69,17 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   );
   const [recordingDuration, setRecordingDuration] = useState(0);
   // const [autoClassify, setAutoClassify] = useState(false); // Future feature
+
+  // TensorFlow.js model states
+  const [isTfModelLoaded, setIsTfModelLoaded] = useState(false);
+  const [tfModelError, setTfModelError] = useState<string | null>(null);
+  const [isTfClassifying, setIsTfClassifying] = useState(false);
+  const [tfClassificationResult, setTfClassificationResult] = useState<{
+    predictions: number[];
+    confidence: number;
+    noiseSource: string;
+    healthImpact: string;
+  } | null>(null);
 
   // Recording refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -265,6 +277,31 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     }
   };
 
+  // TensorFlow.js classification function
+  const classifyAudioWithTensorFlow = async () => {
+    if (!isTfModelLoaded) {
+      setTfModelError('Model TensorFlow.js belum dimuat. Silakan tunggu...');
+      return;
+    }
+
+    try {
+      console.log('🤖 Starting TensorFlow.js classification...');
+      setIsTfClassifying(true);
+      setTfModelError(null);
+      setTfClassificationResult(null);
+
+      const result = await audioClassificationService.recordAndPredict(3000); // 3 seconds
+      console.log('✅ TensorFlow.js classification result:', result);
+      setTfClassificationResult(result);
+    } catch (error: unknown) {
+      console.error('❌ TensorFlow.js classification error:', error);
+      const errorMessage = String(error);
+      setTfModelError(`Gagal mengklasifikasi dengan TensorFlow.js: ${errorMessage}`);
+    } finally {
+      setIsTfClassifying(false);
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -272,6 +309,24 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       .toString()
       .padStart(2, "0")}`;
   };
+
+  // Initialize TensorFlow.js model
+  useEffect(() => {
+    const initializeModel = async () => {
+      try {
+        setTfModelError(null);
+        console.log('Initializing TensorFlow.js audio classification model...');
+        await audioClassificationService.loadModel();
+        setIsTfModelLoaded(true);
+        console.log('TensorFlow.js model loaded successfully');
+      } catch (error) {
+        console.error('Failed to load TensorFlow.js model:', error);
+        setTfModelError('Gagal memuat model TensorFlow.js. Pastikan file model tersedia.');
+      }
+    };
+
+    initializeModel();
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -284,6 +339,8 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
           .getTracks()
           .forEach((track) => track.stop());
       }
+      // Cleanup TensorFlow.js model
+      audioClassificationService.dispose();
     };
   }, []);
 
@@ -392,46 +449,73 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       </Card>
 
       {/* Audio Classification Section */}
-      <Accordion defaultExpanded sx={{ mb: 2 }}>
+      
+        
+
+      {/* TensorFlow.js Audio Classification Section */}
+      <Accordion sx={{ mb: 2 }}>
         <AccordionSummary expandIcon={<ExpandMore />}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Psychology color="primary" />
-            <Typography variant="h6">Klasifikasi Audio Real-time</Typography>
-            {isClassifying && <CircularProgress size={20} />}
+            <Psychology color="secondary" />
+            <Typography variant="h6">Klasifikasi TensorFlow.js (Local)</Typography>
+            {isTfClassifying && <CircularProgress size={20} />}
+            {isTfModelLoaded && (
+              <Chip
+                label="Model Ready"
+                color="success"
+                size="small"
+                sx={{ ml: 1 }}
+              />
+            )}
           </Box>
         </AccordionSummary>
         <AccordionDetails>
+          {tfModelError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {tfModelError}
+            </Alert>
+          )}
+
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
                 <Button
-                  variant={isRecording ? "outlined" : "contained"}
-                  color={isRecording ? "error" : "secondary"}
-                  startIcon={isRecording ? <MicOff /> : <AudioFile />}
-                  onClick={isRecording ? stopRecording : startRecording}
-                  disabled={isClassifying}
+                  variant="contained"
+                  color="secondary"
+                  startIcon={<AudioFile />}
+                  onClick={classifyAudioWithTensorFlow}
+                  disabled={!isTfModelLoaded || isTfClassifying}
                   size="large"
                 >
-                  {isRecording
-                    ? `Stop (${formatTime(recordingDuration)})`
-                    : "Rekam & Klasifikasi"}
+                  {isTfClassifying
+                    ? "Menganalisis..."
+                    : "Klasifikasi TensorFlow.js"}
                 </Button>
 
-                {isClassifying && (
+                {isTfClassifying && (
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <CircularProgress size={24} />
-                    <Typography variant="body2">Menganalisis...</Typography>
+                    <Typography variant="body2">Memproses audio...</Typography>
                   </Box>
                 )}
               </Box>
 
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Rekam audio selama maksimal 10 detik untuk klasifikasi sumber
-                suara dan analisis dampak kesehatan.
+                Klasifikasi audio menggunakan model TensorFlow.js yang berjalan
+                secara lokal di browser. Rekam audio selama 3 detik untuk analisis.
               </Typography>
+
+              {!isTfModelLoaded && (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                  <CircularProgress size={20} />
+                  <Typography variant="body2" color="text.secondary">
+                    Memuat model TensorFlow.js...
+                  </Typography>
+                </Box>
+              )}
             </Grid>
 
-            {classificationResult && (
+            {tfClassificationResult && (
               <Grid item xs={12} md={6}>
                 <Card sx={{ bgcolor: "background.paper" }}>
                   <CardContent>
@@ -440,8 +524,8 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                       gutterBottom
                       sx={{ display: "flex", alignItems: "center", gap: 1 }}
                     >
-                      <Analytics color="primary" />
-                      Hasil Klasifikasi
+                      <Analytics color="secondary" />
+                      Hasil TensorFlow.js
                     </Typography>
 
                     <Grid container spacing={2}>
@@ -455,30 +539,49 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                           }}
                         >
                           <span style={{ fontSize: "1.2rem" }}>
-                            {getNoiseSourceIcon(
-                              classificationResult.noise_source
-                            )}
+                            {getNoiseSourceIcon(tfClassificationResult.noiseSource)}
                           </span>
                           <Typography variant="body1">
                             <strong>Sumber Suara:</strong>{" "}
-                            {translateNoiseSource(
-                              classificationResult.noise_source
-                            )}
+                            {translateNoiseSource(tfClassificationResult.noiseSource)}
                           </Typography>
                         </Box>
                       </Grid>
 
-
+                      <Grid item xs={12}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            mb: 1,
+                          }}
+                        >
+                          {getHealthIcon(tfClassificationResult.healthImpact)}
+                          <Typography variant="body1">
+                            <strong>Dampak Kesehatan:</strong>{" "}
+                            {translateHealthImpact(tfClassificationResult.healthImpact)}
+                          </Typography>
+                        </Box>
+                      </Grid>
 
                       <Grid item xs={12}>
                         <Chip
-                          label={`Akurasi: ${(
-                            classificationResult.confidence_score *
-                            100
+                          label={`Confidence: ${(
+                            tfClassificationResult.confidence * 100
                           ).toFixed(1)}%`}
-                          color="primary"
-                          variant="outlined"
+                          color={tfClassificationResult.confidence > 0.7 ? "success" : "warning"}
+                          sx={{ mb: 1 }}
                         />
+                      </Grid>
+
+                      <Grid item xs={12}>
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Raw Predictions:</strong>{" "}
+                          {tfClassificationResult.predictions
+                            .map((p, i) => `${i}: ${p.toFixed(3)}`)
+                            .join(", ")}
+                        </Typography>
                       </Grid>
                     </Grid>
                   </CardContent>
