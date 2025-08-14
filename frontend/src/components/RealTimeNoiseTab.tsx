@@ -34,21 +34,13 @@ import {
 } from "@mui/icons-material";
 import { useRealTimeNoise } from "../hooks/useRealTimeNoise";
 import { apiService, PredictionResponse } from "../services/api";
-import audioClassificationService from "../services/audioClassificationService";
-import {
-  translateNoiseSource,
-  translateHealthImpact,
-  getHealthImpactDescription,
-  getNoiseSourceIcon,
-} from "../utils/translationUtils";
+import { audioClassificationService } from "../services/audioClassificationService";
 
 const StyledCard = styled(Card)(({ theme }) => ({
   background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
   color: "white",
   marginBottom: theme.spacing(2),
 }));
-
-
 
 interface RealTimeNoiseTabProps {
   className?: string;
@@ -59,27 +51,20 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   const [enableFrequencyAnalysis, setEnableFrequencyAnalysis] = useState(true);
   const [calibrationMode] = useState<"auto" | "manual">("auto");
 
-  // Classification states
-  const [isRecording, setIsRecording] = useState(false);
+  // YAMNet Classification states
   const [isClassifying, setIsClassifying] = useState(false);
-  const [classificationResult, setClassificationResult] =
-    useState<PredictionResponse | null>(null);
+  const [classificationResult, setClassificationResult] = useState<any>(null);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [modelLoadError, setModelLoadError] = useState<string | null>(null);
+
+  // Recording states
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingStatus, setRecordingStatus] = useState<
+    "idle" | "recording" | "processing" | "completed" | "error"
+  >("idle");
   const [classificationError, setClassificationError] = useState<string | null>(
     null
   );
-  const [recordingDuration, setRecordingDuration] = useState(0);
-  // const [autoClassify, setAutoClassify] = useState(false); // Future feature
-
-  // TensorFlow.js model states
-  const [isTfModelLoaded, setIsTfModelLoaded] = useState(false);
-  const [tfModelError, setTfModelError] = useState<string | null>(null);
-  const [isTfClassifying, setIsTfClassifying] = useState(false);
-  const [tfClassificationResult, setTfClassificationResult] = useState<{
-    predictions: number[];
-    confidence: number;
-    noiseSource: string;
-    healthImpact: string;
-  } | null>(null);
 
   // Recording refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -134,171 +119,45 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   };
 
   // Audio recording and classification functions
-  const startRecording = async () => {
-    try {
-      console.log("🎤 Starting recording...");
-      setClassificationError(null);
-      setClassificationResult(null);
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          sampleRate: 44100,
-          channelCount: 1,
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-        },
-      });
-
-      console.log("✅ Got media stream:", stream);
-      classificationStreamRef.current = stream;
-
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm;codecs=opus",
-      });
-
-      console.log("✅ Created MediaRecorder:", mediaRecorder.mimeType);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        console.log("📊 Data available:", event.data.size, "bytes");
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        console.log(
-          "⏹️ Recording stopped, chunks:",
-          audioChunksRef.current.length
-        );
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/wav",
-        });
-        console.log("🎵 Created audio blob:", audioBlob.size, "bytes");
-        classifyAudio(audioBlob);
-
-        // Cleanup
-        stream.getTracks().forEach((track) => track.stop());
-      };
-
-      setIsRecording(true);
-      setRecordingDuration(0);
-      mediaRecorder.start();
-      console.log("🔴 Recording started");
-
-      // Start timer
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration((prev) => {
-          const newDuration = prev + 1;
-          // Auto-stop after 10 seconds for classification
-          if (newDuration >= 10) {
-            console.log("⏰ Auto-stopping recording at 10 seconds");
-            stopRecording();
-          }
-          return newDuration;
-        });
-      }, 1000);
-    } catch (error) {
-      console.error("❌ Recording error:", error);
-      setClassificationError(
-        "Gagal mengakses mikrofon. Pastikan izin mikrofon telah diberikan."
-      );
-    }
-  };
-
-  const stopRecording = () => {
-    console.log("⏹️ Stopping recording...");
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
-
-      if (classificationStreamRef.current) {
-        classificationStreamRef.current
-          .getTracks()
-          .forEach((track) => track.stop());
-        classificationStreamRef.current = null;
-      }
-      console.log("✅ Recording stopped successfully");
-    } else {
-      console.log("⚠️ No active recording to stop");
-    }
-  };
-
-  const classifyAudio = async (audioBlob: Blob) => {
-    try {
-      console.log("🎵 Starting classification...");
-      setIsClassifying(true);
-      setClassificationError(null);
-
-      // Convert blob to file
-      const audioFile = new File([audioBlob], `recording_${Date.now()}.wav`, {
-        type: "audio/wav",
-      });
-
-      console.log("🎵 Classifying audio:", {
-        name: audioFile.name,
-        size: audioFile.size,
-        type: audioFile.type,
-      });
-
-      const result = await apiService.uploadAudioFile(audioFile);
-      console.log("✅ Classification result:", result);
-      setClassificationResult(result.predictions);
-    } catch (error: unknown) {
-      console.error("❌ Classification error:", error);
-
-      // Simple error message extraction
-      const errorMessage = String(error);
-
-      // Try to extract axios error details safely
-      let detailMessage = errorMessage;
-      try {
-        const axiosError = error as any;
-        if (axiosError?.response?.data?.detail) {
-          detailMessage = axiosError.response.data.detail;
-        } else if (axiosError?.message) {
-          detailMessage = axiosError.message;
-        }
-      } catch {
-        // Fallback to string conversion
-        detailMessage = errorMessage;
-      }
-
-      setClassificationError(`Gagal mengklasifikasi audio: ${detailMessage}`);
-    } finally {
-      setIsClassifying(false);
-    }
-  };
-
-  // TensorFlow.js classification function
-  const classifyAudioWithTensorFlow = async () => {
-    if (!isTfModelLoaded) {
-      setTfModelError('Model TensorFlow.js belum dimuat. Silakan tunggu...');
+  const handleClassifyAudio = async () => {
+    if (!modelsLoaded) {
+      setClassificationError("Models are not loaded yet. Please wait...");
       return;
     }
 
-    try {
-      console.log('🤖 Starting TensorFlow.js classification...');
-      setIsTfClassifying(true);
-      setTfModelError(null);
-      setTfClassificationResult(null);
+    if (!isRecording) {
+      try {
+        setIsRecording(true);
+        setRecordingStatus("recording");
+        setClassificationResult(null);
+        setClassificationError(null);
+        setIsClassifying(true);
 
-      const result = await audioClassificationService.recordAndPredict(3000); // 3 seconds
-      console.log('✅ TensorFlow.js classification result:', result);
-      setTfClassificationResult(result);
-    } catch (error: unknown) {
-      console.error('❌ TensorFlow.js classification error:', error);
-      const errorMessage = String(error);
-      setTfModelError(`Gagal mengklasifikasi dengan TensorFlow.js: ${errorMessage}`);
-    } finally {
-      setIsTfClassifying(false);
+        console.log("Starting YAMNet audio classification...");
+
+        // Use the audioClassificationService to record and predict
+        const result = await audioClassificationService.recordAndPredict(3000); // 3 seconds
+
+        console.log("YAMNet classification result:", result);
+        setClassificationResult(result);
+        setRecordingStatus("completed");
+      } catch (err: unknown) {
+        console.error("YAMNet classification error:", err);
+        const errorMessage =
+          err && typeof err === "object" && "message" in err
+            ? String((err as any).message)
+            : "YAMNet classification failed";
+        setClassificationError(errorMessage);
+        setRecordingStatus("error");
+      } finally {
+        setIsRecording(false);
+        setIsClassifying(false);
+      }
+    } else {
+      // Stop recording manually
+      setIsRecording(false);
+      setIsClassifying(false);
+      setRecordingStatus("completed");
     }
   };
 
@@ -312,37 +171,178 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
 
   // Initialize TensorFlow.js model
   useEffect(() => {
-    const initializeModel = async () => {
+    // Load YAMNet and classifier models on component mount
+    const loadModels = async () => {
       try {
-        setTfModelError(null);
-        console.log('Initializing TensorFlow.js audio classification model...');
-        await audioClassificationService.loadModel();
-        setIsTfModelLoaded(true);
-        console.log('TensorFlow.js model loaded successfully');
-      } catch (error) {
-        console.error('Failed to load TensorFlow.js model:', error);
-        setTfModelError('Gagal memuat model TensorFlow.js. Pastikan file model tersedia.');
+        console.log("Loading YAMNet and classifier models...");
+        await audioClassificationService.loadModels();
+        setModelsLoaded(true);
+        console.log("Models loaded successfully!");
+      } catch (err: unknown) {
+        console.error("Error loading models:", err);
+        const errorMessage =
+          err && typeof err === "object" && "message" in err
+            ? String((err as any).message)
+            : "Failed to load models";
+        setModelLoadError(errorMessage);
       }
     };
 
-    initializeModel();
+    loadModels();
   }, []);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-      }
-      if (classificationStreamRef.current) {
-        classificationStreamRef.current
-          .getTracks()
-          .forEach((track) => track.stop());
-      }
-      // Cleanup TensorFlow.js model
-      audioClassificationService.dispose();
-    };
-  }, []);
+  // Model Loading Status UI
+  const ModelStatusCard = () => (
+    <Card sx={{ mb: 2 }}>
+      <CardContent>
+        <Typography
+          variant="h6"
+          gutterBottom
+          sx={{ display: "flex", alignItems: "center", gap: 1 }}
+        >
+          <Psychology />
+          Status Model YAMNet
+        </Typography>
+        {!modelsLoaded && !modelLoadError && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <CircularProgress size={24} />
+            <Typography>Memuat model AI...</Typography>
+          </Box>
+        )}
+        {modelsLoaded && (
+          <Alert severity="success">
+            Model YAMNet berhasil dimuat dan siap digunakan!
+          </Alert>
+        )}
+        {modelLoadError && (
+          <Alert severity="error">Gagal memuat model: {modelLoadError}</Alert>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  // Audio Classification UI
+  const AudioClassificationCard = () => (
+    <Card sx={{ mb: 2 }}>
+      <CardContent>
+        <Typography
+          variant="h6"
+          gutterBottom
+          sx={{ display: "flex", alignItems: "center", gap: 1 }}
+        >
+          <AudioFile />
+          Klasifikasi Audio YAMNet
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Rekam audio selama 3 detik untuk mengidentifikasi sumber suara
+          menggunakan AI
+        </Typography>
+
+        <Button
+          variant="contained"
+          color={isClassifying ? "error" : "primary"}
+          startIcon={isClassifying ? <MicOff /> : <Mic />}
+          onClick={handleClassifyAudio}
+          disabled={!modelsLoaded}
+          sx={{ mb: 2 }}
+        >
+          {isClassifying
+            ? "Menghentikan Rekaman..."
+            : "Mulai Klasifikasi Audio"}
+        </Button>
+
+        {isClassifying && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+            <CircularProgress size={24} />
+            <Typography>Merekam dan menganalisis audio...</Typography>
+          </Box>
+        )}
+
+        {classificationError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {classificationError}
+          </Alert>
+        )}
+
+        {classificationResult && (
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMore />}>
+              <Typography
+                variant="h6"
+                sx={{ display: "flex", alignItems: "center", gap: 1 }}
+              >
+                <Analytics />
+                Hasil Klasifikasi
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    <strong>Prediksi Sumber Suara:</strong>
+                  </Typography>
+                  {classificationResult.predictions?.map(
+                    (pred: any, index: number) => (
+                      <Box key={index} sx={{ mb: 1 }}>
+                        <Typography variant="body2">
+                          <strong>{pred.label}:</strong>{" "}
+                          {(pred.confidence * 100).toFixed(1)}%
+                        </Typography>
+                        <Box
+                          sx={{
+                            width: "100%",
+                            bgcolor: "grey.300",
+                            borderRadius: 1,
+                            height: 8,
+                            mt: 0.5,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: `${pred.confidence * 100}%`,
+                              bgcolor:
+                                pred.confidence > 0.5
+                                  ? "success.main"
+                                  : "warning.main",
+                              height: "100%",
+                              borderRadius: 1,
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                    )
+                  )}
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    <strong>Analisis Kebisingan:</strong>
+                  </Typography>
+                  {classificationResult.noiseAnalysis && (
+                    <>
+                      <Typography variant="body2">
+                        <strong>Tingkat dB(A):</strong>{" "}
+                        {classificationResult.noiseAnalysis.dbA?.toFixed(1)}{" "}
+                        dB(A)
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Kategori:</strong>{" "}
+                        {classificationResult.noiseAnalysis.category}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Dampak Kesehatan:</strong>{" "}
+                        {classificationResult.noiseAnalysis.healthImpact}
+                      </Typography>
+                    </>
+                  )}
+                </Grid>
+              </Grid>
+            </AccordionDetails>
+          </Accordion>
+        )}
+      </CardContent>
+    </Card>
+  );
 
   if (!isSupported) {
     return (
@@ -378,11 +378,11 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
         </Alert>
       )}
 
-      {classificationError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {classificationError}
-        </Alert>
-      )}
+      {/* Model Status */}
+      <ModelStatusCard />
+
+      {/* Audio Classification */}
+      <AudioClassificationCard />
 
       {/* Control Panel */}
       <Card sx={{ mb: 2 }}>
@@ -448,163 +448,31 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
         </CardContent>
       </Card>
 
-      {/* Audio Classification Section */}
-      
-        
-
-      {/* TensorFlow.js Audio Classification Section */}
-      <Accordion sx={{ mb: 2 }}>
-        <AccordionSummary expandIcon={<ExpandMore />}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Psychology color="secondary" />
-            <Typography variant="h6">Klasifikasi TensorFlow.js (Local)</Typography>
-            {isTfClassifying && <CircularProgress size={20} />}
-            {isTfModelLoaded && (
-              <Chip
-                label="Model Ready"
-                color="success"
-                size="small"
-                sx={{ ml: 1 }}
-              />
-            )}
-          </Box>
-        </AccordionSummary>
-        <AccordionDetails>
-          {tfModelError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {tfModelError}
-            </Alert>
-          )}
-
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  startIcon={<AudioFile />}
-                  onClick={classifyAudioWithTensorFlow}
-                  disabled={!isTfModelLoaded || isTfClassifying}
-                  size="large"
-                >
-                  {isTfClassifying
-                    ? "Menganalisis..."
-                    : "Klasifikasi TensorFlow.js"}
-                </Button>
-
-                {isTfClassifying && (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <CircularProgress size={24} />
-                    <Typography variant="body2">Memproses audio...</Typography>
-                  </Box>
-                )}
-              </Box>
-
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Klasifikasi audio menggunakan model TensorFlow.js yang berjalan
-                secara lokal di browser. Rekam audio selama 3 detik untuk analisis.
-              </Typography>
-
-              {!isTfModelLoaded && (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                  <CircularProgress size={20} />
-                  <Typography variant="body2" color="text.secondary">
-                    Memuat model TensorFlow.js...
-                  </Typography>
-                </Box>
-              )}
-            </Grid>
-
-            {tfClassificationResult && (
-              <Grid item xs={12} md={6}>
-                <Card sx={{ bgcolor: "background.paper" }}>
-                  <CardContent>
-                    <Typography
-                      variant="h6"
-                      gutterBottom
-                      sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                    >
-                      <Analytics color="secondary" />
-                      Hasil TensorFlow.js
-                    </Typography>
-
-                    <Grid container spacing={2}>
-                      <Grid item xs={12}>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
-                            mb: 1,
-                          }}
-                        >
-                          <span style={{ fontSize: "1.2rem" }}>
-                            {getNoiseSourceIcon(tfClassificationResult.noiseSource)}
-                          </span>
-                          <Typography variant="body1">
-                            <strong>Sumber Suara:</strong>{" "}
-                            {translateNoiseSource(tfClassificationResult.noiseSource)}
-                          </Typography>
-                        </Box>
-                      </Grid>
-
-                      <Grid item xs={12}>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
-                            mb: 1,
-                          }}
-                        >
-                          {getHealthIcon(tfClassificationResult.healthImpact)}
-                          <Typography variant="body1">
-                            <strong>Dampak Kesehatan:</strong>{" "}
-                            {translateHealthImpact(tfClassificationResult.healthImpact)}
-                          </Typography>
-                        </Box>
-                      </Grid>
-
-                      <Grid item xs={12}>
-                        <Chip
-                          label={`Confidence: ${(
-                            tfClassificationResult.confidence * 100
-                          ).toFixed(1)}%`}
-                          color={tfClassificationResult.confidence > 0.7 ? "success" : "warning"}
-                          sx={{ mb: 1 }}
-                        />
-                      </Grid>
-
-                      <Grid item xs={12}>
-                        <Typography variant="body2" color="text.secondary">
-                          <strong>Raw Predictions:</strong>{" "}
-                          {tfClassificationResult.predictions
-                            .map((p, i) => `${i}: ${p.toFixed(3)}`)
-                            .join(", ")}
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                </Card>
-              </Grid>
-            )}
-          </Grid>
-        </AccordionDetails>
-      </Accordion>
-
       {/* Current Reading Display */}
       {currentReading && (
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid item xs={12} md={6}>
             <Card>
-              <CardContent sx={{ textAlign: 'center' }}>
+              <CardContent sx={{ textAlign: "center" }}>
                 <Typography variant="h6" gutterBottom>
                   Tingkat Kebisingan
                 </Typography>
-                <Typography sx={{ fontSize: '3rem', fontWeight: 'bold', color: 'primary.main' }}>
+                <Typography
+                  sx={{
+                    fontSize: "3rem",
+                    fontWeight: "bold",
+                    color: "primary.main",
+                  }}
+                >
                   {currentReading.db.toFixed(1)} dB
                 </Typography>
-                <Typography sx={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#4CAF50' }}>
+                <Typography
+                  sx={{
+                    fontSize: "2.5rem",
+                    fontWeight: "bold",
+                    color: "#4CAF50",
+                  }}
+                >
                   {currentReading.dbA.toFixed(1)} dB(A)
                 </Typography>
                 <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
