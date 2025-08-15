@@ -53,23 +53,54 @@ class AudioClassificationService {
     }
   }
 
-  async predictFromAudio(audioBlob: Blob): Promise<ClassificationResult> {
+  async predictFromAudio(audioInput: Blob | Float32Array): Promise<ClassificationResult> {
     if (!this.yamnetModel) {
       throw new Error('YAMNet model not loaded');
     }
 
     try {
-      console.log('🔄 Converting audio blob to buffer...');
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const audioContext = new AudioContext({ sampleRate: 16000 });
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-      let audioData = audioBuffer.getChannelData(0);
-
-      if (audioBuffer.sampleRate !== 16000) {
-        console.log(`🔄 Resampling from ${audioBuffer.sampleRate}Hz to 16000Hz`);
-        audioData = this.resampleAudio(audioData, audioBuffer.sampleRate, 16000);
+      console.log('🎵 Processing audio for prediction...');
+      
+      let audioData: Float32Array;
+      
+      if (audioInput instanceof Float32Array) {
+        // Jalur 1: Float32Array langsung dari mic buffer
+        console.log('📡 Using direct Float32Array from mic buffer');
+        audioData = audioInput;
+      } else {
+        // Jalur 2: Blob dari rekaman manual - perlu decode
+        console.log('🎤 Decoding Blob from manual recording');
+        const arrayBuffer = await audioInput.arrayBuffer();
+        const audioContext = new AudioContext({ sampleRate: 16000 });
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // Convert to Float32Array
+        const rawAudioData = audioBuffer.getChannelData(0);
+        
+        // Resample if needed
+        if (audioBuffer.sampleRate !== 16000) {
+          console.log(`🔄 Resampling from ${audioBuffer.sampleRate}Hz to 16000Hz`);
+          audioData = this.resampleAudio(rawAudioData, audioBuffer.sampleRate, 16000);
+        } else {
+          audioData = rawAudioData;
+        }
+        
+        audioContext.close();
       }
+      
+      return this.predictFromFloat32Array(audioData);
+    } catch (err) {
+      console.error('❌ Error in audio prediction:', err);
+      throw err;
+    }
+  }
 
+  async predictFromFloat32Array(audioData: Float32Array): Promise<ClassificationResult> {
+    if (!this.yamnetModel) {
+      throw new Error('YAMNet model not loaded');
+    }
+
+    try {
       const hasAudio = audioData.some(sample => Math.abs(sample) > 0.001);
       console.log('🔊 Audio contains sound:', hasAudio);
 
@@ -99,7 +130,6 @@ class AudioClassificationService {
       waveform.dispose();
       meanScores.dispose();
       scores.dispose();
-      audioContext.close();
 
       // Get top 10 predictions
       const topPredictions = scoresArray

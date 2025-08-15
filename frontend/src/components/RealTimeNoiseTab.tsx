@@ -14,9 +14,6 @@ import {
   Divider,
   styled,
   CircularProgress,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
 } from "@mui/material";
 import {
   Mic,
@@ -27,9 +24,6 @@ import {
   Warning,
   CheckCircle,
   Error,
-  ExpandMore,
-  AudioFile,
-  Analytics,
   Psychology,
 } from "@mui/icons-material";
 import { useRealTimeNoise } from "../hooks/useRealTimeNoise";
@@ -51,26 +45,9 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   const [enableFrequencyAnalysis, setEnableFrequencyAnalysis] = useState(true);
   const [calibrationMode] = useState<"auto" | "manual">("auto");
 
-  // YAMNet Classification states
-  const [isClassifying, setIsClassifying] = useState(false);
-  const [classificationResult, setClassificationResult] = useState<any>(null);
+  // Model loading state for YAMNet
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [modelLoadError, setModelLoadError] = useState<string | null>(null);
-
-  // Recording states
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingStatus, setRecordingStatus] = useState<
-    "idle" | "recording" | "processing" | "completed" | "error"
-  >("idle");
-  const [classificationError, setClassificationError] = useState<string | null>(
-    null
-  );
-
-  // Recording refs
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const classificationStreamRef = useRef<MediaStream | null>(null);
 
   const {
     isListening,
@@ -87,6 +64,8 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     calibrationMode,
     updateInterval: 100,
     historyLength: 50,
+    enableRealTimeClassification: true,
+    classificationInterval: 3000,
   });
 
   const getHealthIcon = (healthImpact: string) => {
@@ -118,56 +97,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     }
   };
 
-  // Audio recording and classification functions
-  const handleClassifyAudio = async () => {
-    if (!modelsLoaded) {
-      setClassificationError("Models are not loaded yet. Please wait...");
-      return;
-    }
 
-    if (!isRecording) {
-      try {
-        setIsRecording(true);
-        setRecordingStatus("recording");
-        setClassificationResult(null);
-        setClassificationError(null);
-        setIsClassifying(true);
-
-        console.log("Starting YAMNet audio classification...");
-
-        // Use the audioClassificationService to record and predict
-        const result = await audioClassificationService.recordAndPredict(3000); // 3 seconds
-
-        console.log("YAMNet classification result:", result);
-        setClassificationResult(result);
-        setRecordingStatus("completed");
-      } catch (err: unknown) {
-        console.error("YAMNet classification error:", err);
-        const errorMessage =
-          err && typeof err === "object" && "message" in err
-            ? String((err as any).message)
-            : "YAMNet classification failed";
-        setClassificationError(errorMessage);
-        setRecordingStatus("error");
-      } finally {
-        setIsRecording(false);
-        setIsClassifying(false);
-      }
-    } else {
-      // Stop recording manually
-      setIsRecording(false);
-      setIsClassifying(false);
-      setRecordingStatus("completed");
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
-  };
 
   // Initialize TensorFlow.js model
   useEffect(() => {
@@ -193,107 +123,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
 
   // Model Loading Status UI
 
-  // Audio Classification UI
-  const AudioClassificationCard = () => (
-    <Card sx={{ mb: 2 }}>
-      <CardContent>
-        <Typography
-          variant="h6"
-          gutterBottom
-          sx={{ display: "flex", alignItems: "center", gap: 1 }}
-        >
-          <AudioFile />
-          Klasifikasi Audio YAMNet
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Rekam audio selama 3 detik untuk mengidentifikasi sumber suara
-          menggunakan AI
-        </Typography>
 
-        <Button
-          variant="contained"
-          color={isClassifying ? "error" : "primary"}
-          startIcon={isClassifying ? <MicOff /> : <Mic />}
-          onClick={handleClassifyAudio}
-          disabled={!modelsLoaded}
-          sx={{ mb: 2 }}
-        >
-          {isClassifying
-            ? "Menghentikan Rekaman..."
-            : "Mulai Klasifikasi Audio"}
-        </Button>
-
-        {isClassifying && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-            <CircularProgress size={24} />
-            <Typography>Merekam dan menganalisis audio...</Typography>
-          </Box>
-        )}
-
-        {classificationError && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {classificationError}
-          </Alert>
-        )}
-
-        {classificationResult && (
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMore />}>
-              <Typography
-                variant="h6"
-                sx={{ display: "flex", alignItems: "center", gap: 1 }}
-              >
-                <Analytics />
-                Hasil Klasifikasi
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Prediksi Sumber Suara:</strong>
-                  </Typography>
-                  {classificationResult.predictions?.map(
-                    (pred: any, index: number) => (
-                      <Box key={index} sx={{ mb: 1 }}>
-                        <Typography variant="body2">
-                          <strong>{pred.label}:</strong>{" "}
-                          {(pred.confidence * 100).toFixed(1)}%
-                        </Typography>
-                        <Box
-                          sx={{
-                            width: "100%",
-                            bgcolor: "grey.300",
-                            borderRadius: 1,
-                            height: 8,
-                            mt: 0.5,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              width: `${pred.confidence * 100}%`,
-                              bgcolor:
-                                pred.confidence > 0.5
-                                  ? "success.main"
-                                  : "warning.main",
-                              height: "100%",
-                              borderRadius: 1,
-                            }}
-                          />
-                        </Box>
-                      </Box>
-                    )
-                  )}
-                </Grid>
-
-
-              </Grid>
-            </AccordionDetails>
-          </Accordion>
-        )}
-      </CardContent>
-    </Card>
-  );
 
   if (!isSupported) {
     return (
@@ -332,8 +162,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       {/* Model Status */}
       
 
-      {/* Audio Classification */}
-      <AudioClassificationCard />
+
 
       {/* Control Panel */}
       <Card sx={{ mb: 2 }}>
@@ -475,6 +304,132 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
           </Grid>
         </Grid>
       )}
+
+      {/* Audio Classification Results */}
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent sx={{ textAlign: "center" }}>
+              <Typography
+                variant="h6"
+                gutterBottom
+                sx={{ display: "flex", alignItems: "center", gap: 1, justifyContent: "center" }}
+              >
+                <Psychology />
+                Klasifikasi Audio
+              </Typography>
+              {currentReading?.classification ? (
+                <>
+                  <Typography
+                    sx={{
+                      fontSize: "2rem",
+                      fontWeight: "bold",
+                      color: "primary.main",
+                      mb: 1,
+                    }}
+                  >
+                    {currentReading.classification.topPrediction}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "1.2rem",
+                      fontWeight: "bold",
+                      color: "#4CAF50",
+                    }}
+                  >
+                    {(currentReading.classification.confidence * 100).toFixed(1)}% Confidence
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
+                    Klasifikasi real-time setiap 3 detik
+                  </Typography>
+                </>
+              ) : isListening ? (
+                <>
+                  <CircularProgress size={40} sx={{ mb: 2 }} />
+                  <Typography variant="body1" color="text.secondary">
+                    Menunggu Klasifikasi...
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
+                    Memproses audio untuk klasifikasi
+                  </Typography>
+                </>
+              ) : (
+                <>
+                  <Typography variant="body1" color="text.secondary">
+                    Tidak Ada Data
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
+                    Mulai monitoring untuk melihat klasifikasi
+                  </Typography>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography
+                variant="h6"
+                gutterBottom
+                sx={{ display: "flex", alignItems: "center", gap: 1 }}
+              >
+                <TrendingUp />
+                Detail Prediksi
+              </Typography>
+
+              {currentReading?.classification ? (
+                <>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Top 3 Prediksi Audio:
+                  </Typography>
+                  {currentReading.classification.predictions
+                    .slice(0, 3)
+                    .map((prediction, index) => (
+                      <Box key={index} sx={{ mb: 2 }}>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                          <Typography variant="body2" sx={{ fontWeight: index === 0 ? "bold" : "normal" }}>
+                            {prediction.label}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {(prediction.confidence * 100).toFixed(1)}%
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            width: "100%",
+                            bgcolor: "grey.300",
+                            borderRadius: 1,
+                            height: 6,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: `${prediction.confidence * 100}%`,
+                              bgcolor: index === 0 ? "primary.main" : prediction.confidence > 0.3 ? "success.main" : "warning.main",
+                              height: "100%",
+                              borderRadius: 1,
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                    ))}
+                  
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                    <strong>Waktu Klasifikasi:</strong>{" "}
+                    {currentReading.timestamp.toLocaleTimeString()}
+                  </Typography>
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Hasil klasifikasi akan muncul di sini setelah monitoring dimulai.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Statistics */}
       {statistics.readings.length > 0 && (

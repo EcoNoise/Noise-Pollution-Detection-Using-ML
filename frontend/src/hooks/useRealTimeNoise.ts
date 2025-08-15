@@ -1,5 +1,6 @@
 // src/hooks/useRealTimeNoise.ts
 import { useState, useRef, useCallback, useEffect } from "react";
+import { audioClassificationService } from "../services/audioClassificationService";
 
 export interface NoiseReading {
   db: number;
@@ -20,6 +21,14 @@ export interface NoiseReading {
     | "Sangat Berbahaya"
     | "Sedang dalam perbaikan";
   frequencyData?: Float32Array;
+  classification?: {
+    predictions: Array<{
+      label: string;
+      confidence: number;
+    }>;
+    topPrediction: string;
+    confidence: number;
+  };
 }
 
 export interface NoiseStatistics {
@@ -41,6 +50,8 @@ interface UseRealTimeNoiseOptions {
   enableAWeighting?: boolean;
   enableFrequencyAnalysis?: boolean;
   calibrationMode?: "auto" | "manual" | "device";
+  enableRealTimeClassification?: boolean;
+  classificationInterval?: number;
 }
 
 interface UseRealTimeNoiseReturn {
@@ -66,6 +77,8 @@ const defaultOptions: Required<UseRealTimeNoiseOptions> = {
   enableAWeighting: true,
   enableFrequencyAnalysis: true,
   calibrationMode: "auto",
+  enableRealTimeClassification: false,
+  classificationInterval: 3000,
 };
 
 export const useRealTimeNoise = (
@@ -98,6 +111,11 @@ export const useRealTimeNoise = (
   const deviceCalibrationRef = useRef<number>(0);
   const backgroundNoiseRef = useRef<number>(0);
   const isCalibrationCompleteRef = useRef<boolean>(false);
+
+  // Classification refs
+  const classificationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const audioBufferRef = useRef<Float32Array | null>(null);
+  const lastClassificationTime = useRef<number>(0);
 
   // Check if Web Audio API is supported
   const isSupported =
@@ -277,6 +295,28 @@ export const useRealTimeNoise = (
     []
   );
 
+  // Perform audio classification
+  const performClassification = useCallback(async (audioData: Float32Array) => {
+    try {
+      const result = await audioClassificationService.predictFromAudio(audioData);
+      return {
+        predictions: result.predictions,
+        topPrediction: result.predictions[0]?.label || "Unknown",
+        confidence: result.predictions[0]?.confidence || 0,
+      };
+    } catch (error) {
+      console.error("Classification error:", error);
+      return null;
+    }
+  }, []);
+
+  // Check if classification should be performed
+  const shouldPerformClassification = useCallback(() => {
+    if (!opts.enableRealTimeClassification) return false;
+    const now = Date.now();
+    return now - lastClassificationTime.current >= opts.classificationInterval;
+  }, [opts.enableRealTimeClassification, opts.classificationInterval]);
+
   // Advanced audio processing with A-weighting and frequency analysis
   const processAudioData = useCallback(() => {
     if (!analyserRef.current || !audioContextRef.current) return;
@@ -316,6 +356,23 @@ export const useRealTimeNoise = (
         performAutoCalibration(rms, db);
       }
 
+      // Store audio data for classification - buffer minimal 1 detik @16kHz
+      if (opts.enableRealTimeClassification) {
+        if (!audioBufferRef.current) {
+          audioBufferRef.current = timeDataArray.slice();
+        } else {
+          const combined = new Float32Array(audioBufferRef.current.length + timeDataArray.length);
+          combined.set(audioBufferRef.current, 0);
+          combined.set(timeDataArray, audioBufferRef.current.length);
+          audioBufferRef.current = combined;
+
+          // simpan hanya 16000 sample terakhir (1 detik @ 16kHz)
+          if (audioBufferRef.current.length > 16000) {
+            audioBufferRef.current = audioBufferRef.current.slice(-16000);
+          }
+        }
+      }
+
       // Create reading object with enhanced data
       const reading: NoiseReading = {
         db,
@@ -330,7 +387,22 @@ export const useRealTimeNoise = (
           : undefined,
       };
 
-      setCurrentReading(reading);
+      // Perform classification if enabled and interval has passed
+      if (shouldPerformClassification() && audioBufferRef.current && audioBufferRef.current.length >= 16000) {
+        performClassification(audioBufferRef.current).then((classification) => {
+          if (classification) {
+            lastClassificationTime.current = Date.now();
+            // Update the current reading with new classification data
+            setCurrentReading(prev => prev ? { ...prev, classification } : prev);
+          }
+        });
+      }
+
+      // Update reading while preserving existing classification
+      setCurrentReading(prev => ({
+        ...reading,
+        classification: prev?.classification // pertahankan hasil klasifikasi sebelumnya
+      }));
 
       // Update statistics using A-weighted values
       setStatistics((prev) => {
@@ -503,6 +575,12 @@ export const useRealTimeNoise = (
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
+    }
+
+    // Clear classification interval
+    if (classificationIntervalRef.current) {
+      clearInterval(classificationIntervalRef.current);
+      classificationIntervalRef.current = null;
     }
 
     // Stop media stream
