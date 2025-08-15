@@ -97,8 +97,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     }
   };
 
-
-
   // Initialize TensorFlow.js model
   useEffect(() => {
     // Load YAMNet and classifier models on component mount
@@ -122,8 +120,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   }, []);
 
   // Model Loading Status UI
-
-
 
   if (!isSupported) {
     return (
@@ -160,9 +156,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       )}
 
       {/* Model Status */}
-      
-
-
 
       {/* Control Panel */}
       <Card sx={{ mb: 2 }}>
@@ -313,7 +306,12 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
               <Typography
                 variant="h6"
                 gutterBottom
-                sx={{ display: "flex", alignItems: "center", gap: 1, justifyContent: "center" }}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  justifyContent: "center",
+                }}
               >
                 <Psychology />
                 Klasifikasi Audio
@@ -337,7 +335,10 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                       color: "#4CAF50",
                     }}
                   >
-                    {(currentReading.classification.confidence * 100).toFixed(1)}% Confidence
+                    {(currentReading.classification.confidence * 100).toFixed(
+                      1
+                    )}
+                    % Confidence
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
                     Klasifikasi real-time setiap 3 detik
@@ -381,15 +382,29 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
 
               {currentReading?.classification ? (
                 <>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
                     Top 3 Prediksi Audio:
                   </Typography>
                   {currentReading.classification.predictions
                     .slice(0, 3)
                     .map((prediction, index) => (
                       <Box key={index} sx={{ mb: 2 }}>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
-                          <Typography variant="body2" sx={{ fontWeight: index === 0 ? "bold" : "normal" }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            mb: 0.5,
+                          }}
+                        >
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: index === 0 ? "bold" : "normal" }}
+                          >
                             {prediction.label}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
@@ -407,7 +422,12 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                           <Box
                             sx={{
                               width: `${prediction.confidence * 100}%`,
-                              bgcolor: index === 0 ? "primary.main" : prediction.confidence > 0.3 ? "success.main" : "warning.main",
+                              bgcolor:
+                                index === 0
+                                  ? "primary.main"
+                                  : prediction.confidence > 0.3
+                                  ? "success.main"
+                                  : "warning.main",
                               height: "100%",
                               borderRadius: 1,
                             }}
@@ -415,15 +435,20 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                         </Box>
                       </Box>
                     ))}
-                  
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 2 }}
+                  >
                     <strong>Waktu Klasifikasi:</strong>{" "}
                     {currentReading.timestamp.toLocaleTimeString()}
                   </Typography>
                 </>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  Hasil klasifikasi akan muncul di sini setelah monitoring dimulai.
+                  Hasil klasifikasi akan muncul di sini setelah monitoring
+                  dimulai.
                 </Typography>
               )}
             </CardContent>
