@@ -192,34 +192,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   }, []);
 
   // Model Loading Status UI
-  const ModelStatusCard = () => (
-    <Card sx={{ mb: 2 }}>
-      <CardContent>
-        <Typography
-          variant="h6"
-          gutterBottom
-          sx={{ display: "flex", alignItems: "center", gap: 1 }}
-        >
-          <Psychology />
-          Status Model YAMNet
-        </Typography>
-        {!modelsLoaded && !modelLoadError && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <CircularProgress size={24} />
-            <Typography>Memuat model AI...</Typography>
-          </Box>
-        )}
-        {modelsLoaded && (
-          <Alert severity="success">
-            Model YAMNet berhasil dimuat dan siap digunakan!
-          </Alert>
-        )}
-        {modelLoadError && (
-          <Alert severity="error">Gagal memuat model: {modelLoadError}</Alert>
-        )}
-      </CardContent>
-    </Card>
-  );
 
   // Audio Classification UI
   const AudioClassificationCard = () => (
@@ -277,7 +249,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
             </AccordionSummary>
             <AccordionDetails>
               <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12}>
                   <Typography variant="subtitle1" gutterBottom>
                     <strong>Prediksi Sumber Suara:</strong>
                   </Typography>
@@ -314,28 +286,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                   )}
                 </Grid>
 
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Analisis Kebisingan:</strong>
-                  </Typography>
-                  {classificationResult.noiseAnalysis && (
-                    <>
-                      <Typography variant="body2">
-                        <strong>Tingkat dB(A):</strong>{" "}
-                        {classificationResult.noiseAnalysis.dbA?.toFixed(1)}{" "}
-                        dB(A)
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Kategori:</strong>{" "}
-                        {classificationResult.noiseAnalysis.category}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Dampak Kesehatan:</strong>{" "}
-                        {classificationResult.noiseAnalysis.healthImpact}
-                      </Typography>
-                    </>
-                  )}
-                </Grid>
+
               </Grid>
             </AccordionDetails>
           </Accordion>
@@ -379,7 +330,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       )}
 
       {/* Model Status */}
-      <ModelStatusCard />
+      
 
       {/* Audio Classification */}
       <AudioClassificationCard />

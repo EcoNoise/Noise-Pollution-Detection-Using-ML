@@ -3,10 +3,18 @@ import * as tf from '@tensorflow/tfjs';
 const YAMNET_URL = '/yamnet/model.json';
 
 interface ClassificationResult {
-  predictions: number[];
+  predictions: Array<{
+    label: string;
+    confidence: number;
+  }>;
   confidence: number;
   noiseSource: string;
   healthImpact: string;
+  noiseAnalysis?: {
+    dbA: number;
+    category: string;
+    healthImpact: string;
+  };
 }
 
 class AudioClassificationService {
@@ -93,11 +101,41 @@ class AudioClassificationService {
       scores.dispose();
       audioContext.close();
 
+      // Get top 10 predictions
+      const topPredictions = scoresArray
+        .map((score, index) => ({
+          label: this.labels[index] || `Class ${index}`,
+          confidence: score
+        }))
+        .sort((a, b) => b.confidence - a.confidence)
+        .slice(0, 10);
+
+      // Simple noise analysis based on confidence and audio characteristics
+      const estimatedDbA = 40 + (confidence * 60); // Rough estimation: 40-100 dB(A)
+      let category = 'Tenang';
+      let analysisHealthImpact = 'Aman';
+      
+      if (estimatedDbA > 85) {
+        category = 'Sangat Bising';
+        analysisHealthImpact = 'Berbahaya - Dapat menyebabkan kerusakan pendengaran';
+      } else if (estimatedDbA > 70) {
+        category = 'Bising';
+        analysisHealthImpact = 'Perhatian - Dapat menyebabkan stres dan gangguan tidur';
+      } else if (estimatedDbA > 55) {
+        category = 'Sedang';
+        analysisHealthImpact = 'Cukup Aman - Mungkin mengganggu konsentrasi';
+      }
+
       const result = {
-        predictions: scoresArray,
+        predictions: topPredictions,
         confidence,
         noiseSource,
-        healthImpact
+        healthImpact,
+        noiseAnalysis: {
+          dbA: estimatedDbA,
+          category,
+          healthImpact: analysisHealthImpact
+        }
       };
 
       console.log('✅ Prediction completed:', result);
