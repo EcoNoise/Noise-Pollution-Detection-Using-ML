@@ -548,30 +548,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
             internasional untuk mengukur kebisingan yang memperhitungkan
             sensitivitas telinga manusia terhadap frekuensi yang berbeda.
           </Typography>
-          <Typography variant="body2" paragraph>
-            <strong>Fitur Monitoring Real-time:</strong>
-          </Typography>
-          <ul>
-            <li>A-weighting filter sesuai standar IEC 61672-1</li>
-            <li>Kalibrasi otomatis berdasarkan karakteristik perangkat</li>
-            <li>Analisis frekuensi real-time untuk akurasi lebih tinggi</li>
-            <li>Kompensasi noise latar belakang</li>
-            <li>Penilaian dampak kesehatan berdasarkan WHO dan EPA</li>
-          </ul>
-
-          <Typography variant="body2" paragraph sx={{ mt: 2 }}>
-            <strong>Fitur Klasifikasi Audio:</strong>
-          </Typography>
-          <ul>
-            <li>Klasifikasi multi-label menggunakan YAMNet + Custom Model</li>
-            <li>
-              Identifikasi 6 kategori sumber suara: Kendaraan, Konstruksi, Mesin
-              Rumah Tangga, Manusia, Lingkungan, Hewan
-            </li>
-            <li>Analisis dampak kesehatan berdasarkan tingkat kebisingan</li>
-            <li>Confidence score untuk tingkat kepercayaan prediksi</li>
-            <li>Pemrosesan audio real-time dengan teknologi deep learning</li>
-          </ul>
         </CardContent>
       </Card>
     </Box>
