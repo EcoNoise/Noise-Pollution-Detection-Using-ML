@@ -180,7 +180,7 @@ class MapService {
         radius: location.radius || 100,
       };
 
-      console.log("🔍 Data yang dikirim ke backend:", requestData);
+      console.log("🔍 Data yang dikirim ke server:", requestData);
 
       // Get current user
       const user = await getCurrentUser();
@@ -719,7 +719,7 @@ class MapService {
     }
   }
 
-  // Import noise data - removed as it's not practical with backend storage
+  // Import noise data - removed as it's not practical with server storage
   // Users should add areas individually through the UI
 
   // UPDATED: Function to share analysis data back to the map

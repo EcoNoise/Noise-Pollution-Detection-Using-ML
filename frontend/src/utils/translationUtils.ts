@@ -1,11 +1,11 @@
-// Utilitas untuk menerjemahkan label dari backend ke tampilan yang user-friendly
+// Utilitas untuk menerjemahkan label ke tampilan yang user-friendly
 
 export const translateNoiseSource = (source: string): string => {
   const translations: { [key: string]: string } = {
     // Status maintenance
     "sedang dalam perbaikan": "Sedang dalam perbaikan",
 
-    // Label bahasa Indonesia dari backend
+    // Label bahasa Indonesia
     gonggongan_anjing: "Gonggongan Anjing",
     anak_bermain: "Anak-anak Bermain",
     klakson_kendaraan: "Klakson Kendaraan",

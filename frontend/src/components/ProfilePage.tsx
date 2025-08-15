@@ -13,17 +13,17 @@ import {
 } from "lucide-react";
 import { getUserProfile, updateUserProfile } from "../services/profileService";
 
-// Interface ini mendefinisikan struktur data profil dari backend
+// Interface untuk struktur data profil pengguna
 interface UserProfile {
   id: number;
   first_name: string;
   last_name: string;
   username: string;
   email: string;
-  photo?: string; // Field 'photo' dari backend Anda
-  date_joined?: string; // Biasanya ada di model User Django
-  last_login?: string; // Field default Django User
-  is_active?: boolean; // Field default Django User
+  photo?: string; // Field foto profil
+  date_joined?: string; // Tanggal bergabung
+  last_login?: string; // Login terakhir
+  is_active?: boolean; // Status aktif pengguna
 }
 
 const ProfilePage: React.FC = () => {
