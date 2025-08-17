@@ -460,3 +460,4 @@ docker-compose.override.yml
 # Frontend build artifacts
 frontend/build/
 frontend/dist/
+frontend.zip
