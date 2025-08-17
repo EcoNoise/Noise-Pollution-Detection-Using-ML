@@ -10,9 +10,10 @@ export interface NoiseLocation {
   timestamp: Date;
   radius?: number;
   color?: string;
-  userId?: number; // Added user ID field
+  userId?: string; // Added user ID field
   userName?: string; // Added user name field
   canDelete?: boolean; // Added permission field
+  expires_at?: Date; // Added expiration time field
 }
 
 export interface MapMarkerData {

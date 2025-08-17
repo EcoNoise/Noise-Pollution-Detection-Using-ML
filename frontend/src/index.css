@@ -1,7 +1,7 @@
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -9,7 +9,7 @@ body {
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
 
@@ -47,4 +47,29 @@ code {
     transform: translateY(0);
   }
 }
-@import '~leaflet/dist/leaflet.css';
+@import "~leaflet/dist/leaflet.css";
+
+/* Global CSS to hide Spline watermark */
+spline-viewer spline-watermark,
+spline-viewer [data-spline-watermark],
+spline-viewer div[style*="position: absolute"][style*="bottom"],
+spline-viewer div[style*="position: fixed"][style*="bottom"],
+spline-viewer a[href*="spline.design"],
+spline-viewer div:has(a[href*="spline.design"]),
+a[href*="spline.design"]:has-text("Built with Spline"),
+div:has(a[href*="spline.design"]) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+}
+
+/* Hide any element with Spline branding */
+*[title*="Built with Spline"],
+*[alt*="Built with Spline"],
+*:contains("Built with Spline") {
+  display: none !important;
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -14,19 +14,19 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-} from '@mui/material';
-import { 
-  CheckCircle, 
-  XCircle, 
-  Settings, 
-  Database, 
-  Brain, 
+} from "@mui/material";
+import {
+  CheckCircle,
+  XCircle,
+  Settings,
+  Database,
+  Brain,
   Server,
   Activity,
   Wifi,
-} from 'lucide-react';
+} from "lucide-react";
 
-import { apiService, ModelStatus } from '../services/api';
+import { apiService, ModelStatus } from "../services/api";
 
 const StatusPage: React.FC = () => {
   const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null);
@@ -42,42 +42,41 @@ const StatusPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Check models
       const modelData = await apiService.getModelStatus();
       setModelStatus(modelData);
-      
+
       // Check health
       await apiService.healthCheck();
-      
+
       setLastChecked(new Date());
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Failed to check status');
+      setError(
+        err.response?.data?.error || err.message || "Failed to check status"
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const ModelStatusItem: React.FC<{ name: string; loaded: boolean; description: string }> = ({ 
-    name, 
-    loaded, 
-    description 
-  }) => (
+  const ModelStatusItem: React.FC<{
+    name: string;
+    loaded: boolean;
+    description: string;
+  }> = ({ name, loaded, description }) => (
     <ListItem>
       <ListItemIcon>
         {loaded ? (
-          <CheckCircle size={24} style={{ color: '#4caf50' }} />
+          <CheckCircle size={24} style={{ color: "#4caf50" }} />
         ) : (
-          <XCircle size={24} style={{ color: '#f44336' }} />
+          <XCircle size={24} style={{ color: "#f44336" }} />
         )}
       </ListItemIcon>
-      <ListItemText
-        primary={name}
-        secondary={description}
-      />
-      <Chip 
-        label={loaded ? 'Loaded' : 'Not Found'} 
-        color={loaded ? 'success' : 'error'} 
+      <ListItemText primary={name} secondary={description} />
+      <Chip
+        label={loaded ? "Dimuat" : "Tidak Ditemukan"}
+        color={loaded ? "success" : "error"}
         size="small"
         variant="outlined"
       />
@@ -86,22 +85,25 @@ const StatusPage: React.FC = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="400px"
+      >
         <CircularProgress size={60} />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ maxWidth: 1000, mx: 'auto', p: 2 }}>
+    <Box sx={{ maxWidth: 1000, mx: "auto", p: 2 }}>
       {/* Header */}
       <Box display="flex" alignItems="center" gap={2} mb={4}>
         <Settings size={32} />
-        <Typography variant="h4">
-          System Status
-        </Typography>
+        <Typography variant="h4">Status Sistem</Typography>
         <Button variant="outlined" onClick={checkStatus} size="small">
-          Refresh Status
+          Perbarui Status
         </Button>
       </Box>
 
@@ -120,9 +122,9 @@ const StatusPage: React.FC = () => {
                 <Server size={24} color="#1976d2" />
                 <Typography variant="h6">API Server</Typography>
               </Box>
-              <Chip 
-                label={error ? 'Offline' : 'Online'} 
-                color={error ? 'error' : 'success'} 
+              <Chip
+                label={error ? "Offline" : "Online"}
+                color={error ? "error" : "success"}
                 icon={error ? <XCircle size={16} /> : <CheckCircle size={16} />}
               />
             </CardContent>
@@ -136,10 +138,12 @@ const StatusPage: React.FC = () => {
                 <Database size={24} color="#ff9800" />
                 <Typography variant="h6">Database</Typography>
               </Box>
-              <Chip 
-                label={error ? 'Unknown' : 'Connected'} 
-                color={error ? 'default' : 'success'} 
-                icon={error ? <Activity size={16} /> : <CheckCircle size={16} />}
+              <Chip
+                label={error ? "Tidak Diketahui" : "Terhubung"}
+                color={error ? "default" : "success"}
+                icon={
+                  error ? <Activity size={16} /> : <CheckCircle size={16} />
+                }
               />
             </CardContent>
           </Card>
@@ -150,11 +154,21 @@ const StatusPage: React.FC = () => {
             <CardContent>
               <Box display="flex" alignItems="center" gap={1} mb={2}>
                 <Brain size={24} color="#4caf50" />
-                <Typography variant="h6">ML Models</Typography>
+                <Typography variant="h6">Model ML</Typography>
               </Box>
-              <Chip 
-                label={modelStatus ? `${modelStatus.loaded_models}/${modelStatus.total_models}` : 'Unknown'} 
-                color={modelStatus && modelStatus.loaded_models > 0 ? 'success' : 'warning'} 
+              <Chip
+                label={
+                  modelStatus
+                    ? modelStatus.model_loaded
+                      ? "Loaded"
+                      : "Not Loaded"
+                    : "Tidak Diketahui"
+                }
+                color={
+                  modelStatus && modelStatus.model_loaded
+                    ? "success"
+                    : "warning"
+                }
                 icon={<Brain size={16} />}
               />
             </CardContent>
@@ -166,11 +180,11 @@ const StatusPage: React.FC = () => {
             <CardContent>
               <Box display="flex" alignItems="center" gap={1} mb={2}>
                 <Wifi size={24} color="#9c27b0" />
-                <Typography variant="h6">Network</Typography>
+                <Typography variant="h6">Jaringan</Typography>
               </Box>
-              <Chip 
-                label={error ? 'Error' : 'Connected'} 
-                color={error ? 'error' : 'success'} 
+              <Chip
+                label={error ? "Error" : "Terhubung"}
+                color={error ? "error" : "success"}
                 icon={error ? <XCircle size={16} /> : <Wifi size={16} />}
               />
             </CardContent>
@@ -182,66 +196,57 @@ const StatusPage: React.FC = () => {
       {modelStatus && (
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            🤖 Machine Learning Models Status
+            🤖 Status Model Machine Learning
           </Typography>
-          
+
           <Grid container spacing={2} mb={3}>
             <Grid item xs={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Total Models</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Model Version
+              </Typography>
               <Typography variant="h4" color="primary.main">
-                {modelStatus.total_models}
+                {modelStatus.model_version}
               </Typography>
             </Grid>
             <Grid item xs={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Loaded Models</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Model Status
+              </Typography>
               <Typography variant="h4" color="success.main">
-                {modelStatus.loaded_models}
+                {modelStatus.model_loaded ? "Loaded" : "Not Loaded"}
               </Typography>
             </Grid>
             <Grid item xs={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Load Rate</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Last Updated
+              </Typography>
               <Typography variant="h4" color="info.main">
-                {((modelStatus.loaded_models / modelStatus.total_models) * 100).toFixed(0)}%
+                {new Date(modelStatus.last_updated).toLocaleDateString()}
               </Typography>
             </Grid>
             <Grid item xs={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Status</Typography>
-              <Typography variant="h4" color={modelStatus.loaded_models > 0 ? "success.main" : "error.main"}>
-                {modelStatus.loaded_models > 0 ? "Ready" : "Error"}
+              <Typography variant="body2" color="text.secondary">
+                Status
+              </Typography>
+              <Typography
+                variant="h4"
+                color={modelStatus.model_loaded ? "success.main" : "error.main"}
+              >
+                {modelStatus.model_loaded ? "Siap" : "Error"}
               </Typography>
             </Grid>
           </Grid>
 
           <List>
             <ModelStatusItem
-              name="Noise Level (Original)"
-              loaded={modelStatus.models.noise_level_original || false}
-              description="Model prediksi tingkat kebisingan versi original"
+              name="Noise Detection Model"
+              loaded={modelStatus.model_loaded}
+              description={`Model version: ${modelStatus.model_version}`}
             />
             <ModelStatusItem
-              name="Noise Level (Optimized)"
-              loaded={modelStatus.models.noise_level_optimized || false}
-              description="Model prediksi tingkat kebisingan versi optimized"
-            />
-            <ModelStatusItem
-              name="Noise Source"
-              loaded={modelStatus.models.noise_source || false}
-              description="Model klasifikasi sumber kebisingan"
-            />
-            <ModelStatusItem
-              name="Health Impact"
-              loaded={modelStatus.models.health_impact || false}
-              description="Model prediksi dampak kesehatan"
-            />
-            <ModelStatusItem
-              name="Feature Scaler"
-              loaded={modelStatus.models.scaler || false}
-              description="Preprocessor untuk normalisasi fitur"
-            />
-            <ModelStatusItem
-              name="Selected Features"
-              loaded={modelStatus.models.selected_features || false}
-              description="Indeks fitur yang dipilih untuk training"
+              name="Model Status"
+              loaded={modelStatus.model_loaded}
+              description={`Last updated: ${modelStatus.last_updated}`}
             />
           </List>
         </Paper>
@@ -251,7 +256,7 @@ const StatusPage: React.FC = () => {
       {lastChecked && (
         <Paper sx={{ p: 2 }}>
           <Typography variant="body2" color="text.secondary">
-            ⏰ Last checked: {lastChecked.toLocaleString('id-ID')}
+            ⏰ Terakhir diperiksa: {lastChecked.toLocaleString("id-ID")}
           </Typography>
         </Paper>
       )}

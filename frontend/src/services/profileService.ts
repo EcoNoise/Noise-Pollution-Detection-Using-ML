@@ -1,55 +1,61 @@
 // File: src/services/profileService.ts
+import { supabase } from '../lib/supabase';
 
-// Tentukan alamat base URL backend Anda
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
-
-const getAuthToken = (): string | null => {
-    return localStorage.getItem('accessToken');
-};
-
-const getAuthHeaders = (): HeadersInit => {
-    const token = getAuthToken();
-    if (!token) {
-        throw new Error('Token otentikasi tidak ditemukan. Silakan login kembali.');
-    }
-    return { 'Authorization': `Bearer ${token}` };
+// Helper function to get current user
+const getCurrentUser = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
 };
 
 /**
- * Mengambil data profil pengguna yang sedang login.
+ * Mengambil data profil pengguna yang sedang login dari Supabase.
  */
-export const getUserProfile = async () => {
-    // --- PERBAIKAN ---
-    // Gunakan URL lengkap ke backend
-    const response = await fetch(`${API_BASE_URL}/api/auth/me/`, {
-        method: 'GET',
-        headers: { 
-            ...getAuthHeaders(),
-            'Content-Type': 'application/json' 
-        },
-    });
+export const getUserProfile = async (): Promise<any> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('User not authenticated');
 
-    if (!response.ok) {
-        throw new Error('Gagal memuat profil. Pastikan Anda sudah login.');
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching user profile:", error);
+      throw error;
     }
-    return response.json();
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    throw error;
+  }
 };
 
 /**
- * Memperbarui data profil pengguna.
+ * Memperbarui data profil pengguna di Supabase.
  */
-export const updateUserProfile = async (formData: FormData) => {
-    // --- PERBAIKAN ---
-    // Gunakan URL lengkap ke backend
-    const response = await fetch(`${API_BASE_URL}/api/auth/me/`, {
-        method: 'PUT',
-        headers: getAuthHeaders(), // Untuk FormData, jangan set Content-Type
-        body: formData,
-    });
+export const updateUserProfile = async (profileData: any): Promise<any> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('User not authenticated');
 
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Gagal menyimpan perubahan.' }));
-        throw new Error(errorData.detail || 'Gagal menyimpan perubahan');
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(profileData)
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating user profile:", error);
+      throw error;
     }
-    return response.json();
+
+    return data;
+  } catch (error) {
+    console.error("Error updating user profile:", error);
+    throw error;
+  }
 };

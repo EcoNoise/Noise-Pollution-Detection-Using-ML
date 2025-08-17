@@ -1,5 +1,6 @@
 // src/components/MapComponent.tsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { usePopup } from "../hooks/usePopup";
 import {
   MapContainer,
   TileLayer,
@@ -16,6 +17,8 @@ import { mapService } from "../services/mapService";
 import { generateNoiseArea } from "../utils/mapUtils";
 import MapControls from "./MapControls";
 import MapPopup from "./MapPopup";
+import AreaFilter, { AreaFilters } from "./AreaFilter";
+import MapTutorial from "./MapTutorial";
 import styles from "../styles/MapComponent.module.css";
 
 import "leaflet/dist/leaflet.css";
@@ -128,11 +131,25 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const navigate = useNavigate(); // NEW: Hook for navigation
   const [noiseLocations, setNoiseLocations] = useState<NoiseLocation[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const {
+    popupState,
+    hidePopup,
+    showSuccess,
+    showError,
+    showWarning,
+    showConfirm,
+    showLogin,
+    PopupComponent,
+  } = usePopup();
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isAddingNoise, setIsAddingNoise] = useState<boolean>(false);
   const [showNoiseForm, setShowNoiseForm] = useState<boolean>(false);
   const [showLegend, setShowLegend] = useState<boolean>(true);
+  const [showFilter, setShowFilter] = useState<boolean>(false);
+  const [formDescription, setFormDescription] = useState<string>(""); // State untuk deskripsi
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
   const [selectedPosition, setSelectedPosition] = useState<
     [number, number] | null
   >(null);
@@ -154,14 +171,30 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-
+  const [activeFilters, setActiveFilters] = useState<AreaFilters>({});
   const mapRef = useRef<LeafletMap | null>(null);
+  const reanalysisFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [locationToReanalyze, setLocationToReanalyze] =
+    useState<NoiseLocation | null>(null);
+
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const watchId = useRef<number | null>(null);
+
+  // Tutorial state
+  const [showTutorial, setShowTutorial] = useState<boolean>(false);
 
   useEffect(() => {
     loadNoiseLocations();
     handleLocateUser();
+
+    // Check if this is the first visit to show tutorial
+    const hasSeenTutorial = localStorage.getItem("hasSeenMapTutorial");
+    if (!hasSeenTutorial) {
+      // Delay tutorial to ensure map is loaded
+      setTimeout(() => {
+        setShowTutorial(true);
+      }, 1000);
+    }
 
     // UPDATED: Check for shared data from either flow
     const sharedData = mapService.getSharedNoiseData();
@@ -194,7 +227,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         },
         {
           enableHighAccuracy: true,
-          maximumAge: 30000,
+          maximumAge: 0,
           timeout: 10000,
         }
       );
@@ -216,31 +249,49 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     setError("");
     try {
       // Prioritize position from the new flow; otherwise, get current location for the old flow
-      const position =
-        sharedData.position || (await mapService.getCurrentLocation());
+      let position = sharedData.position;
+
+      if (!position) {
+        try {
+          position = await mapService.getCurrentLocation();
+        } catch (locationError) {
+          console.error("Error getting current location:", locationError);
+          if (locationError instanceof Error) {
+            setError(locationError.message);
+          } else {
+            setError("Gagal mendapatkan lokasi untuk membuat titik analisis.");
+          }
+          return;
+        }
+      }
 
       if (position) {
-        const newLocation = await mapService.addNoiseLocation({
-          coordinates: position,
-          noiseLevel: sharedData.analysis.noise_level,
-          source: sharedData.analysis.noise_source,
-          healthImpact: sharedData.analysis.health_impact,
-          description: `Analisis suara otomatis`,
-          address: sharedData.address || "Alamat tidak tersedia",
-          radius: 100,
-        });
+        try {
+          const newLocation = await mapService.addNoiseLocation({
+            coordinates: position,
+            noiseLevel: sharedData.analysis.noise_level,
+            source: sharedData.analysis.noise_source,
+            healthImpact: sharedData.analysis.health_impact,
+            description: `Analisis suara otomatis`,
+            address: sharedData.address || "Alamat tidak tersedia",
+            radius: 100,
+          });
 
-        if (newLocation) {
-          await loadNoiseLocations();
-          zoomToLocation(position, 17);
-        } else {
-          setError("Gagal menyimpan data analisis ke server");
+          if (newLocation) {
+            await loadNoiseLocations();
+            zoomToLocation(position, 17);
+          }
+        } catch (addError: any) {
+          console.error("Error adding noise location:", addError);
+          if (
+            addError.message &&
+            addError.message.includes("Koordinat sudah digunakan")
+          ) {
+            setError(addError.message);
+          } else {
+            setError("Gagal menyimpan data analisis ke server");
+          }
         }
-      } else {
-        setError("Gagal mendapatkan lokasi untuk membuat titik analisis.");
-        alert(
-          "Gagal mendapatkan lokasi Anda. Pastikan izin lokasi telah diberikan."
-        );
       }
     } catch (err) {
       console.error("Error processing shared data:", err);
@@ -327,12 +378,19 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       setSearchLocationMarker(null);
     }
   };
+  const handleAddNoiseArea = async () => {
+    const { supabase } = await import("../lib/supabase");
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const isAuthenticated = !!session;
 
-  const handleAddNoiseArea = () => {
-    const isAuthenticated = !!localStorage.getItem("accessToken");
     if (!isAuthenticated) {
-      alert("Anda harus login untuk dapat menambahkan area analisis di peta.");
-      navigate("/login");
+      showLogin(
+        "Login Diperlukan",
+        "Anda harus login untuk dapat menambahkan area analisis di peta.",
+        () => navigate("/login")
+      );
       return;
     }
 
@@ -346,20 +404,212 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   };
 
   // NEW: Handler for the "Analisis Suara" button
-  const handleStartAnalysis = () => {
-    if (selectedPosition) {
-      // 1. Set the context in the service
-      mapService.setAnalysisRequest({
+  const handleUploadAndAnalyze = async () => {
+    if (!selectedPosition) {
+      setError("Lokasi di peta belum dipilih.");
+      return;
+    }
+
+    if (!audioFile) {
+      setError("Silakan pilih file audio untuk dianalisis.");
+      return;
+    }
+
+    // VALIDASI TAMBAHAN: Periksa format dan ukuran file di frontend
+    const allowedTypes = [
+      "audio/wav",
+      "audio/mp3",
+      "audio/mpeg",
+      "audio/mp4",
+      "audio/m4a",
+      "audio/ogg",
+      "audio/webm",
+      "audio/flac",
+    ];
+    if (!allowedTypes.includes(audioFile.type)) {
+      setError(
+        `Format file tidak didukung: ${audioFile.type}. Gunakan format WAV, MP3, M4A, OGG, WebM, atau FLAC.`
+      );
+      return;
+    }
+
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (audioFile.size > maxSize) {
+      setError(
+        `Ukuran file terlalu besar (${(audioFile.size / 1024 / 1024).toFixed(
+          1
+        )}MB). Maksimal 50MB.`
+      );
+      return;
+    }
+
+    setIsUploading(true);
+    setError("");
+
+    try {
+      console.log("🎵 Memulai analisis audio:", {
+        fileName: audioFile.name,
+        fileSize: `${(audioFile.size / 1024 / 1024).toFixed(2)}MB`,
+        fileType: audioFile.type,
         position: selectedPosition,
         address: formAddress,
       });
-      // 2. Navigate to the HomePage to start recording
-      navigate("/home");
-    } else {
-      setError("Silakan pilih titik di peta terlebih dahulu.");
+
+      const newLocation = await mapService.analyzeAudioAndAddArea(
+        audioFile,
+        selectedPosition,
+        formAddress,
+        formDescription
+      );
+
+      if (newLocation) {
+        console.log("✅ Area berhasil ditambahkan:", newLocation);
+
+        // Reload data dan zoom ke lokasi baru
+        await loadNoiseLocations();
+        zoomToLocation(newLocation.coordinates, 17);
+
+        // Reset form dan tutup panel
+        setShowNoiseForm(false);
+        setSelectedPosition(null);
+        setFormAddress("");
+        setFormDescription("");
+        setAudioFile(null);
+        setIsAddingNoise(false);
+
+        // Tampilkan notifikasi sukses
+        showSuccess(
+          "Analisis Berhasil!",
+          `Tingkat Kebisingan: ${newLocation.noiseLevel}\nSumber: ${newLocation.source}\nDampak Kesehatan: ${newLocation.healthImpact}`
+        );
+      } else {
+        setError("Gagal membuat area kebisingan baru setelah analisis.");
+      }
+    } catch (err: any) {
+      console.error("❌ Error saat analisis:", err);
+
+      // Tangani error koordinat sama
+      if (err.message && err.message.includes("Koordinat sudah digunakan")) {
+        setError(err.message);
+        return;
+      }
+
+      // Tampilkan error yang lebih user-friendly
+      let userMessage =
+        err.message || "Terjadi kesalahan saat memproses file Anda.";
+
+      // Tangani berbagai jenis error khusus
+      if (userMessage.includes("400")) {
+        userMessage =
+          "Server menolak file audio. Pastikan format file benar dan tidak rusak.";
+      } else if (userMessage.includes("401")) {
+        userMessage = "Sesi Anda telah berakhir. Silakan login kembali.";
+      } else if (userMessage.includes("413")) {
+        userMessage = "Ukuran file terlalu besar. Maksimal 50MB.";
+      } else if (userMessage.includes("429")) {
+        userMessage =
+          "Batas harian tercapai. Anda sudah menambahkan 5 titik dalam 24 jam terakhir.";
+      } else if (userMessage.includes("500")) {
+        userMessage =
+          "Terjadi kesalahan pada server. Coba lagi dalam beberapa saat.";
+      }
+
+      setError(userMessage);
+    } finally {
+      setIsUploading(false);
     }
   };
 
+  // TAMBAHAN: Handler untuk validasi file saat dipilih
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+
+      // Reset error sebelumnya
+      setError("");
+
+      // Validasi format file
+      const allowedTypes = [
+        "audio/wav",
+        "audio/mp3",
+        "audio/mpeg",
+        "audio/mp4",
+        "audio/m4a",
+        "audio/ogg",
+        "audio/webm",
+        "audio/flac",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        setError(`Format file tidak didukung: ${file.type}`);
+        e.target.value = ""; // Reset input
+        return;
+      }
+
+      // Validasi ukuran file
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSize) {
+        setError(
+          `File terlalu besar: ${(file.size / 1024 / 1024).toFixed(
+            1
+          )}MB. Maksimal 50MB.`
+        );
+        e.target.value = ""; // Reset input
+        return;
+      }
+
+      console.log("📁 File dipilih:", {
+        name: file.name,
+        size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+        type: file.type,
+      });
+
+      setAudioFile(file);
+    }
+  };
+  const handleStartReanalysis = (location: NoiseLocation) => {
+    setLocationToReanalyze(location); // Simpan info lokasi mana yang akan dianalisis
+    reanalysisFileInputRef.current?.click(); // Buka jendela pilih file
+  };
+
+  // Fungsi ini berjalan setelah Anda memilih file audio
+  const handleReanalysisFileSelected = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !locationToReanalyze) return; // Batalkan jika tidak ada file
+
+    setIsUploading(true);
+    setError("");
+    try {
+      // Panggil service yang sudah Anda buat
+      const updatedLocation = await mapService.updateNoiseLocationWithAudio(
+        locationToReanalyze.id,
+        file,
+        {
+          description: locationToReanalyze.description,
+          address: locationToReanalyze.address,
+        }
+      );
+
+      if (updatedLocation) {
+        await loadNoiseLocations(); // Muat ulang data peta agar update
+        showSuccess("Berhasil!", "Analisis ulang berhasil!");
+      } else {
+        setError("Gagal memperbarui setelah analisis ulang.");
+      }
+    } catch (err: any) {
+      // Tangani error koordinat sama
+      if (err.message && err.message.includes("Koordinat sudah digunakan")) {
+        setError(err.message);
+      } else {
+        setError(err.message || "Terjadi kesalahan saat memproses file.");
+      }
+    } finally {
+      setIsUploading(false);
+      setLocationToReanalyze(null);
+      if (e.target) e.target.value = ""; // Reset input
+    }
+  };
   const handleDeleteNoiseLocation = async (id: string) => {
     try {
       setLoading(true);
@@ -369,9 +619,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       } else {
         setError("Gagal menghapus area berisik");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting noise location:", error);
-      setError("Gagal menghapus area berisik");
+      // Tampilkan pesan error dari server jika ada
+      setError(error.message || "Gagal menghapus area berisik");
     } finally {
       setLoading(false);
     }
@@ -380,6 +631,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   // DIPERBAHARUI: Handle locate user dengan icon
   const handleLocateUser = async () => {
     setLoading(true);
+    setError(""); // Clear error sebelumnya
     try {
       const position = await mapService.getCurrentLocation();
       if (position) {
@@ -387,37 +639,44 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         setIsTrackingUser(true); // Mulai tracking lokasi real-time
         // PERBAIKAN: Gunakan smooth zoom untuk lokasi user
         zoomToLocation(position, 16, false); // false karena sudah ada user location icon
-      } else {
-        setError("Tidak dapat mengakses lokasi Anda");
       }
     } catch (error) {
-      setError("Gagal mendapatkan lokasi");
+      console.error("Error getting location:", error);
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError("Gagal mendapatkan lokasi");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleClearAreas = async () => {
-    if (
-      window.confirm(
-        "Apakah Anda yakin ingin menghapus semua area berisik milik Anda?"
-      )
-    ) {
-      try {
-        setLoading(true);
-        const success = await mapService.clearAllNoiseLocations();
-        if (success) {
-          await loadNoiseLocations(); // Reload data after successful clearing
-        } else {
-          setError("Gagal menghapus area berisik");
+    showConfirm(
+      "Hapus Semua Area",
+      "Apakah Anda yakin ingin menghapus semua area berisik milik Anda?",
+      async () => {
+        try {
+          setLoading(true);
+          const success = await mapService.clearAllNoiseLocations();
+          if (success) {
+            await loadNoiseLocations();
+            showSuccess("Berhasil!", "Semua area berisik telah dihapus.");
+          } else {
+            showError("Gagal", "Gagal menghapus area berisik");
+          }
+        } catch (error) {
+          console.error("Error clearing noise areas:", error);
+          showError("Error", "Gagal menghapus area berisik");
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        console.error("Error clearing noise areas:", error);
-        setError("Gagal menghapus area berisik");
-      } finally {
-        setLoading(false);
-      }
-    }
+      },
+      undefined, // onCancel - default behavior
+      "Ya, Hapus",
+      "Batal"
+    );
   };
 
   // ENHANCED: Improved search result click handler
@@ -447,6 +706,22 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     setSearchLocationMarker(null);
   };
 
+  // Tutorial handlers
+  const handleTutorialComplete = () => {
+    setShowTutorial(false);
+    localStorage.setItem("hasSeenMapTutorial", "true");
+    showSuccess("Tutorial Selesai!", "Selamat menjelajahi peta kebisingan 🎉");
+  };
+
+  const handleTutorialSkip = () => {
+    setShowTutorial(false);
+    localStorage.setItem("hasSeenMapTutorial", "true");
+  };
+
+  const handleShowTutorial = () => {
+    setShowTutorial(true);
+  };
+
   // PERBAIKAN: Fungsi untuk handle keyboard navigation pada search results
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -474,10 +749,45 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     });
     return null;
   };
+  const filteredNoiseLocations = useMemo(() => {
+    const { noiseLevel, source, healthImpact } = activeFilters;
+
+    if (!noiseLevel?.length && !source?.length && !healthImpact?.length) {
+      return noiseLocations;
+    }
+
+    // Fungsi helper untuk konversi noise level
+    const getNoiseLevelCategory = (level: number): string => {
+      if (level === 0) return "Sedang dalam perbaikan";
+      if (level <= 40) return "Tenang";
+      if (level <= 60) return "Sedang";
+      if (level <= 80) return "Berisik";
+      return "Sangat Berisik";
+    };
+
+    return noiseLocations.filter((location) => {
+      const locationNoiseLevelCategory = getNoiseLevelCategory(
+        location.noiseLevel
+      );
+      const noiseLevelMatch =
+        !noiseLevel?.length || noiseLevel.includes(locationNoiseLevelCategory);
+      const sourceMatch = !source?.length || source.includes(location.source);
+      const healthImpactMatch =
+        !healthImpact?.length || healthImpact.includes(location.healthImpact);
+      return noiseLevelMatch && sourceMatch && healthImpactMatch;
+    });
+  }, [noiseLocations, activeFilters]);
 
   return (
     <div className={`${styles.mapContainer} ${className || ""}`}>
       {/* Search Container and MapControls remain the same */}
+      <input
+        type="file"
+        accept="audio/*"
+        style={{ display: "none" }}
+        ref={reanalysisFileInputRef}
+        onChange={handleReanalysisFileSelected}
+      />
       <div className={styles.searchContainer}>
         <input
           type="text"
@@ -485,7 +795,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={handleSearchKeyDown}
-          className={styles.searchInput}
+          className={`${styles.searchInput} tutorial-search-input`}
+          id="search-location-input"
         />
 
         {searchResults.length > 0 && (
@@ -527,25 +838,33 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         onLocateUser={handleLocateUser}
         onClearAreas={handleClearAreas}
         onToggleLegend={() => setShowLegend(!showLegend)}
+        onToggleFilter={() => setShowFilter(!showFilter)}
         onToggleTracking={() => setIsTrackingUser(!isTrackingUser)}
+        onShowTutorial={handleShowTutorial}
         isAddingNoise={isAddingNoise}
         showLegend={showLegend}
+        showFilter={showFilter}
         isTrackingUser={isTrackingUser}
         hasUserLocation={userLocation !== null}
       />
+      {showFilter && (
+        <div className="tutorial-filter-container" id="filter-container">
+          <AreaFilter
+            activeFilters={activeFilters}
+            onFilterChange={setActiveFilters}
+            noiseLocations={noiseLocations}
+          />
+        </div>
+      )}
 
+      {/* BARU: User location marker */}
       {/* UPDATED: Noise Panel is now the form for the new flow */}
       {showNoiseForm && selectedPosition && (
         <div className={styles.noisePanel}>
-          <div className={styles.noisePanelTitle}>Analisis Suara di Lokasi</div>
+          <div className={styles.noisePanelTitle}>
+            Analisis Kebisingan di Lokasi
+          </div>
           <div className={styles.noiseForm}>
-            <input
-              type="text"
-              placeholder="Alamat/Nama Lokasi (opsional)"
-              value={formAddress}
-              onChange={(e) => setFormAddress(e.target.value)}
-              className={styles.noiseInput}
-            />
             <div className={styles.noiseLevel}>
               <span>Koordinat:</span>
               <span className={styles.noiseLevelValue}>
@@ -553,11 +872,42 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                 {selectedPosition[1].toFixed(5)}
               </span>
             </div>
+            <input
+              type="text"
+              placeholder="Alamat/Nama Lokasi (opsional)"
+              value={formAddress}
+              onChange={(e) => setFormAddress(e.target.value)}
+              className={styles.noiseInput}
+            />
+            <input
+              type="text"
+              placeholder="Deskripsi (misal: 'suara dari proyek')"
+              value={formDescription}
+              onChange={(e) => setFormDescription(e.target.value)}
+              className={styles.noiseInput}
+            />
+            <div className={styles.fileInputContainer}>
+              <label htmlFor="audio-upload" className={styles.fileInputLabel}>
+                Pilih File Audio
+              </label>
+              <input
+                id="audio-upload"
+                type="file"
+                accept="audio/*"
+                onChange={handleFileChange} // <--- Handler baru
+                className={styles.fileInput}
+                disabled={isUploading}
+              />
+              {audioFile && (
+                <span className={styles.fileName}>{audioFile.name}</span>
+              )}
+            </div>
             <button
-              onClick={handleStartAnalysis}
+              onClick={handleUploadAndAnalyze} // <--- Handler baru
               className={styles.submitButton}
+              disabled={isUploading || !audioFile}
             >
-              Analisis Suara
+              {isUploading ? "Menganalisis..." : "Upload & Analisis"}
             </button>
           </div>
         </div>
@@ -565,7 +915,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
       {/* Legend, Loading, Error, and MapContainer JSX remain the same */}
       {showLegend && (
-        <div className={styles.legend}>
+        <div
+          className={`${styles.legend} tutorial-legend-container`}
+          id="legend-container"
+        >
           <div className={styles.legendTitle}>Legenda</div>
           {Object.entries(noiseColors).map(([key, color]) => {
             let label = "";
@@ -659,7 +1012,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         <MapEvents />
 
         {/* Noise Areas as Circles */}
-        {noiseLocations.map((location) => {
+        {filteredNoiseLocations.map((location) => {
           const area = generateNoiseArea(location);
           return (
             <Circle
@@ -677,6 +1030,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                 <MapPopup
                   location={location}
                   onDelete={handleDeleteNoiseLocation}
+                  onReanalyze={handleStartReanalysis}
+                  currentUserId={localStorage.getItem("userId")}
                 />
               </Popup>
             </Circle>
@@ -770,6 +1125,14 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           />
         )}
       </MapContainer>
+      <PopupComponent />
+
+      {/* Tutorial Component */}
+      <MapTutorial
+        isVisible={showTutorial}
+        onComplete={handleTutorialComplete}
+        onSkip={handleTutorialSkip}
+      />
     </div>
   );
 };

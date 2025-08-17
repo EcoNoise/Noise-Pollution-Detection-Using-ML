@@ -64,8 +64,8 @@ media/
 temp_audio/
 uploaded_files/
 *.log
-migrations/*.py
-!migrations/__init__.py
+# migrations/*.py
+# !migrations/__init__.py
 
 # Flask specific
 instance/
@@ -117,6 +117,7 @@ env/
 venv/
 ENV/
 myenv311/
+ecoNoise/
 
 env.bak/
 venv.bak/
@@ -265,7 +266,7 @@ dist
 
 # Gatsby files
 .cache/
-public
+# public
 
 # Vuepress build output
 .vuepress/dist
@@ -433,6 +434,14 @@ model_artifacts/
 # datasets/
 # raw_data/
 
+# Supabase local config (keep example files)
+supabase/.env
+supabase/.env.local
+
+# Package manager files at root (frontend has its own)
+package-lock.json
+yarn.lock
+
 # Docker
 .dockerignore
 docker-compose.override.yml
@@ -440,3 +449,15 @@ docker-compose.override.yml
 # Kubernetes
 *.yaml.bak
 *.yml.bak
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# Frontend build artifacts
+frontend/build/
+frontend/dist/
+frontend.zip

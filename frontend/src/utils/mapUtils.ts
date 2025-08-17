@@ -10,10 +10,10 @@ export const getNoiseColor = (noiseLevel: number): string => {
 };
 
 export const getNoiseRadius = (noiseLevel: number): number => {
-  // Calculate radius based on noise level (in meters)
-  const baseRadius = 50;
-  const multiplier = Math.max(1, noiseLevel / 40);
-  return baseRadius * multiplier;
+  // Calculate radius based on noise level (in meters) - DIPERKECIL
+  const baseRadius = 25; // Dikurangi dari 50 ke 25 meter
+  const multiplier = Math.max(1, noiseLevel / 80); // Dikurangi dari 40 ke 80 untuk multiplier lebih kecil
+  return Math.min(baseRadius * multiplier, 60); // Maksimal 60 meter
 };
 
 export const getNoiseOpacity = (noiseLevel: number): number => {
@@ -72,4 +72,23 @@ export const generateNoiseArea = (location: NoiseLocation): NoiseArea => {
     color: getNoiseColor(location.noiseLevel),
     opacity: getNoiseOpacity(location.noiseLevel),
   };
+};
+
+export const getTimeUntilExpiry = (expiresAt: Date): string => {
+  const now = new Date();
+  const expiry = new Date(expiresAt);
+  const diffMs = expiry.getTime() - now.getTime();
+
+  if (diffMs <= 0) {
+    return "Sudah expired";
+  }
+
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (diffHours > 0) {
+    return `${diffHours} jam ${diffMinutes} menit lagi`;
+  } else {
+    return `${diffMinutes} menit lagi`;
+  }
 };

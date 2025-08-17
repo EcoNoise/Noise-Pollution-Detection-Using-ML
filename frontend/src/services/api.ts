@@ -1,130 +1,180 @@
-import axios from 'axios';
-
-// Base URL for API
-const API_BASE_URL = (window as any).ENV?.REACT_APP_API_URL || 'http://localhost:8000/api';
-
-// Create axios instance
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000, // 30 seconds
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor
-api.interceptors.request.use(
-  (config) => {
-    console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
-    return config;
-  },
-  (error) => {
-    console.error('❌ Request Error:', error);
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor
-api.interceptors.response.use(
-  (response) => {
-    console.log(`✅ API Response: ${response.status} ${response.config.url}`);
-    return response;
-  },
-  (error) => {
-    console.error('❌ Response Error:', error.response?.data || error.message);
-    return Promise.reject(error);
-  }
-);
+import { supabase } from '../lib/supabase'
 
 // Types
-export interface PredictionResult {
+export interface PredictionResponse {
   noise_level: number;
-  noise_source: string;
   health_impact: string;
   confidence_score: number;
+  noise_source: string;
 }
 
-export interface PredictionResponse {
+export interface UploadResult {
   status: string;
-  predictions: PredictionResult;
-  processing_time: number;
+  predictions: PredictionResponse;
   file_info: {
     name: string;
     size: number;
   };
-}
-
-export interface HistoryItem {
-  id: number;
-  timestamp: string;
-  noise_level: number;
-  noise_source: string;
-  health_impact: string;
-  confidence_score: number;
-  file_name?: string;
   processing_time: number;
 }
 
 export interface ModelStatus {
-  status: string;
-  models: {
-    [key: string]: boolean;
-  };
-  total_models: number;
-  loaded_models: number;
+  model_loaded: boolean;
+  model_version: string;
+  last_updated: string;
 }
 
-// API Functions
+export interface HistoryItem {
+  id: string;
+  timestamp: string;
+  noise_level: number;
+  health_impact: string;
+  confidence_score: number;
+  noise_source: string;
+  file_name?: string;
+}
+
 export const apiService = {
-  // Health check
-  async healthCheck() {
-    const response = await api.get('/health/');
-    return response.data;
+  // Authentication
+  async signUp(email: string, password: string, userData: any) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: userData
+      }
+    })
+    return { data, error }
   },
 
-  // Get model status
-  async getModelStatus(): Promise<ModelStatus> {
-    const response = await api.get('/models/status/');
-    return response.data;
+  async signIn(email: string, password: string) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+    return { data, error }
   },
 
-  // Upload audio file for prediction
-  async uploadAudioFile(file: File): Promise<PredictionResponse> {
-    const formData = new FormData();
-    formData.append('audio_file', file);
-
-    const response = await api.post('/predict/', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-
-    return response.data;
+  async signOut() {
+    const { error } = await supabase.auth.signOut()
+    return { error }
   },
 
   // Get prediction history
   async getPredictionHistory(limit: number = 50): Promise<HistoryItem[]> {
-    const response = await api.get('/history/', {
-      params: { limit },
-    });
-    return response.data.history || [];
+    const { data, error } = await supabase
+      .from('prediction_history')
+      .select('*')
+      .order('timestamp', { ascending: false })
+      .limit(limit)
+    
+    if (error) {
+      console.error('Error fetching prediction history:', error);
+      return [];
+    }
+    
+    return data || [];
   },
 
-  // Batch prediction (if implemented)
-  async batchPrediction(files: File[]) {
-    const formData = new FormData();
-    files.forEach((file, index) => {
-      formData.append(`audio_files`, file);
-    });
-
-    const response = await api.post('/predict/batch/', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-
-    return response.data;
+  // Noise areas
+  async getNoiseAreas() {
+    const { data, error } = await supabase
+      .from('noise_areas')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    return { data, error }
   },
-};
 
-export default api;
+  async createNoiseArea(noiseArea: any) {
+    const { data, error } = await supabase
+      .from('noise_areas')
+      .insert(noiseArea)
+      .select()
+      .single()
+    
+    return { data, error }
+  },
+
+  // Audio upload and prediction
+  async uploadAudioFile(file: File): Promise<UploadResult> {
+    const startTime = performance.now();
+    
+    try {
+      // Import audio classification service
+      const { audioClassificationService } = await import('./audioClassificationService');
+      
+      // Convert file to blob and make prediction
+      const audioBlob = new Blob([file], { type: file.type });
+      const prediction = await audioClassificationService.predictFromAudio(audioBlob);
+      
+      const endTime = performance.now();
+      const processingTime = (endTime - startTime) / 1000; // Convert to seconds
+      
+      return {
+        status: "success",
+        predictions: {
+          noise_level: 75, // Default value, can be enhanced later
+          health_impact: prediction.healthImpact,
+          confidence_score: prediction.confidence,
+          noise_source: prediction.noiseSource
+        },
+        file_info: {
+          name: file.name,
+          size: file.size
+        },
+        processing_time: Math.round(processingTime * 100) / 100
+      };
+    } catch (error) {
+      console.error('Error processing audio file:', error);
+      
+      // Fallback to mock data if TensorFlow prediction fails
+      const endTime = performance.now();
+      const processingTime = (endTime - startTime) / 1000;
+      
+      return {
+        status: "error",
+        predictions: {
+          noise_level: 0,
+          health_impact: "unknown",
+          confidence_score: 0,
+          noise_source: "unknown"
+        },
+        file_info: {
+          name: file.name,
+          size: file.size
+        },
+        processing_time: Math.round(processingTime * 100) / 100
+      };
+    }
+  },
+
+  // Model status
+  async getModelStatus(): Promise<ModelStatus> {
+    try {
+      const { audioClassificationService } = await import('./audioClassificationService');
+      // For now, return a simple status - can be enhanced later
+      return {
+        model_loaded: true,
+        model_version: "YAMNet-1.0.0",
+        last_updated: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error getting model status:', error);
+      return {
+        model_loaded: false,
+        model_version: "unknown",
+        last_updated: new Date().toISOString()
+      };
+    }
+  },
+
+  // Health check
+  async healthCheck(): Promise<{ status: string; timestamp: string }> {
+    // Mock health check response
+    return {
+      status: "healthy",
+      timestamp: new Date().toISOString()
+    };
+  }
+}
