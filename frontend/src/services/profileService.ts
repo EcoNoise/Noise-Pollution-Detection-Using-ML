@@ -1,61 +1,93 @@
 // File: src/services/profileService.ts
-import { supabase } from '../lib/supabase';
+// Supabase removed: using localStorage-backed mock profile
 
-// Helper function to get current user
-const getCurrentUser = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
+// Helper: get current user id from localStorage
+const getCurrentUserId = (): string | null => {
+  return localStorage.getItem('userId');
+};
+
+// Shape of stored profile
+interface LocalUserProfile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+  email: string;
+  photo?: string;
+  date_joined?: string;
+  last_login?: string;
+  is_active?: boolean;
+}
+
+const PROFILE_KEY = 'mock_profile';
+
+const loadProfile = (): LocalUserProfile | null => {
+  const raw = localStorage.getItem(PROFILE_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+const saveProfile = (profile: LocalUserProfile) => {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 };
 
 /**
- * Mengambil data profil pengguna yang sedang login dari Supabase.
+ * Mengambil data profil pengguna yang sedang login (mock).
  */
 export const getUserProfile = async (): Promise<any> => {
-  try {
-    const user = await getCurrentUser();
-    if (!user) throw new Error('User not authenticated');
+  const userId = getCurrentUserId();
+  if (!userId) throw new Error('User not authenticated');
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+  // Try load from storage
+  let profile = loadProfile();
+  if (!profile) {
+    // Initialize default profile from basic info
+    const email = localStorage.getItem('userEmail') || '';
+    const username = localStorage.getItem('username') || 'user';
+    const first_name = localStorage.getItem('firstName') || '';
+    const last_name = localStorage.getItem('lastName') || '';
 
-    if (error) {
-      console.error("Error fetching user profile:", error);
-      throw error;
-    }
-
-    return data;
-  } catch (error) {
-    console.error("Error fetching user profile:", error);
-    throw error;
+    profile = {
+      id: userId,
+      username,
+      first_name,
+      last_name,
+      email,
+      date_joined: new Date().toISOString(),
+      last_login: new Date().toISOString(),
+      is_active: true,
+      photo: undefined,
+    };
+    saveProfile(profile);
   }
+  return profile;
 };
 
 /**
- * Memperbarui data profil pengguna di Supabase.
+ * Memperbarui data profil pengguna (mock).
  */
 export const updateUserProfile = async (profileData: any): Promise<any> => {
-  try {
-    const user = await getCurrentUser();
-    if (!user) throw new Error('User not authenticated');
+  const userId = getCurrentUserId();
+  if (!userId) throw new Error('User not authenticated');
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(profileData)
-      .eq('id', user.id)
-      .select()
-      .single();
+  const current = (await getUserProfile()) as LocalUserProfile;
+  const updated: LocalUserProfile = {
+    ...current,
+    ...profileData,
+    id: userId,
+    last_login: new Date().toISOString(),
+  };
+  saveProfile(updated);
 
-    if (error) {
-      console.error("Error updating user profile:", error);
-      throw error;
-    }
+  // Keep simple mirrors in localStorage for other parts of app
+  if (updated.email) localStorage.setItem('userEmail', updated.email);
+  if (updated.username) localStorage.setItem('username', updated.username);
+  if (updated.first_name) localStorage.setItem('firstName', updated.first_name);
+  if (updated.last_name) localStorage.setItem('lastName', updated.last_name);
 
-    return data;
-  } catch (error) {
-    console.error("Error updating user profile:", error);
-    throw error;
-  }
+  return updated;
 };

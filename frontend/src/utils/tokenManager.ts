@@ -1,16 +1,8 @@
-// Session Manager untuk handle Supabase authentication
+// Mock Session Manager to replace Supabase authentication
 class SessionManager {
   private static instance: SessionManager;
-  private supabase: any = null;
 
-  private constructor() {
-    this.initSupabase();
-  }
-
-  private async initSupabase() {
-    const { supabase } = await import('../lib/supabase');
-    this.supabase = supabase;
-  }
+  private constructor() {}
 
   static getInstance(): SessionManager {
     if (!SessionManager.instance) {
@@ -19,69 +11,50 @@ class SessionManager {
     return SessionManager.instance;
   }
 
-  // Get access token from Supabase session
+  // Access token stored in localStorage
   async getAccessToken(): Promise<string | null> {
-    if (!this.supabase) await this.initSupabase();
-    const { data: { session } } = await this.supabase.auth.getSession();
-    return session?.access_token || null;
+    return localStorage.getItem("mock_access_token");
   }
 
-  // Get refresh token from Supabase session
   async getRefreshToken(): Promise<string | null> {
-    if (!this.supabase) await this.initSupabase();
-    const { data: { session } } = await this.supabase.auth.getSession();
-    return session?.refresh_token || null;
+    return localStorage.getItem("mock_refresh_token");
   }
 
-  // Supabase handles token storage automatically
-  setTokens(accessToken: string, refreshToken: string): void {
-    // No-op for Supabase as it handles tokens automatically
-    console.log('Supabase handles token storage automatically');
+  // Store tokens (mock)
+  setTokens(accessToken: string, refreshToken?: string): void {
+    localStorage.setItem("mock_access_token", accessToken);
+    if (refreshToken) localStorage.setItem("mock_refresh_token", refreshToken);
   }
 
-  // Clear session (sign out)
+  // Clear session
   async clearTokens(): Promise<void> {
-    if (!this.supabase) await this.initSupabase();
-    await this.supabase.auth.signOut();
+    localStorage.removeItem("mock_access_token");
+    localStorage.removeItem("mock_refresh_token");
     localStorage.removeItem("userId");
     localStorage.removeItem("userEmail");
   }
 
-  // Supabase handles token expiry automatically
   async isTokenExpired(): Promise<boolean> {
-    if (!this.supabase) await this.initSupabase();
-    const { data: { session } } = await this.supabase.auth.getSession();
-    return !session;
+    // Simple check: token exists => not expired
+    const token = await this.getAccessToken();
+    return !token;
   }
 
-  // Supabase handles token refresh automatically
   async refreshAccessToken(): Promise<string> {
-    if (!this.supabase) await this.initSupabase();
-    const { data: { session }, error } = await this.supabase.auth.refreshSession();
-    
-    if (error || !session) {
-      throw new Error("Unable to refresh session");
-    }
-    
-    return session.access_token;
+    const token = await this.getAccessToken();
+    if (!token) throw new Error("Unable to refresh session");
+    return token;
   }
 
-  // Get valid access token (Supabase handles refresh automatically)
   async getValidAccessToken(): Promise<string> {
-    const accessToken = await this.getAccessToken();
-    
-    if (!accessToken) {
-      throw new Error("No access token available");
-    }
-    
-    return accessToken;
+    const token = await this.getAccessToken();
+    if (!token) throw new Error("No access token available");
+    return token;
   }
 
-  // Check if user is authenticated
   async isAuthenticated(): Promise<boolean> {
-    if (!this.supabase) await this.initSupabase();
-    const { data: { session } } = await this.supabase.auth.getSession();
-    return !!session;
+    const token = await this.getAccessToken();
+    return !!token;
   }
 }
 

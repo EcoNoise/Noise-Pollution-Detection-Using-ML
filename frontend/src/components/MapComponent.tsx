@@ -20,6 +20,7 @@ import MapPopup from "./MapPopup";
 import AreaFilter, { AreaFilters } from "./AreaFilter";
 import MapTutorial from "./MapTutorial";
 import styles from "../styles/MapComponent.module.css";
+import SessionManager from "../utils/tokenManager";
 
 import "leaflet/dist/leaflet.css";
 
@@ -379,11 +380,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     }
   };
   const handleAddNoiseArea = async () => {
-    const { supabase } = await import("../lib/supabase");
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const isAuthenticated = !!session;
+    const sm = SessionManager.getInstance();
+    const isAuthenticated = await sm.isAuthenticated();
 
     if (!isAuthenticated) {
       showLogin(

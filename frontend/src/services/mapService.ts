@@ -1,13 +1,35 @@
 // src/services/mapService.ts
 import { NoiseLocation, SearchResult } from "../types/mapTypes";
 import { PredictionResponse } from "./api"; // Import PredictionResponse type
-import { supabase } from '../lib/supabase';
 
-// Helper function to get current user
-const getCurrentUser = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
+// Helper for auth and storage
+const getCurrentUserId = (): string | null => localStorage.getItem('userId');
+const noiseAreasKey = (userId: string) => `noise_areas_${userId}`;
+const globalNoiseAreasKey = 'all_noise_areas';
+
+// Mock storage helpers
+const loadUserNoiseAreas = (userId: string): any[] => {
+  const raw = localStorage.getItem(noiseAreasKey(userId));
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
 };
+
+const saveUserNoiseAreas = (userId: string, areas: any[]) => {
+  localStorage.setItem(noiseAreasKey(userId), JSON.stringify(areas));
+};
+
+const loadAllNoiseAreas = (): any[] => {
+  const raw = localStorage.getItem(globalNoiseAreasKey);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+};
+
+const saveAllNoiseAreas = (areas: any[]) => {
+  localStorage.setItem(globalNoiseAreasKey, JSON.stringify(areas));
+};
+
+// Generate unique ID
+const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9);
 
 class MapService {
   // UPDATED: More specific type for shared data
@@ -163,7 +185,8 @@ class MapService {
       }
     }
   }
-  // UPDATED: Add noise location via API
+
+  // Add noise location via localStorage
   async addNoiseLocation(
     location: Omit<NoiseLocation, "id" | "timestamp">
   ): Promise<NoiseLocation | null> {
@@ -180,105 +203,74 @@ class MapService {
         radius: location.radius || 100,
       };
 
-      console.log("🔍 Data yang dikirim ke server:", requestData);
+      console.log("🔍 Data yang dikirim ke storage:", requestData);
 
       // Get current user
-      const user = await getCurrentUser();
-      if (!user) {
-        throw new Error("User must be authenticated to add noise areas");
-      }
+      const userId = getCurrentUserId();
+      if (!userId) throw new Error("User must be authenticated to add noise areas");
 
-      // Check for duplicate coordinates
-      const { data: existingAreas, error: checkError } = await supabase
-        .from('noise_areas')
-        .select('id')
-        .eq('latitude', requestData.latitude)
-        .eq('longitude', requestData.longitude)
-        .limit(1);
+      // Check for duplicate coordinates (mock)
+      const allAreas = loadAllNoiseAreas();
+      const duplicate = allAreas.find(area => 
+        area.latitude === requestData.latitude && 
+        area.longitude === requestData.longitude
+      );
 
-      if (checkError) {
-        console.error("❌ Error checking for duplicates:", checkError);
-        throw new Error("Failed to check for duplicate coordinates");
-      }
-
-      if (existingAreas && existingAreas.length > 0) {
+      if (duplicate) {
         throw new Error("Koordinat sudah digunakan, pilih lokasi lain");
       }
 
-      // Insert new noise area
-      const { data: insertedArea, error: insertError } = await supabase
-        .from('noise_areas')
-        .insert({
-          ...requestData,
-          user_id: user.id
-        })
-        .select('*')
-        .single();
+      // Create new area
+      const id = generateId();
+      const newArea = {
+        id,
+        ...requestData,
+        user_id: userId,
+        created_at: new Date().toISOString(),
+        expires_at: null
+      };
 
-      if (insertError) {
-        console.error("❌ Error inserting noise area:", insertError);
-        throw new Error("Failed to add noise area");
-      }
+      // Add to both user storage and global storage
+      const userAreas = loadUserNoiseAreas(userId);
+      userAreas.push(newArea);
+      saveUserNoiseAreas(userId, userAreas);
 
-      // Get username from profiles table
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', user.id)
-        .single();
+      allAreas.push(newArea);
+      saveAllNoiseAreas(allAreas);
 
-      // Convert Supabase response to NoiseLocation format
+      // Get username from localStorage
+      const userName = localStorage.getItem('username') || 'Unknown';
+
+      // Convert to NoiseLocation format
       return {
-        id: insertedArea.id.toString(),
-        coordinates: [insertedArea.latitude, insertedArea.longitude] as [
-          number,
-          number
-        ],
-        noiseLevel: insertedArea.noise_level,
-        source: insertedArea.noise_source,
-        healthImpact: insertedArea.health_impact,
-        description: insertedArea.description,
-        address: insertedArea.address,
-        radius: insertedArea.radius,
-        timestamp: new Date(insertedArea.created_at),
-        userId: insertedArea.user_id,
-        userName: profile?.username || 'Unknown',
+        id: newArea.id,
+        coordinates: [newArea.latitude, newArea.longitude] as [number, number],
+        noiseLevel: newArea.noise_level,
+        source: newArea.noise_source,
+        healthImpact: newArea.health_impact,
+        description: newArea.description,
+        address: newArea.address,
+        radius: newArea.radius,
+        timestamp: new Date(newArea.created_at),
+        userId: newArea.user_id,
+        userName: userName,
         canDelete: true,
-        expires_at: insertedArea.expires_at
-          ? new Date(insertedArea.expires_at)
-          : undefined,
+        expires_at: newArea.expires_at ? new Date(newArea.expires_at) : undefined,
       };
     } catch (error) {
       console.error("Error adding noise location:", error);
-      // Re-throw the error so it can be handled by the calling component
       throw error;
     }
   }
 
-  // Get all noise locations from Supabase
+  // Get all noise locations from localStorage
   async getNoiseLocations(): Promise<NoiseLocation[]> {
     try {
-      const { data: noiseAreas, error } = await supabase
-        .from('noise_areas')
-        .select(`
-          *,
-          profiles!noise_areas_user_id_fkey (
-            id,
-            username
-          )
-        `);
+      const allAreas = loadAllNoiseAreas();
+      const currentUserId = getCurrentUserId();
 
-      if (error) {
-        console.error("Error fetching noise areas:", error);
-        return [];
-      }
-
-      if (!noiseAreas) {
-        return [];
-      }
-
-      // Convert Supabase response to NoiseLocation format
-      return noiseAreas.map((area: any) => ({
+      // Convert to NoiseLocation format
+      return allAreas.map((area: any) => ({
         id: area.id.toString(),
         coordinates: [area.latitude, area.longitude] as [number, number],
         noiseLevel: area.noise_level,
@@ -289,8 +281,8 @@ class MapService {
         radius: area.radius,
         timestamp: new Date(area.created_at),
         userId: area.user_id,
-        userName: area.profiles?.username,
-        canDelete: true, // User can delete their own areas based on RLS
+        userName: this.getUserNameFromStorage(area.user_id),
+        canDelete: area.user_id === currentUserId,
         expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
       }));
     } catch (error) {
@@ -299,38 +291,28 @@ class MapService {
     }
   }
 
-  // UPDATED: Get noise location by ID from API
+  // Helper to get username from storage or generate one
+  private getUserNameFromStorage(userId: string): string {
+    // Try to get from current user if it's the same
+    const currentUserId = getCurrentUserId();
+    if (userId === currentUserId) {
+      return localStorage.getItem('username') || 'You';
+    }
+    // For other users, generate a generic name
+    return `User${userId.slice(-4)}`;
+  }
+
+  // Get noise location by ID from localStorage
   async getNoiseLocationById(id: string): Promise<NoiseLocation | null> {
     try {
-      // Get current user for authentication
-      const user = await getCurrentUser();
-      if (!user) {
-        throw new Error("User must be authenticated to fetch noise areas");
-      }
+      const userId = getCurrentUserId();
+      if (!userId) throw new Error("User must be authenticated to fetch noise areas");
 
-      // Fetch noise area from Supabase
-      const { data: area, error } = await supabase
-        .from('noise_areas')
-        .select(`
-          *,
-          profiles!noise_areas_user_id_fkey (
-            id,
-            username
-          )
-        `)
-        .eq('id', id)
-        .single();
+      const allAreas = loadAllNoiseAreas();
+      const area = allAreas.find(a => a.id === id);
 
-      if (error) {
-        console.error("❌ Error fetching noise area:", error);
-        throw new Error("Failed to fetch noise area");
-      }
+      if (!area) return null;
 
-      if (!area) {
-        return null;
-      }
-
-      // Convert Supabase response to NoiseLocation format
       return {
         id: area.id.toString(),
         coordinates: [area.latitude, area.longitude] as [number, number],
@@ -342,8 +324,8 @@ class MapService {
         radius: area.radius,
         timestamp: new Date(area.created_at),
         userId: area.user_id,
-        userName: area.profiles?.username || 'Unknown',
-        canDelete: area.user_id === user.id,
+        userName: this.getUserNameFromStorage(area.user_id),
+        canDelete: area.user_id === userId,
         expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
       };
     } catch (error) {
@@ -352,21 +334,26 @@ class MapService {
     }
   }
 
-  // UPDATED: Remove noise location via API
+  // Remove noise location from localStorage
   async removeNoiseLocation(id: string): Promise<boolean> {
     try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
+      const userId = getCurrentUserId();
+      if (!userId) throw new Error('User not authenticated');
 
-      const { error } = await supabase
-        .from('noise_areas')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
+      // Remove from user storage
+      const userAreas = loadUserNoiseAreas(userId);
+      const userIndex = userAreas.findIndex(area => area.id === id && area.user_id === userId);
+      if (userIndex === -1) return false;
 
-      if (error) {
-        console.error("Error removing noise location:", error);
-        return false;
+      userAreas.splice(userIndex, 1);
+      saveUserNoiseAreas(userId, userAreas);
+
+      // Remove from global storage
+      const allAreas = loadAllNoiseAreas();
+      const globalIndex = allAreas.findIndex(area => area.id === id && area.user_id === userId);
+      if (globalIndex !== -1) {
+        allAreas.splice(globalIndex, 1);
+        saveAllNoiseAreas(allAreas);
       }
 
       return true;
@@ -376,76 +363,67 @@ class MapService {
     }
   }
 
-  // Update noise location using Supabase
+  // Update noise location using localStorage
   async updateNoiseLocation(
     id: string,
     updates: Partial<NoiseLocation>
   ): Promise<NoiseLocation | null> {
     try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
+      const userId = getCurrentUserId();
+      if (!userId) throw new Error('User not authenticated');
 
       const updateData: any = {};
 
       if (updates.coordinates) {
-        updateData.latitude = Number(updates.coordinates[1].toFixed(10));
-        updateData.longitude = Number(updates.coordinates[0].toFixed(10));
+        updateData.latitude = Number(updates.coordinates[0].toFixed(10));
+        updateData.longitude = Number(updates.coordinates[1].toFixed(10));
       }
-      if (updates.noiseLevel !== undefined)
-        updateData.noise_level = updates.noiseLevel;
-      if (updates.source !== undefined)
-        updateData.noise_source = updates.source;
-      if (updates.healthImpact !== undefined)
-        updateData.health_impact = updates.healthImpact;
-      if (updates.description !== undefined)
-        updateData.description = updates.description;
+      if (updates.noiseLevel !== undefined) updateData.noise_level = updates.noiseLevel;
+      if (updates.source !== undefined) updateData.noise_source = updates.source;
+      if (updates.healthImpact !== undefined) updateData.health_impact = updates.healthImpact;
+      if (updates.description !== undefined) updateData.description = updates.description;
       if (updates.address !== undefined) updateData.address = updates.address;
       if (updates.radius !== undefined) updateData.radius = updates.radius;
 
-      const { data, error } = await supabase
-        .from('noise_areas')
-        .update(updateData)
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .select('*')
-        .single();
+      // Update in user storage
+      const userAreas = loadUserNoiseAreas(userId);
+      const userIndex = userAreas.findIndex(area => area.id === id && area.user_id === userId);
+      if (userIndex === -1) throw new Error("Area not found or access denied");
 
-      if (error) {
-        console.error("Error updating noise location:", error);
-        throw new Error("Failed to update noise area");
+      Object.assign(userAreas[userIndex], updateData);
+      saveUserNoiseAreas(userId, userAreas);
+
+      // Update in global storage
+      const allAreas = loadAllNoiseAreas();
+      const globalIndex = allAreas.findIndex(area => area.id === id && area.user_id === userId);
+      if (globalIndex !== -1) {
+        Object.assign(allAreas[globalIndex], updateData);
+        saveAllNoiseAreas(allAreas);
       }
 
-      if (!data) {
-        throw new Error("No data returned from update");
-      }
-
-      // Get user profile for userName
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', user.id)
-        .single();
+      const updatedArea = userAreas[userIndex];
 
       return {
-        id: data.id.toString(),
-        coordinates: [data.longitude, data.latitude] as [number, number],
-        noiseLevel: data.noise_level,
-        source: data.noise_source,
-        healthImpact: data.health_impact,
-        description: data.description,
-        address: data.address,
-        radius: data.radius,
-        timestamp: new Date(data.created_at),
-        userId: data.user_id,
-        userName: profile?.username,
+        id: updatedArea.id,
+        coordinates: [updatedArea.latitude, updatedArea.longitude] as [number, number],
+        noiseLevel: updatedArea.noise_level,
+        source: updatedArea.noise_source,
+        healthImpact: updatedArea.health_impact,
+        description: updatedArea.description,
+        address: updatedArea.address,
+        radius: updatedArea.radius,
+        timestamp: new Date(updatedArea.created_at),
+        userId: updatedArea.user_id,
+        userName: this.getUserNameFromStorage(updatedArea.user_id),
         canDelete: true,
-        expires_at: data.expires_at ? new Date(data.expires_at) : undefined,
+        expires_at: updatedArea.expires_at ? new Date(updatedArea.expires_at) : undefined,
       };
     } catch (error) {
       console.error("Error updating noise location:", error);
       return null;
     }
   }
+
   async updateNoiseLocationWithAudio(
     id: string,
     audioFile: File,
@@ -531,52 +509,44 @@ class MapService {
 
       console.log("📤 Data yang akan dikirim untuk update:", updateData);
 
-      // Langkah 3: Update ke Supabase
-      console.log("Mengirim update ke Supabase...");
-      const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
+      // Langkah 3: Update ke localStorage
+      console.log("Mengirim update ke storage...");
+      const userId = getCurrentUserId();
+      if (!userId) throw new Error('User not authenticated');
 
-      const { data, error } = await supabase
-        .from('noise_areas')
-        .update(updateData)
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .select('*')
-        .single();
+      // Update in user storage
+      const userAreas = loadUserNoiseAreas(userId);
+      const userIndex = userAreas.findIndex(area => area.id === id && area.user_id === userId);
+      if (userIndex === -1) throw new Error("Area not found or access denied");
 
-      console.log("📥 Response data update:", data);
+      Object.assign(userAreas[userIndex], updateData);
+      saveUserNoiseAreas(userId, userAreas);
 
-      if (error) {
-        console.error("Error updating noise location:", error);
-        throw new Error("Gagal memperbarui lokasi noise setelah analisis ulang");
+      // Update in global storage
+      const allAreas = loadAllNoiseAreas();
+      const globalIndex = allAreas.findIndex(area => area.id === id && area.user_id === userId);
+      if (globalIndex !== -1) {
+        Object.assign(allAreas[globalIndex], updateData);
+        saveAllNoiseAreas(allAreas);
       }
 
-      if (!data) {
-        throw new Error("No data returned from update");
-      }
-
-      // Get user profile for userName
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', user.id)
-        .single();
+      const updatedArea = userAreas[userIndex];
 
       // Pastikan lokasi berhasil diupdate
       const updatedLocation = {
-        id: data.id.toString(),
-        coordinates: [data.longitude, data.latitude] as [number, number],
-        noiseLevel: data.noise_level,
-        source: data.noise_source,
-        healthImpact: data.health_impact,
-        description: data.description,
-        address: data.address,
-        radius: data.radius,
-        timestamp: new Date(data.created_at),
-        userId: data.user_id,
-        userName: profile?.username,
+        id: updatedArea.id,
+        coordinates: [updatedArea.latitude, updatedArea.longitude] as [number, number],
+        noiseLevel: updatedArea.noise_level,
+        source: updatedArea.noise_source,
+        healthImpact: updatedArea.health_impact,
+        description: updatedArea.description,
+        address: updatedArea.address,
+        radius: updatedArea.radius,
+        timestamp: new Date(updatedArea.created_at),
+        userId: updatedArea.user_id,
+        userName: this.getUserNameFromStorage(updatedArea.user_id),
         canDelete: true,
-        expires_at: data.expires_at ? new Date(data.expires_at) : undefined,
+        expires_at: updatedArea.expires_at ? new Date(updatedArea.expires_at) : undefined,
       };
 
       console.log("✅ Berhasil memperbarui lokasi:", updatedLocation);
@@ -673,21 +643,19 @@ class MapService {
     });
   }
 
-  // Clear all noise locations (only user's own areas) using Supabase
+  // Clear all noise locations (only user's own areas) using localStorage
   async clearAllNoiseLocations(): Promise<boolean> {
     try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
+      const userId = getCurrentUserId();
+      if (!userId) throw new Error('User not authenticated');
 
-      const { error } = await supabase
-        .from('noise_areas')
-        .delete()
-        .eq('user_id', user.id);
+      // Clear user storage
+      saveUserNoiseAreas(userId, []);
 
-      if (error) {
-        console.error("Error clearing noise locations:", error);
-        return false;
-      }
+      // Remove user's areas from global storage
+      const allAreas = loadAllNoiseAreas();
+      const filteredAreas = allAreas.filter(area => area.user_id !== userId);
+      saveAllNoiseAreas(filteredAreas);
 
       return true;
     } catch (error) {
@@ -696,23 +664,14 @@ class MapService {
     }
   }
 
-  // Export noise data (user's own areas) using Supabase
+  // Export noise data (user's own areas) using localStorage
   async exportNoiseData(): Promise<string | null> {
     try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error('User not authenticated');
+      const userId = getCurrentUserId();
+      if (!userId) throw new Error('User not authenticated');
 
-      const { data: noiseAreas, error } = await supabase
-        .from('noise_areas')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error("Error exporting noise data:", error);
-        return null;
-      }
-
-      return JSON.stringify(noiseAreas, null, 2);
+      const userAreas = loadUserNoiseAreas(userId);
+      return JSON.stringify(userAreas, null, 2);
     } catch (error) {
       console.error("Error exporting noise data:", error);
       return null;

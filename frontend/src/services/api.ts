@@ -1,5 +1,3 @@
-import { supabase } from '../lib/supabase'
-
 // Types
 export interface PredictionResponse {
   noise_level: number;
@@ -34,147 +32,240 @@ export interface HistoryItem {
   file_name?: string;
 }
 
+interface SignUpData {
+  username: string;
+  email: string;
+  password: string;
+  fullName: string;
+}
+
+interface SignInData {
+  loginField: string;
+  password: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  username?: string;
+  fullName?: string;
+}
+
+interface AuthResponse {
+  data: {
+    user: User;
+    session?: any;
+  };
+  error?: any;
+}
+
+interface NoiseArea {
+  id: string;
+  user_id: string;
+  noise_level: number;
+  location: any;
+  description?: string;
+  created_at: string;
+}
+
+interface PredictionHistory {
+  id: string;
+  user_id: string;
+  file_name: string;
+  prediction: string;
+  confidence: number;
+  created_at: string;
+}
+
+// Mock user for testing
+const mockUser: User = {
+  id: "mock-user-123",
+  email: "user@example.com",
+  username: "testuser",
+  fullName: "Test User",
+};
+
+// Mock data storage
+let mockNoiseAreas: NoiseArea[] = [];
+let mockPredictionHistory: HistoryItem[] = [];
+
 export const apiService = {
-  // Authentication
+  // Authentication stubs
   async signUp(email: string, password: string, userData: any) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: userData
-      }
-    })
-    return { data, error }
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Mock validation
+    if (!email || !password) {
+      return { data: null, error: { message: "Email dan password harus diisi" } };
+    }
+
+    const user = {
+      id: `user-${Date.now()}`,
+      email: email,
+      ...userData,
+    };
+
+    return {
+      data: { user },
+      error: null,
+    };
   },
 
   async signIn(email: string, password: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
-    return { data, error }
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Simple mock authentication
+    if (password === "wrongpassword") {
+      return {
+        data: null,
+        error: { message: "Kredensial tidak valid" },
+      };
+    }
+
+    return {
+      data: {
+        user: mockUser,
+        session: { access_token: "mock-token-123" },
+      },
+      error: null,
+    };
   },
 
   async signOut() {
-    const { error } = await supabase.auth.signOut()
-    return { error }
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Clear local storage
+    localStorage.removeItem("userId");
+    localStorage.removeItem("userEmail");
+
+    return { error: null };
   },
 
-  // Get prediction history
+  // Get prediction history stub
   async getPredictionHistory(limit: number = 50): Promise<HistoryItem[]> {
-    const { data, error } = await supabase
-      .from('prediction_history')
-      .select('*')
-      .order('timestamp', { ascending: false })
-      .limit(limit)
-    
-    if (error) {
-      console.error('Error fetching prediction history:', error);
-      return [];
-    }
-    
-    return data || [];
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    return mockPredictionHistory.slice(0, limit);
   },
 
-  // Noise areas
+  // Noise areas stubs
   async getNoiseAreas() {
-    const { data, error } = await supabase
-      .from('noise_areas')
-      .select('*')
-      .order('created_at', { ascending: false })
-    
-    return { data, error }
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    return { data: mockNoiseAreas, error: null };
   },
 
   async createNoiseArea(noiseArea: any) {
-    const { data, error } = await supabase
-      .from('noise_areas')
-      .insert(noiseArea)
-      .select()
-      .single()
-    
-    return { data, error }
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    const newArea = {
+      id: `area-${Date.now()}`,
+      user_id: localStorage.getItem("userId") || "mock-user-123",
+      created_at: new Date().toISOString(),
+      ...noiseArea,
+    };
+
+    mockNoiseAreas.push(newArea);
+    return { data: newArea, error: null };
   },
 
-  // Audio upload and prediction
+  // Audio upload and prediction stub
   async uploadAudioFile(file: File): Promise<UploadResult> {
     const startTime = performance.now();
-    
+
     try {
       // Import audio classification service
-      const { audioClassificationService } = await import('./audioClassificationService');
-      
+      const { audioClassificationService } = await import("./audioClassificationService");
+
       // Convert file to blob and make prediction
       const audioBlob = new Blob([file], { type: file.type });
       const prediction = await audioClassificationService.predictFromAudio(audioBlob);
-      
+
       const endTime = performance.now();
-      const processingTime = (endTime - startTime) / 1000; // Convert to seconds
-      
+      const processingTime = (endTime - startTime) / 1000;
+
+      // Simpan ke history (mock)
+      const historyItem: HistoryItem = {
+        id: `hist-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        noise_level: 75, // Default/mock value until enhanced
+        health_impact: prediction.healthImpact,
+        confidence_score: prediction.confidence,
+        noise_source: prediction.noiseSource,
+        file_name: file.name,
+      };
+      mockPredictionHistory.unshift(historyItem);
+
       return {
         status: "success",
         predictions: {
-          noise_level: 75, // Default value, can be enhanced later
-          health_impact: prediction.healthImpact,
-          confidence_score: prediction.confidence,
-          noise_source: prediction.noiseSource
+          noise_level: historyItem.noise_level,
+          health_impact: historyItem.health_impact,
+          confidence_score: historyItem.confidence_score,
+          noise_source: historyItem.noise_source,
         },
         file_info: {
           name: file.name,
-          size: file.size
+          size: file.size,
         },
-        processing_time: Math.round(processingTime * 100) / 100
+        processing_time: Math.round(processingTime * 100) / 100,
       };
     } catch (error) {
-      console.error('Error processing audio file:', error);
-      
+      console.error("Error processing audio file:", error);
+
       // Fallback to mock data if TensorFlow prediction fails
       const endTime = performance.now();
       const processingTime = (endTime - startTime) / 1000;
-      
+
       return {
         status: "error",
         predictions: {
           noise_level: 0,
           health_impact: "unknown",
           confidence_score: 0,
-          noise_source: "unknown"
+          noise_source: "unknown",
         },
         file_info: {
           name: file.name,
-          size: file.size
+          size: file.size,
         },
-        processing_time: Math.round(processingTime * 100) / 100
+        processing_time: Math.round(processingTime * 100) / 100,
       };
     }
   },
 
-  // Model status
+  // Model status stub
   async getModelStatus(): Promise<ModelStatus> {
     try {
-      const { audioClassificationService } = await import('./audioClassificationService');
+      await import("./audioClassificationService");
       // For now, return a simple status - can be enhanced later
       return {
         model_loaded: true,
         model_version: "YAMNet-1.0.0",
-        last_updated: new Date().toISOString()
+        last_updated: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('Error getting model status:', error);
+      console.error("Error getting model status:", error);
       return {
         model_loaded: false,
         model_version: "unknown",
-        last_updated: new Date().toISOString()
+        last_updated: new Date().toISOString(),
       };
     }
   },
 
-  // Health check
+  // Health check stub
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
     // Mock health check response
     return {
       status: "healthy",
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
-  }
-}
+  },
+};

@@ -29,6 +29,7 @@ import {
   getHealthImpactDescription,
   getNoiseSourceIcon,
 } from "../utils/translationUtils";
+import SessionManager from "../utils/tokenManager";
 
 type ChipColor =
   | "success"
@@ -122,11 +123,14 @@ const HomePage: React.FC = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { supabase } = await import("../lib/supabase");
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setIsAuthenticated(!!session);
+      try {
+        const sm = SessionManager.getInstance();
+        const auth = await sm.isAuthenticated();
+        setIsAuthenticated(auth);
+      } catch (e) {
+        console.warn("Auth check failed:", e);
+        setIsAuthenticated(false);
+      }
     };
     checkAuth();
   }, []);

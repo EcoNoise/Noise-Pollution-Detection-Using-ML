@@ -1,10 +1,6 @@
-import { supabase } from '../lib/supabase';
+// src/services/healthService.ts
 
-// Helper function to get current user
-const getCurrentUser = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-};
+// Remove Supabase; implement localStorage-backed mock data
 
 export interface HealthProfile {
   id?: number;
@@ -52,121 +48,131 @@ export interface HealthDashboard {
   };
 }
 
-// Health Profile API calls using Supabase
+// Helpers for auth and storage
+const getCurrentUserId = (): string | null => localStorage.getItem('userId');
+const profileKey = (userId: string) => `health_profile_${userId}`;
+const logsKey = (userId: string) => `exposure_logs_${userId}`;
+
+const loadProfile = (userId: string): HealthProfile | null => {
+  const raw = localStorage.getItem(profileKey(userId));
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+};
+const saveProfile = (userId: string, profile: HealthProfile) => {
+  localStorage.setItem(profileKey(userId), JSON.stringify(profile));
+};
+
+const loadLogs = (userId: string): ExposureLog[] => {
+  const raw = localStorage.getItem(logsKey(userId));
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+};
+const saveLogs = (userId: string, logs: ExposureLog[]) => {
+  localStorage.setItem(logsKey(userId), JSON.stringify(logs));
+};
+
+// Health Profile API calls (mock)
 export const getHealthProfile = async (): Promise<HealthProfile> => {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('User not authenticated');
-
-  const { data, error } = await supabase
-    .from('health_profiles')
-    .select('*')
-    .eq('user_id', user.id)
-    .single();
-
-  if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-    throw error;
-  }
-
-  return data || {};
+  const userId = getCurrentUserId();
+  if (!userId) throw new Error('User not authenticated');
+  return loadProfile(userId) || {};
 };
 
 export const createHealthProfile = async (
   data: Partial<HealthProfile>
 ): Promise<HealthProfile> => {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('User not authenticated');
-
-  const { data: profile, error } = await supabase
-    .from('health_profiles')
-    .insert({ ...data, user_id: user.id })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return profile;
+  const userId = getCurrentUserId();
+  if (!userId) throw new Error('User not authenticated');
+  const newProfile: HealthProfile = { ...data } as HealthProfile;
+  saveProfile(userId, newProfile);
+  return newProfile;
 };
 
 export const updateHealthProfile = async (
   data: Partial<HealthProfile>
 ): Promise<HealthProfile> => {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('User not authenticated');
-
-  const { data: profile, error } = await supabase
-    .from('health_profiles')
-    .update(data)
-    .eq('user_id', user.id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return profile;
+  const userId = getCurrentUserId();
+  if (!userId) throw new Error('User not authenticated');
+  const current = loadProfile(userId) || {};
+  const updated: HealthProfile = { ...current, ...data };
+  saveProfile(userId, updated);
+  return updated;
 };
 
-// Exposure Log API calls using Supabase
+// Exposure Log API calls (mock)
 export const getExposureLogs = async (
   startDate?: string,
   endDate?: string
 ): Promise<ExposureLog[]> => {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('User not authenticated');
+  const userId = getCurrentUserId();
+  if (!userId) throw new Error('User not authenticated');
 
-  let query = supabase
-    .from('exposure_logs')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('date', { ascending: false });
+  let logs = loadLogs(userId);
 
+  // Filter by date range if provided
   if (startDate) {
-    query = query.gte('date', startDate);
+    logs = logs.filter((l) => l.date >= startDate);
   }
   if (endDate) {
-    query = query.lte('date', endDate);
+    logs = logs.filter((l) => l.date <= endDate);
   }
 
-  const { data, error } = await query;
-
-  if (error) throw error;
-  return data || [];
+  // Sort by date desc
+  logs.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  return logs;
 };
 
 export const createExposureLog = async (
   data: Partial<ExposureLog>
 ): Promise<ExposureLog> => {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('User not authenticated');
+  const userId = getCurrentUserId();
+  if (!userId) throw new Error('User not authenticated');
 
-  const { data: log, error } = await supabase
-    .from('exposure_logs')
-    .insert({ ...data, user_id: user.id })
-    .select()
-    .single();
+  const logs = loadLogs(userId);
+  const nextId = (logs[0]?.id || 0) + 1;
+  const total_exposure_hours = (data.home_hours || 0) + (data.work_hours || 0) + (data.commute_hours || 0);
+  const weighted_avg_noise = total_exposure_hours > 0
+    ? (((data.home_avg_noise || 0) * (data.home_hours || 0)) +
+       ((data.work_avg_noise || 0) * (data.work_hours || 0)) +
+       ((data.commute_avg_noise || 0) * (data.commute_hours || 0))) / total_exposure_hours
+    : 0;
 
-  if (error) throw error;
+  const log: ExposureLog = {
+    id: nextId,
+    date: data.date || formatDate(new Date()),
+    home_hours: data.home_hours || 0,
+    work_hours: data.work_hours || 0,
+    commute_hours: data.commute_hours || 0,
+    home_avg_noise: data.home_avg_noise || 0,
+    work_avg_noise: data.work_avg_noise || 0,
+    commute_avg_noise: data.commute_avg_noise || 0,
+    total_exposure_hours,
+    weighted_avg_noise,
+    health_alerts: data.health_alerts || [],
+  };
+
+  logs.unshift(log);
+  saveLogs(userId, logs);
   return log;
 };
 
-// Weekly Summary using Supabase
+// Weekly Summary (mock)
 export const getWeeklySummary = async (
   weekStart?: string
 ): Promise<WeeklySummary> => {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('User not authenticated');
-
   const startDate = weekStart || getCurrentWeekStart();
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + 6);
   const endDateStr = formatDate(endDate);
 
   const logs = await getExposureLogs(startDate, endDateStr);
-  
-  // Calculate weekly summary from logs
-  const weeklyAvgNoise = logs.length > 0 
+
+  const weeklyAvgNoise = logs.length > 0
     ? logs.reduce((sum, log) => sum + (log.weighted_avg_noise || 0), 0) / logs.length
     : 0;
-  
+
   const totalAlerts = logs.reduce((sum, log) => sum + (log.health_alerts?.length || 0), 0);
-  
+
   return {
     week_start: startDate,
     week_end: endDateStr,
@@ -177,21 +183,18 @@ export const getWeeklySummary = async (
   };
 };
 
-// Health Dashboard using Supabase
+// Health Dashboard (mock)
 export const getHealthDashboard = async (): Promise<HealthDashboard> => {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('User not authenticated');
-
   const profile = await getHealthProfile();
   const recentLogs = await getExposureLogs();
   const last7Days = recentLogs.slice(0, 7);
-  
+
   const avgNoise7Days = last7Days.length > 0
     ? last7Days.reduce((sum, log) => sum + (log.weighted_avg_noise || 0), 0) / last7Days.length
     : 0;
-  
+
   const totalAlerts = last7Days.reduce((sum, log) => sum + (log.health_alerts?.length || 0), 0);
-  
+
   return {
     profile,
     recent_logs: last7Days,
@@ -207,7 +210,7 @@ export const getHealthDashboard = async (): Promise<HealthDashboard> => {
 export const getCurrentWeekStart = (): string => {
   const now = new Date();
   const dayOfWeek = now.getDay();
-  const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust when day is Sunday
+  const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
   const monday = new Date(now.setDate(diff));
   return monday.toISOString().split("T")[0];
 };
@@ -217,7 +220,7 @@ export const formatDate = (date: Date): string => {
 };
 
 export const getLast7Days = (): string[] => {
-  const dates = [];
+  const dates = [] as string[];
   for (let i = 6; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);

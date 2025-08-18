@@ -1,4 +1,5 @@
 import { apiService } from './api';
+import SessionManager from '../utils/tokenManager';
 
 // Fungsi untuk registrasi
 export const register = async (formData: FormData) => {
@@ -22,23 +23,17 @@ export const register = async (formData: FormData) => {
     throw new Error(result.error.message);
   }
 
-  // If signup successful, create profile record
+  // Store user info in localStorage for profile service compatibility
   if (result.data.user) {
-    const { supabase } = await import('../lib/supabase');
+    localStorage.setItem("userId", result.data.user.id);
+    localStorage.setItem("userEmail", result.data.user.email || "");
+    localStorage.setItem("username", username);
+    localStorage.setItem("firstName", firstName);
+    localStorage.setItem("lastName", lastName);
     
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: result.data.user.id,
-        username: username,
-        first_name: firstName,
-        last_name: lastName
-      });
-    
-    if (profileError) {
-      console.error('Error creating profile:', profileError);
-      // Don't throw error here as user is already created
-    }
+    // Set mock tokens for session management
+    const sessionManager = SessionManager.getInstance();
+    sessionManager.setTokens(`mock-token-${result.data.user.id}`, `refresh-token-${result.data.user.id}`);
   }
   
   return { data: result.data };
@@ -50,6 +45,19 @@ export const login = async (loginField: string, password: string) => {
   
   if (result.error) {
     throw new Error(result.error.message);
+  }
+  
+  // Store user session data
+  if (result.data.user) {
+    localStorage.setItem("userId", result.data.user.id);
+    localStorage.setItem("userEmail", result.data.user.email || "");
+    if (result.data.user.username) {
+      localStorage.setItem("username", result.data.user.username);
+    }
+    
+    // Set mock tokens for session management
+    const sessionManager = SessionManager.getInstance();
+    sessionManager.setTokens(`mock-token-${result.data.user.id}`, `refresh-token-${result.data.user.id}`);
   }
   
   return { data: result.data };

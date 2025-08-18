@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import { supabase } from "./lib/supabase";
+import { apiService } from "./services/api";
+import SessionManager from "./utils/tokenManager";
 
 import {
   BrowserRouter as Router,
@@ -300,7 +301,13 @@ function App() {
 
   const handleLogin = () => setIsAuthenticated(true);
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    try {
+      await apiService.signOut();
+    } catch (err) {
+      console.warn("Sign out error:", err);
+    }
+    const sessionManager = SessionManager.getInstance();
+    await sessionManager.clearTokens();
     localStorage.removeItem("userId");
     localStorage.removeItem("userEmail");
     setIsAuthenticated(false);
@@ -323,10 +330,9 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        setIsAuthenticated(!!session);
+        const sessionManager = SessionManager.getInstance();
+        const auth = await sessionManager.isAuthenticated();
+        setIsAuthenticated(auth);
       } catch (error) {
         console.error("Error checking auth status:", error);
         setIsAuthenticated(false);
@@ -337,15 +343,16 @@ function App() {
 
     checkAuth();
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsAuthenticated(!!session);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // Listen to storage changes for cross-tab auth updates
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "mock_access_token") {
+        setIsAuthenticated(!!e.newValue);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   if (loading) {
