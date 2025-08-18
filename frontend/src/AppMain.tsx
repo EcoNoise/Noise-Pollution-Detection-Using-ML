@@ -3,6 +3,8 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { apiService } from "./services/api";
 import SessionManager from "./utils/tokenManager";
+import { Alert } from "@mui/material";
+import { appConfig, backendNotice } from "./config/appConfig";
 
 import {
   BrowserRouter as Router,
@@ -290,6 +292,10 @@ const ProtectedRoute: React.FC<{
   isAuthenticated: boolean;
   children: JSX.Element;
 }> = ({ isAuthenticated, children }) => {
+  // Phase 2: Always allow access (auth disabled)
+  if (!appConfig.backendEnabled) {
+    return children;
+  }
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return children;
 };
@@ -380,6 +386,14 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      {/* Global backend disabled banner */}
+      {appConfig.showBackendNotice && !appConfig.backendEnabled && (
+        <Box sx={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 2000, px: 2, py: 1 }}>
+          <Alert severity={backendNotice.type} sx={{ borderRadius: 0, bgcolor: "#1E293B", color: "#E2E8F0", border: "1px solid #334155" }} icon={<VolumeX size={18} />}>
+            <strong>{backendNotice.title}:</strong> {backendNotice.message}
+          </Alert>
+        </Box>
+      )}
       <Router>
         <Routes>
           {/* Rute tanpa sidebar */}

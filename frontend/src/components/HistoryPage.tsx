@@ -11,6 +11,7 @@ import {
   DailyAudioService,
   DailyAudioSummary,
 } from "../services/dailyAudioService";
+import { appConfig } from "../config/appConfig";
 import HealthDashboard from "./HealthDashboard";
 
 const HistoryPage: React.FC = () => {
@@ -55,6 +56,16 @@ const HistoryPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Backend Disabled Warning */}
+        {!appConfig.backendEnabled && (
+          <div className="bg-orange-900 border border-orange-600 text-orange-200 px-4 py-3 rounded-lg mb-6 flex items-center gap-3">
+            <AlertTriangle size={20} />
+            <span>
+              Beberapa data histori dan dashboard kesehatan mungkin tidak lengkap karena backend dinonaktifkan. Data ditampilkan dari cache lokal.
+            </span>
+          </div>
+        )}
+
         {/* Daily Audio Summary Section */}
         <div className="bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-700 mb-8">
           <div className="flex items-center gap-3 mb-6">

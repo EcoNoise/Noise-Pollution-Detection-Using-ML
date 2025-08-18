@@ -23,8 +23,8 @@ import styles from "../styles/MapComponent.module.css";
 import SessionManager from "../utils/tokenManager";
 
 import "leaflet/dist/leaflet.css";
+import { appConfig } from "../config/appConfig";
 
-// ... (existing code for Leaflet icon fix and custom icons) ...
 // PERBAIKAN: Fix untuk ikon default Leaflet yang sering rusak di React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -380,6 +380,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     }
   };
   const handleAddNoiseArea = async () => {
+    if (!appConfig.backendEnabled) {
+      setError("Fitur analisis area tidak tersedia saat backend dinonaktifkan");
+      return;
+    }
+
     const sm = SessionManager.getInstance();
     const isAuthenticated = await sm.isAuthenticated();
 
@@ -403,6 +408,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
   // NEW: Handler for the "Analisis Suara" button
   const handleUploadAndAnalyze = async () => {
+    if (!appConfig.backendEnabled) {
+      setError("Fitur analisis audio tidak tersedia saat backend dinonaktifkan");
+      return;
+    }
+
     if (!selectedPosition) {
       setError("Lokasi di peta belum dipilih.");
       return;
@@ -565,6 +575,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     }
   };
   const handleStartReanalysis = (location: NoiseLocation) => {
+    if (!appConfig.backendEnabled) {
+      setError("Fitur analisis ulang tidak tersedia saat backend dinonaktifkan");
+      return;
+    }
     setLocationToReanalyze(location); // Simpan info lokasi mana yang akan dianalisis
     reanalysisFileInputRef.current?.click(); // Buka jendela pilih file
   };
@@ -573,6 +587,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const handleReanalysisFileSelected = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
+    if (!appConfig.backendEnabled) {
+      setError("Fitur analisis ulang tidak tersedia saat backend dinonaktifkan");
+      return;
+    }
+
     const file = e.target.files?.[0];
     if (!file || !locationToReanalyze) return; // Batalkan jika tidak ada file
 
@@ -609,6 +628,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     }
   };
   const handleDeleteNoiseLocation = async (id: string) => {
+    if (!appConfig.backendEnabled) {
+      setError("Fitur hapus area tidak tersedia saat backend dinonaktifkan");
+      return;
+    }
+
     try {
       setLoading(true);
       const success = await mapService.removeNoiseLocation(id);
@@ -844,6 +868,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         showFilter={showFilter}
         isTrackingUser={isTrackingUser}
         hasUserLocation={userLocation !== null}
+        backendDisabled={!appConfig.backendEnabled}
       />
       {showFilter && (
         <div className="tutorial-filter-container" id="filter-container">
@@ -859,6 +884,18 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       {/* UPDATED: Noise Panel is now the form for the new flow */}
       {showNoiseForm && selectedPosition && (
         <div className={styles.noisePanel}>
+          {!appConfig.backendEnabled && (
+            <div style={{ 
+              background: '#fbbf24', 
+              color: '#92400e', 
+              padding: '12px', 
+              borderRadius: '8px', 
+              marginBottom: '16px',
+              border: '1px solid #f59e0b'
+            }}>
+              ⚠️ Fitur analisis audio dinonaktifkan sementara
+            </div>
+          )}
           <div className={styles.noisePanelTitle}>
             Analisis Kebisingan di Lokasi
           </div>
@@ -876,6 +913,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
               value={formAddress}
               onChange={(e) => setFormAddress(e.target.value)}
               className={styles.noiseInput}
+              disabled={!appConfig.backendEnabled}
             />
             <input
               type="text"
@@ -883,6 +921,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
               value={formDescription}
               onChange={(e) => setFormDescription(e.target.value)}
               className={styles.noiseInput}
+              disabled={!appConfig.backendEnabled}
             />
             <div className={styles.fileInputContainer}>
               <label htmlFor="audio-upload" className={styles.fileInputLabel}>
@@ -894,7 +933,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                 accept="audio/*"
                 onChange={handleFileChange} // <--- Handler baru
                 className={styles.fileInput}
-                disabled={isUploading}
+                disabled={isUploading || !appConfig.backendEnabled}
               />
               {audioFile && (
                 <span className={styles.fileName}>{audioFile.name}</span>
@@ -903,9 +942,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
             <button
               onClick={handleUploadAndAnalyze} // <--- Handler baru
               className={styles.submitButton}
-              disabled={isUploading || !audioFile}
+              disabled={isUploading || !audioFile || !appConfig.backendEnabled}
             >
-              {isUploading ? "Menganalisis..." : "Upload & Analisis"}
+              {!appConfig.backendEnabled 
+                ? "Fitur Dinonaktifkan" 
+                : isUploading 
+                ? "Menganalisis..." 
+                : "Upload & Analisis"}
             </button>
           </div>
         </div>

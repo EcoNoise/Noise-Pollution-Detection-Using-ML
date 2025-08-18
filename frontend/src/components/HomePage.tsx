@@ -30,6 +30,7 @@ import {
   getNoiseSourceIcon,
 } from "../utils/translationUtils";
 import SessionManager from "../utils/tokenManager";
+import { appConfig } from "../config/appConfig";
 
 type ChipColor =
   | "success"
@@ -273,6 +274,10 @@ const HomePage: React.FC = () => {
   };
 
   const startRecording = async () => {
+    if (!appConfig.backendEnabled) {
+      setShowLoginAlert(true);
+      return;
+    }
     try {
       setError(null);
       setResult(null);
@@ -903,5 +908,7 @@ const HomePage: React.FC = () => {
     </Box>
   );
 };
+
+// Removed the orphaned code block that was incorrectly placed outside the component
 
 export default HomePage;

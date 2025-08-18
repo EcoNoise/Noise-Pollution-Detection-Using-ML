@@ -10,8 +10,10 @@ import {
   UserCheck,
   CheckCircle,
   Calendar,
+  AlertTriangle,
 } from "lucide-react";
 import { getUserProfile, updateUserProfile } from "../services/profileService";
+import { appConfig } from "../config/appConfig";
 
 // Interface untuk struktur data profil pengguna
 interface UserProfile {
@@ -62,6 +64,10 @@ const ProfilePage: React.FC = () => {
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!appConfig.backendEnabled) {
+      setError("Fitur upload foto tidak tersedia karena backend dinonaktifkan");
+      return;
+    }
     const file = e.target.files?.[0];
     if (file) {
       setPhotoFile(file);
@@ -70,6 +76,11 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleSaveChanges = async () => {
+    if (!appConfig.backendEnabled) {
+      setError("Fitur simpan perubahan tidak tersedia karena backend dinonaktifkan");
+      return;
+    }
+    
     setLoading(true);
     setError("");
     const formData = new FormData();
@@ -102,6 +113,11 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleEditToggle = () => {
+    if (!appConfig.backendEnabled && !isEditing) {
+      setError("Fitur edit profil tidak tersedia karena backend dinonaktifkan");
+      return;
+    }
+    
     if (isEditing) {
       setEditData(profile!);
       setPhotoPreview(profile?.photo || null);
@@ -151,11 +167,27 @@ const ProfilePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-900 text-white p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
+        {/* Backend Disabled Warning */}
+        {!appConfig.backendEnabled && (
+          <div className="bg-orange-900 border border-orange-600 text-orange-200 px-4 py-3 rounded-lg mb-4 flex items-center gap-3">
+            <AlertTriangle size={20} />
+            <span>
+              Fitur profil sementara dinonaktifkan karena backend tidak aktif. Data yang ditampilkan menggunakan cache lokal.
+            </span>
+          </div>
+        )}
+
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-blue-400">Profil Saya</h1>
           <button
             onClick={handleEditToggle}
-            className="flex items-center gap-2 py-2 px-4 bg-blue-600 rounded-lg hover:bg-blue-700 transition-all duration-200"
+            disabled={!appConfig.backendEnabled}
+            className={`flex items-center gap-2 py-2 px-4 rounded-lg transition-all duration-200 ${
+              !appConfig.backendEnabled
+                ? "bg-gray-600 cursor-not-allowed opacity-50"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
+            title={!appConfig.backendEnabled ? "Fitur backend tidak aktif" : ""}
           >
             <Edit3 size={18} />
             {isEditing ? "Batal" : "Edit Profil"}
@@ -172,7 +204,7 @@ const ProfilePage: React.FC = () => {
                   alt="Foto Profil"
                   className="w-full h-full rounded-full object-cover border-4 border-blue-500 shadow-lg"
                 />
-                {isEditing && (
+                {isEditing && appConfig.backendEnabled && (
                   <label
                     htmlFor="photo-upload"
                     className="absolute bottom-1 right-1 w-10 h-10 bg-slate-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-slate-500 transition"
@@ -205,7 +237,12 @@ const ProfilePage: React.FC = () => {
                       name="first_name"
                       value={editData.first_name || ""}
                       onChange={handleInputChange}
-                      className="w-full bg-slate-700 p-3 rounded-lg border border-slate-600 text-white focus:border-blue-500 focus:outline-none"
+                      disabled={!appConfig.backendEnabled}
+                      className={`w-full p-3 rounded-lg border text-white focus:outline-none ${
+                        !appConfig.backendEnabled
+                          ? "bg-slate-600 border-slate-500 cursor-not-allowed opacity-50"
+                          : "bg-slate-700 border-slate-600 focus:border-blue-500"
+                      }`}
                       placeholder="Nama Depan"
                     />
                     <input
@@ -213,7 +250,12 @@ const ProfilePage: React.FC = () => {
                       name="last_name"
                       value={editData.last_name || ""}
                       onChange={handleInputChange}
-                      className="w-full bg-slate-700 p-3 rounded-lg border border-slate-600 text-white focus:border-blue-500 focus:outline-none"
+                      disabled={!appConfig.backendEnabled}
+                      className={`w-full p-3 rounded-lg border text-white focus:outline-none ${
+                        !appConfig.backendEnabled
+                          ? "bg-slate-600 border-slate-500 cursor-not-allowed opacity-50"
+                          : "bg-slate-700 border-slate-600 focus:border-blue-500"
+                      }`}
                       placeholder="Nama Belakang"
                     />
                   </div>
@@ -240,8 +282,13 @@ const ProfilePage: React.FC = () => {
             <div className="mt-8 text-right">
               <button
                 onClick={handleSaveChanges}
-                disabled={loading}
-                className="py-2 px-6 bg-green-600 rounded-lg hover:bg-green-700 transition-all font-semibold flex items-center justify-center min-w-[120px]"
+                disabled={loading || !appConfig.backendEnabled}
+                className={`py-2 px-6 rounded-lg transition-all font-semibold flex items-center justify-center min-w-[120px] ${
+                  !appConfig.backendEnabled
+                    ? "bg-gray-600 cursor-not-allowed opacity-50"
+                    : "bg-green-600 hover:bg-green-700"
+                }`}
+                title={!appConfig.backendEnabled ? "Fitur backend tidak aktif" : ""}
               >
                 {loading ? (
                   <Loader className="animate-spin" size={20} />

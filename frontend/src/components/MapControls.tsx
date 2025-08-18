@@ -2,19 +2,20 @@
 import React from "react";
 import styles from "../styles/MapComponent.module.css";
 
-interface MapControlsProps {
+export interface MapControlsProps {
   onAddNoiseArea: () => void;
   onLocateUser: () => void;
   onClearAreas: () => void;
   onToggleLegend: () => void;
   onToggleFilter: () => void;
-  onToggleTracking?: () => void; // BARU: Toggle tracking
-  onShowTutorial?: () => void; // BARU: Show tutorial
+  onToggleTracking: () => void;
+  onShowTutorial: () => void;
   isAddingNoise: boolean;
   showLegend: boolean;
   showFilter: boolean;
-  isTrackingUser?: boolean; // BARU: Status tracking
-  hasUserLocation?: boolean; // BARU: Apakah ada lokasi user
+  isTrackingUser: boolean;
+  hasUserLocation: boolean;
+  backendDisabled?: boolean;
 }
 
 const MapControls: React.FC<MapControlsProps> = ({
@@ -30,20 +31,18 @@ const MapControls: React.FC<MapControlsProps> = ({
   showFilter,
   isTrackingUser = false,
   hasUserLocation = false,
+  // add default to avoid undefined usage when not passed
+  backendDisabled = false,
 }) => {
   return (
     <div className={styles.mapControls}>
       <button
-        className={`${styles.controlButton} ${
-          isAddingNoise ? styles.active : ""
-        } tutorial-add-noise`}
+        className={styles.controlButton + (isAddingNoise ? " " + styles.active : "")}
         onClick={onAddNoiseArea}
-        title="Tambah Area Berisik"
-        id="add-noise-button"
+        title={backendDisabled ? "Fitur backend nonaktif" : "Tambahkan area kebisingan"}
+        disabled={backendDisabled}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z" />
-        </svg>
+        <span className="material-icons">add_location_alt</span>
       </button>
 
       <button
@@ -83,11 +82,10 @@ const MapControls: React.FC<MapControlsProps> = ({
       <button
         className={styles.controlButton}
         onClick={onClearAreas}
-        title="Hapus Semua Area"
+        title={backendDisabled ? "Fitur backend nonaktif" : "Hapus semua area"}
+        disabled={backendDisabled}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-        </svg>
+        <span className="material-icons">layers_clear</span>
       </button>
             <button
         className={`${styles.controlButton} ${showFilter ? styles.active : ""} tutorial-filter`}
