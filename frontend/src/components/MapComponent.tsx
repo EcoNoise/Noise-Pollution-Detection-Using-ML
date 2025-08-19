@@ -133,11 +133,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [noiseLocations, setNoiseLocations] = useState<NoiseLocation[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const {
-    popupState,
-    hidePopup,
+    // popupState,  // removed unused
+    // hidePopup,   // removed unused
     showSuccess,
     showError,
-    showWarning,
+    // showWarning, // removed unused
     showConfirm,
     showLogin,
     PopupComponent,

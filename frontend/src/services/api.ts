@@ -32,53 +32,8 @@ export interface HistoryItem {
   file_name?: string;
 }
 
-interface SignUpData {
-  username: string;
-  email: string;
-  password: string;
-  fullName: string;
-}
-
-interface SignInData {
-  loginField: string;
-  password: string;
-}
-
-interface User {
-  id: string;
-  email: string;
-  username?: string;
-  fullName?: string;
-}
-
-interface AuthResponse {
-  data: {
-    user: User;
-    session?: any;
-  };
-  error?: any;
-}
-
-interface NoiseArea {
-  id: string;
-  user_id: string;
-  noise_level: number;
-  location: any;
-  description?: string;
-  created_at: string;
-}
-
-interface PredictionHistory {
-  id: string;
-  user_id: string;
-  file_name: string;
-  prediction: string;
-  confidence: number;
-  created_at: string;
-}
-
 // Mock user for testing
-const mockUser: User = {
+const mockUser = {
   id: "mock-user-123",
   email: "user@example.com",
   username: "testuser",
@@ -86,7 +41,7 @@ const mockUser: User = {
 };
 
 // Mock data storage
-let mockNoiseAreas: NoiseArea[] = [];
+let mockNoiseAreas: any[] = [];
 let mockPredictionHistory: HistoryItem[] = [];
 
 export const apiService = {

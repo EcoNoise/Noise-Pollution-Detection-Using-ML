@@ -9,7 +9,7 @@ import {
 import { translateNoiseSource, translateHealthImpact, getNoiseSourceIcon } from "../utils/translationUtils";
 import ModernPopup from "./ModernPopup";
 import styles from "../styles/MapComponent.module.css";
-import { appConfig } from "../config/appConfig";
+// import { appConfig } from "../config/appConfig"; // removed unused import
 
 interface MapPopupProps {
   location: NoiseLocation;

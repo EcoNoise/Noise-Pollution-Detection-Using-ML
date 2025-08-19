@@ -3,7 +3,7 @@
  * Service untuk mengelola data analisis audio harian
  */
 
-import { apiService, HistoryItem } from "./api";
+import { apiService } from "./api";
 
 export interface DailyAudioSummary {
   date: string;

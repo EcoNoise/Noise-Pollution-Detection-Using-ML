@@ -1,5 +1,5 @@
 // src/hooks/useRealTimeNoise.ts
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { audioClassificationService } from "../services/audioClassificationService";
 
 export interface NoiseReading {
@@ -82,9 +82,13 @@ const defaultOptions: Required<UseRealTimeNoiseOptions> = {
 };
 
 export const useRealTimeNoise = (
-  options: UseRealTimeNoiseOptions = {}
+  options: Partial<UseRealTimeNoiseOptions> = {}
 ): UseRealTimeNoiseReturn => {
-  const opts = { ...defaultOptions, ...options };
+  // Wrap opts in useMemo to prevent dependency array warnings
+  const opts = useMemo(
+    () => ({ ...defaultOptions, ...options }),
+    [options]
+  );
 
   const [isListening, setIsListening] = useState(false);
   const [currentReading, setCurrentReading] = useState<NoiseReading | null>(
@@ -125,7 +129,7 @@ export const useRealTimeNoise = (
   // Advanced A-weighting filter coefficients (IIR filter design)
   const createAWeightingFilter = useCallback(
     (audioContext: AudioContext): BiquadFilterNode[] => {
-      const sampleRate = audioContext.sampleRate;
+      // Remove unused sampleRate variable
       const filters: BiquadFilterNode[] = [];
 
       // A-weighting filter implementation using cascaded biquad filters
@@ -159,17 +163,53 @@ export const useRealTimeNoise = (
       lpf2.Q.value = 0.5;
       filters.push(lpf2);
 
-      // Peak filter for 1kHz reference (A-weighting characteristic)
-      const peak = audioContext.createBiquadFilter();
-      peak.type = "peaking";
-      peak.frequency.value = 1000;
-      peak.Q.value = 1.0;
-      peak.gain.value = 2.0; // Slight boost at 1kHz
-      filters.push(peak);
-
       return filters;
     },
     []
+  );
+
+  // A-weighting factor calculation
+  const getAWeightingFactor = useCallback((frequency: number): number => {
+    if (frequency <= 0) return 0;
+
+    const f = frequency;
+    const f2 = f * f;
+    const f4 = f2 * f2;
+
+    // A-weighting formula
+    const numerator = 12194 * 12194 * f4;
+    const denominator =
+      (f2 + 20.6 * 20.6) *
+      Math.sqrt((f2 + 107.7 * 107.7) * (f2 + 737.9 * 737.9)) *
+      (f2 + 12194 * 12194);
+
+    const aWeight = numerator / denominator;
+    return Math.pow(10, aWeight / 20); // Convert from dB to linear
+  }, []);
+
+  // Calculate A-weighting correction from frequency data
+  const calculateAWeightingCorrection = useCallback(
+    (frequencyData: Float32Array): number => {
+      const bufferLength = frequencyData.length;
+
+      let weightedSum = 0;
+      let totalSum = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const frequency = (i * (audioContextRef.current?.sampleRate || 44100)) / (2 * bufferLength);
+        const magnitude = frequencyData[i];
+
+        // A-weighting function approximation
+        const aWeight = getAWeightingFactor(frequency);
+
+        weightedSum += magnitude * aWeight;
+        totalSum += magnitude;
+      }
+
+      // Return correction factor in dB
+      return totalSum > 0 ? 20 * Math.log10(weightedSum / totalSum) : 0;
+    },
+    [getAWeightingFactor]
   );
 
   // Advanced RMS to dB conversion with proper calibration
@@ -213,53 +253,8 @@ export const useRealTimeNoise = (
 
       return { db, dbA };
     },
-    [opts.calibrationMode, opts.enableAWeighting]
+    [opts.calibrationMode, opts.enableAWeighting, calculateAWeightingCorrection]
   );
-
-  // Calculate A-weighting correction from frequency data
-  const calculateAWeightingCorrection = useCallback(
-    (frequencyData: Float32Array): number => {
-      const bufferLength = frequencyData.length;
-      const sampleRate = audioContextRef.current?.sampleRate || 44100;
-
-      let weightedSum = 0;
-      let totalSum = 0;
-
-      for (let i = 0; i < bufferLength; i++) {
-        const frequency = (i * sampleRate) / (2 * bufferLength);
-        const magnitude = frequencyData[i];
-
-        // A-weighting function approximation
-        const aWeight = getAWeightingFactor(frequency);
-
-        weightedSum += magnitude * aWeight;
-        totalSum += magnitude;
-      }
-
-      // Return correction factor in dB
-      return totalSum > 0 ? 20 * Math.log10(weightedSum / totalSum) : 0;
-    },
-    []
-  );
-
-  // A-weighting factor calculation
-  const getAWeightingFactor = useCallback((frequency: number): number => {
-    if (frequency <= 0) return 0;
-
-    const f = frequency;
-    const f2 = f * f;
-    const f4 = f2 * f2;
-
-    // A-weighting formula
-    const numerator = 12194 * 12194 * f4;
-    const denominator =
-      (f2 + 20.6 * 20.6) *
-      Math.sqrt((f2 + 107.7 * 107.7) * (f2 + 737.9 * 737.9)) *
-      (f2 + 12194 * 12194);
-
-    const aWeight = numerator / denominator;
-    return Math.pow(10, aWeight / 20); // Convert from dB to linear
-  }, []);
 
   // Categorize noise level using A-weighted dB for more accurate assessment
   const categorizeNoise = useCallback(
@@ -316,6 +311,37 @@ export const useRealTimeNoise = (
     const now = Date.now();
     return now - lastClassificationTime.current >= opts.classificationInterval;
   }, [opts.enableRealTimeClassification, opts.classificationInterval]);
+
+  // Auto-calibration function moved before use in dependencies to avoid hoisting issues
+  function performAutoCalibration(rms: number, db: number) {
+    // Collect background noise samples for the first 3 seconds
+    const calibrationTime = 3000; // 3 seconds
+    const startTime = Date.now();
+
+    if (!backgroundNoiseRef.current) {
+      backgroundNoiseRef.current = db;
+    } else {
+      // Running average of background noise
+      backgroundNoiseRef.current = backgroundNoiseRef.current * 0.9 + db * 0.1;
+    }
+
+    // Complete calibration after sufficient time
+    if (startTime > calibrationTime) {
+      // Estimate device calibration factor
+      const expectedQuietRoom = 35; // Expected dB for a quiet room
+      if (backgroundNoiseRef.current > 0 && backgroundNoiseRef.current < 60) {
+        deviceCalibrationRef.current =
+          expectedQuietRoom / backgroundNoiseRef.current;
+      }
+
+      isCalibrationCompleteRef.current = true;
+      console.log(
+        `Auto-calibration complete. Background noise: ${backgroundNoiseRef.current.toFixed(
+          1
+        )} dB(A), Device factor: ${deviceCalibrationRef.current.toFixed(2)}`
+      );
+    }
+  }
 
   // Advanced audio processing with A-weighting and frequency analysis
   const processAudioData = useCallback(() => {
@@ -450,38 +476,10 @@ export const useRealTimeNoise = (
     opts.historyLength,
     opts.enableFrequencyAnalysis,
     opts.calibrationMode,
+    opts.enableRealTimeClassification,
+    shouldPerformClassification,
+    performClassification
   ]);
-
-  // Auto-calibration function
-  const performAutoCalibration = useCallback((rms: number, db: number) => {
-    // Collect background noise samples for the first 3 seconds
-    const calibrationTime = 3000; // 3 seconds
-    const startTime = Date.now();
-
-    if (!backgroundNoiseRef.current) {
-      backgroundNoiseRef.current = db;
-    } else {
-      // Running average of background noise
-      backgroundNoiseRef.current = backgroundNoiseRef.current * 0.9 + db * 0.1;
-    }
-
-    // Complete calibration after sufficient time
-    if (startTime > calibrationTime) {
-      // Estimate device calibration factor
-      const expectedQuietRoom = 35; // Expected dB for a quiet room
-      if (backgroundNoiseRef.current > 0 && backgroundNoiseRef.current < 60) {
-        deviceCalibrationRef.current =
-          expectedQuietRoom / backgroundNoiseRef.current;
-      }
-
-      isCalibrationCompleteRef.current = true;
-      console.log(
-        `Auto-calibration complete. Background noise: ${backgroundNoiseRef.current.toFixed(
-          1
-        )} dB(A), Device factor: ${deviceCalibrationRef.current.toFixed(2)}`
-      );
-    }
-  }, []);
 
   // Start listening to microphone
   const startListening = useCallback(async () => {
@@ -567,7 +565,7 @@ export const useRealTimeNoise = (
 
       setError(errorMessage);
     }
-  }, [isSupported, opts, processAudioData]);
+  }, [isSupported, opts, processAudioData, createAWeightingFilter]);
 
   // Stop listening
   const stopListening = useCallback(() => {

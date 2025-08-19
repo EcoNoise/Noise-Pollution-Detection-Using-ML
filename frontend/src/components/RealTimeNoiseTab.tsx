@@ -1,5 +1,5 @@
 // src/components/RealTimeNoiseTab.tsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -27,7 +27,6 @@ import {
   Psychology,
 } from "@mui/icons-material";
 import { useRealTimeNoise } from "../hooks/useRealTimeNoise";
-import { apiService, PredictionResponse } from "../services/api";
 import { audioClassificationService } from "../services/audioClassificationService";
 
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -46,8 +45,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   const [calibrationMode] = useState<"auto" | "manual">("auto");
 
   // Model loading state for YAMNet
-  const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [modelLoadError, setModelLoadError] = useState<string | null>(null);
+  // Removed unused states: modelsLoaded, modelLoadError
 
   const {
     isListening,
@@ -104,15 +102,10 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       try {
         console.log("Loading YAMNet and classifier models...");
         await audioClassificationService.loadModels();
-        setModelsLoaded(true);
+        // No local state tracking necessary here
         console.log("Models loaded successfully!");
       } catch (err: unknown) {
         console.error("Error loading models:", err);
-        const errorMessage =
-          err && typeof err === "object" && "message" in err
-            ? String((err as any).message)
-            : "Failed to load models";
-        setModelLoadError(errorMessage);
       }
     };
 

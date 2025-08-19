@@ -15,7 +15,7 @@ import {
   Navigate,
   useNavigate,
 } from "react-router-dom";
-import { Container, Box, Typography, styled } from "@mui/material";
+import { Box, Typography, styled } from "@mui/material";
 import { VolumeX, Home, History, MapPin, User, LogOut } from "lucide-react";
 
 import HomePage from "./components/HomePage";

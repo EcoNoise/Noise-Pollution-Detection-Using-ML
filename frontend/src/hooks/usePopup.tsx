@@ -1,7 +1,5 @@
 // src/hooks/usePopup.tsx
 import { useState, useCallback } from "react";
-import React from "react";
-import { createRoot } from "react-dom/client";
 import ModernPopup from "../components/ModernPopup";
 
 export interface PopupConfig {

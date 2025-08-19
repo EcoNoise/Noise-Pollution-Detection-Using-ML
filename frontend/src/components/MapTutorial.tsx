@@ -1,5 +1,5 @@
 // src/components/MapTutorial.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styles from '../styles/MapTutorial.module.css';
 
 interface TutorialStep {
@@ -21,7 +21,7 @@ const MapTutorial: React.FC<MapTutorialProps> = ({ isVisible, onComplete, onSkip
   const [currentStep, setCurrentStep] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  const tutorialSteps: TutorialStep[] = [
+  const tutorialSteps = useMemo(() => ([
     {
       id: 'welcome',
       title: '🎉 Selamat Datang di Peta Kebisingan!',
@@ -70,7 +70,7 @@ const MapTutorial: React.FC<MapTutorialProps> = ({ isVisible, onComplete, onSkip
       position: 'left',
       icon: '🎯'
     }
-  ];
+  ] as TutorialStep[]), []);
 
   const [highlightedElement, setHighlightedElement] = useState<HTMLElement | null>(null);
 

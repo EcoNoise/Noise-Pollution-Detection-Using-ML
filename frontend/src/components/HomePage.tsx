@@ -1,5 +1,5 @@
 // src/components/HomePage.tsx
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import {
   Box,
@@ -141,9 +141,6 @@ const HomePage: React.FC = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -161,31 +158,6 @@ const HomePage: React.FC = () => {
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [activeTab, setActiveTab] = useState(0);
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const handleLoadedMetadata = () =>
-      setDuration(isFinite(audio.duration) ? audio.duration : 0);
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-    const handleEnded = () => setIsPlaying(false);
-
-    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("play", handlePlay);
-    audio.addEventListener("pause", handlePause);
-    audio.addEventListener("ended", handleEnded);
-
-    return () => {
-      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("play", handlePlay);
-      audio.removeEventListener("pause", handlePause);
-      audio.removeEventListener("ended", handleEnded);
-    };
-  }, [audioUrl]);
 
   useEffect(() => {
     const request = mapService.getAndClearAnalysisRequest();
@@ -410,9 +382,6 @@ const HomePage: React.FC = () => {
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     setAudioBlob(null);
     setAudioUrl(null);
-    setCurrentTime(0);
-    setDuration(0);
-    setIsPlaying(false);
     setResult(null);
     setError(null);
     setIsProcessing(false);
@@ -475,16 +444,6 @@ const HomePage: React.FC = () => {
 
   const handleCloseAlert = () => {
     setShowLoginAlert(false);
-  };
-
-  const togglePlayback = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.paused) {
-      audio.play();
-    } else {
-      audio.pause();
-    }
   };
 
   return (

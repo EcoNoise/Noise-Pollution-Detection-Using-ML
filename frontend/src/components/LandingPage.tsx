@@ -24,7 +24,6 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
-  const splineRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -138,6 +137,7 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
   }, []);
 
   // Alternative approach using ref for creating spline-viewer
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const SplineViewer = ({
     url,
     className,
@@ -2178,15 +2178,15 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
                   monitoring polusi suara terdepan.
                 </p>
                 <div className="footer-social">
-                  <a href="#" className="social-link">
+                  <button type="button" className="social-link" aria-label="Twitter" onClick={() => window.open('https://twitter.com', '_blank', 'noopener,noreferrer')}>
                     <div className="social-icon twitter"></div>
-                  </a>
-                  <a href="#" className="social-link">
+                  </button>
+                  <button type="button" className="social-link" aria-label="LinkedIn" onClick={() => window.open('https://linkedin.com', '_blank', 'noopener,noreferrer')}>
                     <div className="social-icon linkedin"></div>
-                  </a>
-                  <a href="#" className="social-link">
+                  </button>
+                  <button type="button" className="social-link" aria-label="GitHub" onClick={() => window.open('https://github.com', '_blank', 'noopener,noreferrer')}>
                     <div className="social-icon github"></div>
-                  </a>
+                  </button>
                 </div>
               </div>
 
