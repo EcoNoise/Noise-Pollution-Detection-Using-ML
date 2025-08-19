@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { login } from "../services/authService";
 import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff, User, Lock, Mail, ArrowLeft } from "lucide-react";
+import { logger } from "../config/appConfig";
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -29,7 +30,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     try {
       // Kirim loginField (bisa username atau email) ke service
       const response = await login(loginField, password);
-      console.log("Login berhasil:", response.data);
+      logger.info("Login berhasil:", response.data);
 
       // Supabase authentication stores session automatically
       // We can store user info if needed
@@ -42,9 +43,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       navigate("/home");
     } catch (err: any) {
       setError(
-        err.response?.data?.error || "Login gagal. Periksa kredensial Anda."
+        err.response?.data?.message || "Login gagal. Periksa email dan password Anda."
       );
-      console.error(err);
+      logger.error(err);
     } finally {
       setLoading(false);
     }

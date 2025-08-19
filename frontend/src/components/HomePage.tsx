@@ -20,6 +20,7 @@ import { VolumeX, Activity, Clock, Mic, Square, BarChart2 } from "lucide-react";
 import { apiService, PredictionResponse } from "../services/api";
 import { mapService } from "../services/mapService";
 import { DailyAudioService } from "../services/dailyAudioService";
+import { logger } from "../config/appConfig";
 import AudioVisualizer from "./AudioVisualizer";
 import ModernPopup from "./ModernPopup";
 import RealTimeNoiseTab from "./RealTimeNoiseTab";
@@ -129,7 +130,7 @@ const HomePage: React.FC = () => {
         const auth = await sm.isAuthenticated();
         setIsAuthenticated(auth);
       } catch (e) {
-        console.warn("Auth check failed:", e);
+        logger.warn("Auth check failed:", e);
         setIsAuthenticated(false);
       }
     };
@@ -292,7 +293,7 @@ const HomePage: React.FC = () => {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
     } catch (error) {
-      console.error("Error starting recording:", error);
+      logger.error("Error starting recording:", error);
       setError(
         "Tidak dapat mengakses mikrofon. Pastikan izin mikrofon telah diberikan."
       );
@@ -354,11 +355,11 @@ const HomePage: React.FC = () => {
       // Refresh cache laporan harian setelah analisis berhasil
       try {
         await DailyAudioService.refreshTodayAudioSummary();
-        console.log(
+        logger.info(
           "✅ Cache laporan harian berhasil di-refresh setelah analisis"
         );
       } catch (refreshError) {
-        console.warn("⚠️ Gagal refresh cache laporan harian:", refreshError);
+        logger.warn("⚠️ Gagal refresh cache laporan harian:", refreshError);
       }
 
       if (mapRequestContext) {

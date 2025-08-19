@@ -1,5 +1,6 @@
 // src/hooks/useRealTimeNoise.ts
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { logger } from "../config/appConfig";
 import { audioClassificationService } from "../services/audioClassificationService";
 
 export interface NoiseReading {
@@ -300,7 +301,7 @@ export const useRealTimeNoise = (
         confidence: result.predictions[0]?.confidence || 0,
       };
     } catch (error) {
-      console.error("Classification error:", error);
+      logger.error("Classification error:", error);
       return null;
     }
   }, []);
@@ -335,7 +336,7 @@ export const useRealTimeNoise = (
       }
 
       isCalibrationCompleteRef.current = true;
-      console.log(
+      logger.info(
         `Auto-calibration complete. Background noise: ${backgroundNoiseRef.current.toFixed(
           1
         )} dB(A), Device factor: ${deviceCalibrationRef.current.toFixed(2)}`
@@ -453,7 +454,7 @@ export const useRealTimeNoise = (
         };
       });
     } catch (error) {
-      console.error("Error processing audio data:", error);
+      logger.error("Error processing audio data:", error);
 
       // Fallback reading in case of error
       const fallbackReading: NoiseReading = {
@@ -551,7 +552,7 @@ export const useRealTimeNoise = (
       // Start processing at regular intervals
       intervalRef.current = setInterval(processAudioData, opts.updateInterval);
     } catch (err: any) {
-      console.error("Error accessing microphone:", err);
+      logger.error("Error accessing microphone:", err);
       let errorMessage = "Tidak dapat mengakses mikrofon";
 
       if (err.name === "NotAllowedError") {
@@ -626,7 +627,7 @@ export const useRealTimeNoise = (
       // Mark manual calibration as complete
       isCalibrationCompleteRef.current = true;
 
-      console.log(
+      logger.info(
         `Manual calibration complete. Target: ${targetDbA} dB(A), Current: ${currentDbA.toFixed(
           1
         )} dB(A), Offset: ${calibrationOffsetRef.current.toFixed(

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { register } from "../services/authService";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import { logger } from "../config/appConfig";
 
 interface RegisterPageProps {
   onRegisterSuccess?: () => void;
@@ -119,7 +120,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
 
     try {
       const response = await register(formData);
-      console.log("Registrasi berhasil:", response.data);
+      logger.info("Registrasi berhasil:", response.data);
 
       // Show success modal
       setShowSuccessModal(true);
@@ -136,9 +137,9 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
         setError(errorMessages || "Registrasi gagal. Coba lagi.");
       } else {
         setError("Terjadi galat pada server. Silakan coba lagi nanti.");
-        console.error("Server returned non-JSON error:", responseData);
+        logger.error("Server returned non-JSON error:", responseData);
       }
-      console.error(err);
+      logger.error(err);
     } finally {
       setLoading(false);
     }

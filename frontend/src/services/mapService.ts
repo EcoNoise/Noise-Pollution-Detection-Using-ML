@@ -5,6 +5,7 @@ import { repository, getCurrentUserId as repoGetUserId } from "./map.repository"
 import { toNoiseLocation, generateId } from "./map.transformers";
 import { analyzeAudioFile } from "./map.analysis";
 import { exportUserNoiseData } from "./map.export";
+import { logger } from "../config/appConfig";
 
 // Helper functions
 const getCurrentUserId = (): string | null => repoGetUserId();
@@ -89,12 +90,12 @@ class MapService {
         const { DailyAudioService } = await import("./dailyAudioService");
         await DailyAudioService.refreshTodayAudioSummary();
       } catch (cacheError) {
-        console.warn("⚠️ Gagal refresh cache laporan harian:", cacheError);
+        logger.warn("⚠️ Gagal refresh cache laporan harian:", cacheError);
       }
 
       return newLocation;
     } catch (error) {
-      console.error("❌ Error during analysis and add area process:", error);
+      logger.error("❌ Error during analysis and add area process:", error);
       if (error instanceof Error) throw error;
       throw new Error("Terjadi kesalahan tidak dikenal saat menganalisis audio.");
     }
@@ -163,7 +164,7 @@ class MapService {
         expires_at: newArea.expires_at ? new Date(newArea.expires_at) : undefined,
       };
     } catch (error) {
-      console.error("Error adding noise location:", error);
+      logger.error("Error adding noise location:", error);
       throw error;
     }
   }
@@ -174,7 +175,7 @@ class MapService {
       const currentUserId = getCurrentUserId();
       return allAreas.map((area: any) => toNoiseLocation(area, currentUserId || undefined));
     } catch (error) {
-      console.error("Error fetching noise locations:", error);
+      logger.error("Error fetching noise locations:", error);
       return [];
     }
   }
@@ -205,7 +206,7 @@ class MapService {
         expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
       };
     } catch (error) {
-      console.error("Error fetching noise location:", error);
+      logger.error("Error fetching noise location:", error);
       return null;
     }
   }
@@ -231,7 +232,7 @@ class MapService {
 
       return true;
     } catch (error) {
-      console.error("Error removing noise location:", error);
+      logger.error("Error removing noise location:", error);
       return false;
     }
   }
@@ -286,7 +287,7 @@ class MapService {
         expires_at: updatedArea.expires_at ? new Date(updatedArea.expires_at) : undefined,
       };
     } catch (error) {
-      console.error("Error updating noise location:", error);
+      logger.error("Error updating noise location:", error);
       return null;
     }
   }
@@ -356,7 +357,7 @@ class MapService {
         const { DailyAudioService } = await import("./dailyAudioService");
         await DailyAudioService.refreshTodayAudioSummary();
       } catch (cacheError) {
-        console.warn("⚠️ Gagal refresh cache laporan harian:", cacheError);
+        logger.warn("⚠️ Gagal refresh cache laporan harian:", cacheError);
       }
 
       return {
@@ -375,7 +376,7 @@ class MapService {
         expires_at: updatedArea.expires_at ? new Date(updatedArea.expires_at) : undefined,
       };
     } catch (error) {
-      console.error("Error during update with audio analysis:", error);
+      logger.error("Error during update with audio analysis:", error);
       throw error;
     }
   }
@@ -400,7 +401,7 @@ class MapService {
         type: item.type || "location",
       }));
     } catch (error) {
-      console.error("Search error:", error);
+      logger.error("Search error:", error);
       return [];
     }
   }
@@ -458,7 +459,7 @@ class MapService {
 
       return true;
     } catch (error) {
-      console.error("Error clearing noise locations:", error);
+      logger.error("Error clearing noise locations:", error);
       return false;
     }
   }
@@ -469,7 +470,7 @@ class MapService {
       if (!userId) throw new Error('User not authenticated');
       return exportUserNoiseData(userId);
     } catch (error) {
-      console.error("Error exporting noise data:", error);
+      logger.error("Error exporting noise data:", error);
       return null;
     }
   }

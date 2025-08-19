@@ -1,3 +1,6 @@
+import SessionManager from "../utils/tokenManager";
+import { logger } from "../config/appConfig";
+
 // Types
 export interface PredictionResponse {
   noise_level: number;
@@ -172,7 +175,7 @@ export const apiService = {
         processing_time: Math.round(processingTime * 100) / 100,
       };
     } catch (error) {
-      console.error("Error processing audio file:", error);
+      logger.error("Error processing audio file:", error);
 
       // Fallback to mock data if TensorFlow prediction fails
       const endTime = performance.now();
@@ -206,7 +209,7 @@ export const apiService = {
         last_updated: new Date().toISOString(),
       };
     } catch (error) {
-      console.error("Error getting model status:", error);
+      logger.error("Error getting model status:", error);
       return {
         model_loaded: false,
         model_version: "unknown",

@@ -4,7 +4,7 @@ import CssBaseline from "@mui/material/CssBaseline";
 import { apiService } from "./services/api";
 import SessionManager from "./utils/tokenManager";
 import { Alert } from "@mui/material";
-import { appConfig, backendNotice } from "./config/appConfig";
+import { appConfig, backendNotice, logger } from "./config/appConfig";
 
 import {
   BrowserRouter as Router,
@@ -310,7 +310,7 @@ function App() {
     try {
       await apiService.signOut();
     } catch (err) {
-      console.warn("Sign out error:", err);
+      logger.warn("Sign out error:", err);
     }
     const sessionManager = SessionManager.getInstance();
     await sessionManager.clearTokens();
@@ -340,7 +340,7 @@ function App() {
         const auth = await sessionManager.isAuthenticated();
         setIsAuthenticated(auth);
       } catch (error) {
-        console.error("Error checking auth status:", error);
+        logger.error("Error checking auth status:", error);
         setIsAuthenticated(false);
       } finally {
         setLoading(false);

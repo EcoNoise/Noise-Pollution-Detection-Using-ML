@@ -28,6 +28,7 @@ import {
 } from "@mui/icons-material";
 import { useRealTimeNoise } from "../hooks/useRealTimeNoise";
 import { audioClassificationService } from "../services/audioClassificationService";
+import { logger } from "../config/appConfig";
 
 const StyledCard = styled(Card)(({ theme }) => ({
   background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -97,20 +98,20 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
 
   // Initialize TensorFlow.js model
   useEffect(() => {
-    // Load YAMNet and classifier models on component mount
+    // Load YAMNet dan classifier models on component mount
     const loadModels = async () => {
-      try {
-        console.log("Loading YAMNet and classifier models...");
-        await audioClassificationService.loadModels();
-        // No local state tracking necessary here
-        console.log("Models loaded successfully!");
-      } catch (err: unknown) {
-        console.error("Error loading models:", err);
-      }
-    };
+       try {
+         logger.info("Loading YAMNet and classifier models...");
+         await audioClassificationService.loadModels();
+         // No local state tracking necessary here
+         logger.info("Models loaded successfully!");
+       } catch (err: unknown) {
+         logger.error("Error loading models:", err);
+       }
+     };
 
-    loadModels();
-  }, []);
+     loadModels();
+   }, []);
 
   // Model Loading Status UI
 

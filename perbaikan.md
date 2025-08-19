@@ -1,10 +1,12 @@
 # Perbaikan Frontend: Penghapusan Supabase & Penataan Ulang (Bilingual ID + EN)
 
 Ringkasan / Summary
+
 - ID: Dokumen ini merinci rencana bertahap untuk menghapus seluruh integrasi Supabase dari frontend, mempertahankan file .env, menghapus folder supabase (migrasi/konfigurasi), menonaktifkan autentikasi sementara (semua rute terbuka), menampilkan placeholder untuk seluruh fitur yang sebelumnya bergantung pada Supabase, serta melakukan refactor dan pembersihan kode (clean code) termasuk Prettier/ESLint dan mengaktifkan TypeScript strict. Tidak ada penambahan dependency baru. Tidak ada timeline yang dicantumkan.
 - EN: This document outlines a phased plan to remove all Supabase integrations from the frontend, keep .env as-is, delete the local supabase folder (migrations/config), temporarily disable authentication (all routes open), show placeholders for all features previously backed by Supabase, and perform refactoring/clean-up including Prettier/ESLint and enabling TypeScript strict mode. No new dependencies will be added. No timeline included.
 
 Keputusan & Ruang Lingkup / Decisions & Scope
+
 - ID:
   - Hapus seluruh file klien Supabase dan semua pemanggilan terkait di kode.
   - Jangan hapus dependency SDK @supabase/supabase-js dari package.json (tetap dibiarkan untuk sekarang).
@@ -29,6 +31,7 @@ Keputusan & Ruang Lingkup / Decisions & Scope
   - No new dependencies (including DX tooling).
 
 Daftar Berkas dan Area Terdampak (Inventaris) / Affected Files and Areas (Inventory)
+
 - Klien Supabase dan impor:
   - <mcfile name="supabase.ts" path="d:\noiseMapWeb\frontend\src\lib\supabase.ts"></mcfile>
   - <mcfile name="package.json" path="d:\noiseMapWeb\frontend\package.json"></mcfile>
@@ -50,22 +53,26 @@ Daftar Berkas dan Area Terdampak (Inventaris) / Affected Files and Areas (Invent
 Fase Pekerjaan / Work Phases
 
 Phase 0 — Konfirmasi Ruang Lingkup (Selesai) / Scope Confirmation (Done)
+
 - ID: Konfirmasi diterima sesuai poin-poin pada bagian Keputusan & Ruang Lingkup.
 - EN: Confirmation acknowledged as per Decisions & Scope above.
 
 Phase 1 — Penghapusan Supabase (Selesai) / Remove Supabase (Done)
+
 - Acceptance Criteria:
   - Tidak ada import atau pemanggilan Supabase tersisa di codebase.
   - Build frontend berhasil (meski fitur tertentu nonaktif/placeholder).
   - Direktori supabase terhapus bersih.
 
 Phase 2 — Mode Sementara Opsi C (Placeholder) (Selesai) / Temporary Mode Option C (Placeholders) (Done)
+
 - Status Implementasi:
   - Autentikasi dinonaktifkan sementara melalui ProtectedRoute (pass-through saat backend nonaktif).
   - Banner global: “Fitur yang bergantung pada backend sementara dinonaktifkan.” ditampilkan di seluruh aplikasi.
   - Komponen/halaman yang sebelumnya menggunakan Supabase (HomePage, MapComponent, ProfilePage, HistoryPage) menampilkan placeholder/warning dan tombol aksi dinonaktifkan dengan tooltip.
 
 Phase 3 — Desain Data Layer Sementara (Mock/Offline) (Selesai) / Temporary Data Layer Design (Mock/Offline) (Done)
+
 - Status Implementasi:
   - Dibuat antarmuka service backend-agnostic:
     - <mcfile name="IAuthService.ts" path="D:\noiseMapWeb\frontend\src\services\interfaces\IAuthService.ts"></mcfile>
@@ -77,6 +84,7 @@ Phase 3 — Desain Data Layer Sementara (Mock/Offline) (Selesai) / Temporary Dat
   - Kontrak data tersirat dari interfaces di atas, sehingga transisi ke backend baru menjadi lebih mudah.
 
 Phase 4 — Refactor & Clean Code (Selesai) / Refactor & Clean Code (Done)
+
 - Status Implementasi:
   - 4.1: TypeScript strict aktif di <mcfile name="tsconfig.json" path="d:\noiseMapWeb\frontend\tsconfig.json"></mcfile> ("strict": true) dan build tanpa error tipe (Done)
   - 4.2: Prettier/ESLint rules diterapkan, file dirapikan, warning ESLint diperbaiki termasuk unused imports dan variables (Done)
@@ -86,9 +94,10 @@ Phase 4 — Refactor & Clean Code (Selesai) / Refactor & Clean Code (Done)
   - API publik MapService dipertahankan sehingga pemanggilan di <mcfile name="MapComponent.tsx" path="d:\noiseMapWeb\frontend\src\components\MapComponent.tsx"></mcfile> dan <mcfile name="HomePage.tsx" path="d:\noiseMapWeb\frontend\src\components\HomePage.tsx"></mcfile> tetap berfungsi.
   - Tidak ada perintah build otomatis dijalankan.
 
-
 Phase 5 — Dokumentasi Lanjutan / Extended Documentation
+
 - Panduan offline/mock, peta modul arsitektur, dan daftar API pengganti (placeholder).
 
 Phase 6 — QA & Uji Manual / QA & Manual Testing
+
 - Skenario uji manual untuk memastikan stabilitas UI dan tidak ada call ke Supabase.

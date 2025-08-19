@@ -1,4 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
+import { logger } from '../config/appConfig';
 
 const YAMNET_URL = '/yamnet/model.json';
 
@@ -30,23 +31,23 @@ class AudioClassificationService {
 
     this.isLoading = true;
     try {
-      console.log('🔄 Loading YAMNet model...');
+      logger.info('🔄 Loading YAMNet model...');
       this.yamnetModel = await tf.loadGraphModel(YAMNET_URL);
-      console.log('✅ YAMNet model loaded successfully');
+      logger.info('✅ YAMNet model loaded successfully');
 
-      console.log('🔄 Loading YAMNet label map...');
+      logger.info('🔄 Loading YAMNet label map...');
       const resp = await fetch('/yamnet/yamnet_class_map.csv');
       const csvText = await resp.text();
       this.labels = csvText
         .split('\n')
         .slice(1)
         .map(line => line.split(',')[2]?.replace(/"/g, '').trim());
-      console.log(`✅ Label map loaded, total ${this.labels.length} labels`);
+      logger.info(`✅ Label map loaded, total ${this.labels.length} labels`);
 
       this.isLoaded = true;
-      console.log('🎉 Model and labels loaded and ready!');
+      logger.info('🎉 Model and labels loaded and ready!');
     } catch (err) {
-      console.error('❌ Error loading YAMNet model:', err);
+      logger.error('❌ Error loading YAMNet model:', err as any);
       throw new Error('Failed to load YAMNet model');
     } finally {
       this.isLoading = false;
@@ -59,17 +60,17 @@ class AudioClassificationService {
     }
 
     try {
-      console.log('🎵 Processing audio for prediction...');
+      logger.info('🎵 Processing audio for prediction...');
       
       let audioData: Float32Array;
       
       if (audioInput instanceof Float32Array) {
         // Jalur 1: Float32Array langsung dari mic buffer
-        console.log('📡 Using direct Float32Array from mic buffer');
+        logger.info('📡 Using direct Float32Array from mic buffer');
         audioData = audioInput;
       } else {
         // Jalur 2: Blob dari rekaman manual - perlu decode
-        console.log('🎤 Decoding Blob from manual recording');
+        logger.info('🎤 Decoding Blob from manual recording');
         const arrayBuffer = await audioInput.arrayBuffer();
         const audioContext = new AudioContext({ sampleRate: 16000 });
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
@@ -79,7 +80,7 @@ class AudioClassificationService {
         
         // Resample if needed
         if (audioBuffer.sampleRate !== 16000) {
-          console.log(`🔄 Resampling from ${audioBuffer.sampleRate}Hz to 16000Hz`);
+          logger.info(`🔄 Resampling from ${audioBuffer.sampleRate}Hz to 16000Hz`);
           audioData = this.resampleAudio(rawAudioData, audioBuffer.sampleRate, 16000);
         } else {
           audioData = rawAudioData;
@@ -90,7 +91,7 @@ class AudioClassificationService {
       
       return this.predictFromFloat32Array(audioData);
     } catch (err) {
-      console.error('❌ Error in audio prediction:', err);
+      logger.error('❌ Error in audio prediction:', err as any);
       throw err;
     }
   }
@@ -102,9 +103,9 @@ class AudioClassificationService {
 
     try {
       const hasAudio = audioData.some(sample => Math.abs(sample) > 0.001);
-      console.log('🔊 Audio contains sound:', hasAudio);
+      logger.info('🔊 Audio contains sound:', hasAudio);
 
-      console.log('🤖 Running YAMNet prediction...');
+      logger.info('🤖 Running YAMNet prediction...');
       const waveform = tf.tensor1d(audioData, 'float32');
       const yamnetOutput = this.yamnetModel.predict(waveform) as tf.Tensor[];
       const scores = yamnetOutput[0]; // shape [frames, 521]
@@ -168,10 +169,10 @@ class AudioClassificationService {
         }
       };
 
-      console.log('✅ Prediction completed:', result);
+      logger.info('✅ Prediction completed:', result);
       return result;
     } catch (err) {
-      console.error('❌ Prediction error:', err);
+      logger.error('❌ Prediction error:', err as any);
       throw new Error('Failed to predict with YAMNet');
     }
   }
@@ -194,12 +195,12 @@ class AudioClassificationService {
   }
 
   async recordAndPredict(duration: number = 3000): Promise<ClassificationResult> {
-    console.log('🎤 Requesting microphone access...');
+    logger.info('🎤 Requesting microphone access...');
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
     });
 
-    console.log('✅ Microphone access granted');
+    logger.info('✅ Microphone access granted');
     const audioBlob = await this.recordAudioFromStream(stream, duration);
     stream.getTracks().forEach(track => track.stop());
 

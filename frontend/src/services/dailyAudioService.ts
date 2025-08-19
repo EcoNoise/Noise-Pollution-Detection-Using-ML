@@ -4,6 +4,7 @@
  */
 
 import { apiService } from "./api";
+import { logger } from "../config/appConfig";
 
 export interface DailyAudioSummary {
   date: string;
@@ -50,7 +51,7 @@ export class DailyAudioService {
   private static resetDailyData(): void {
     // Hapus cache daily summary
     localStorage.removeItem(this.DAILY_CACHE_KEY);
-    console.log("📅 Hari baru dimulai! Data laporan harian telah direset.");
+    logger.info("📅 Hari baru dimulai! Data laporan harian telah direset.");
   }
 
   /**
@@ -86,7 +87,7 @@ export class DailyAudioService {
   private static resetWeeklyData(): void {
     // Hapus cache weekly summary jika ada
     localStorage.removeItem("weeklyAudioSummaryCache");
-    console.log("Weekly summary data has been reset for new week");
+    logger.info("Weekly summary data has been reset for new week");
   }
   /**
    * Mendapatkan ringkasan analisis audio untuk hari ini
@@ -151,7 +152,7 @@ export class DailyAudioService {
 
       return summary;
     } catch (error) {
-      console.error("Error getting today audio summary:", error);
+      logger.error("Error getting today audio summary:", error);
       return {
         date: new Date().toDateString(),
         totalAnalysis: 0,
@@ -169,7 +170,7 @@ export class DailyAudioService {
   static async refreshTodayAudioSummary(): Promise<DailyAudioSummary> {
     // Hapus cache untuk memaksa refresh
     localStorage.removeItem(this.DAILY_CACHE_KEY);
-    console.log("🔄 Data laporan harian telah di-refresh");
+    logger.info("🔄 Data laporan harian telah di-refresh");
 
     // Ambil data terbaru
     return this.getTodayAudioSummary();
@@ -209,7 +210,7 @@ export class DailyAudioService {
         riskLevel,
       };
     } catch (error) {
-      console.error("Error getting audio summary by date:", error);
+      logger.error("Error getting audio summary by date:", error);
       return {
         date: date.toDateString(),
         totalAnalysis: 0,
@@ -268,7 +269,7 @@ export class DailyAudioService {
     // Periksa apakah sudah terjadi pergantian minggu (hanya jika tidak ada targetDate)
     if (!targetDate && this.hasWeekChanged()) {
       this.resetWeeklyData();
-      console.log("🔄 Minggu baru dimulai! Data weekly summary telah direset.");
+      logger.info("🔄 Minggu baru dimulai! Data weekly summary telah direset.");
     }
 
     const summaries: DailyAudioSummary[] = [];

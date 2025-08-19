@@ -13,6 +13,7 @@ import {
 } from "../services/dailyAudioService";
 import { appConfig } from "../config/appConfig";
 import HealthDashboard from "./HealthDashboard";
+import { logger } from "../config/appConfig";
 
 const HistoryPage: React.FC = () => {
   const [dailySummary, setDailySummary] = useState<DailyAudioSummary | null>(
@@ -47,7 +48,7 @@ const HistoryPage: React.FC = () => {
       const summary = await DailyAudioService.getTodayAudioSummary();
       setDailySummary(summary);
     } catch (err: any) {
-      console.error("Error fetching daily summary:", err);
+      logger.error("Error fetching daily summary:", err);
     } finally {
       setSummaryLoading(false);
     }

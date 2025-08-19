@@ -23,7 +23,7 @@ import styles from "../styles/MapComponent.module.css";
 import SessionManager from "../utils/tokenManager";
 
 import "leaflet/dist/leaflet.css";
-import { appConfig } from "../config/appConfig";
+import { appConfig, logger } from "../config/appConfig";
 
 // PERBAIKAN: Fix untuk ikon default Leaflet yang sering rusak di React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -211,7 +211,28 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ... (useEffect for user tracking remains the same) ...
+  // Utility: process shared noise data passed from other flows
+  const processSharedData = (
+    data: { analysis: any; position?: [number, number]; address?: string }
+  ) => {
+    try {
+      if (data.position) {
+        setSelectedPosition(data.position);
+        setShowNoiseForm(true);
+      }
+      if (data.address) {
+        setFormAddress(data.address);
+      }
+      if (data.analysis) {
+        logger.info("Received shared analysis data", data.analysis);
+      }
+    } catch (e) {
+      logger.error("Failed processing shared data:", e);
+      showError("Error", "Gagal memproses data berbagi");
+    }
+  };
+
+  // Start tracking user when isTrackingUser is enabled
   useEffect(() => {
     if (isTrackingUser && navigator.geolocation) {
       watchId.current = navigator.geolocation.watchPosition(
@@ -223,84 +244,18 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           setUserLocation(newLocation);
         },
         (error) => {
-          console.warn("Tracking location error:", error);
+          logger.warn("Tracking location error:", error);
           setIsTrackingUser(false);
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 10000,
         }
       );
-    } else if (watchId.current !== null) {
-      navigator.geolocation.clearWatch(watchId.current);
-      watchId.current = null;
     }
-
     return () => {
       if (watchId.current !== null) {
         navigator.geolocation.clearWatch(watchId.current);
+        watchId.current = null;
       }
     };
   }, [isTrackingUser]);
-
-  // UPDATED: This function now handles data from both the old and new flow
-  const processSharedData = async (sharedData: any) => {
-    setLoading(true);
-    setError("");
-    try {
-      // Prioritize position from the new flow; otherwise, get current location for the old flow
-      let position = sharedData.position;
-
-      if (!position) {
-        try {
-          position = await mapService.getCurrentLocation();
-        } catch (locationError) {
-          console.error("Error getting current location:", locationError);
-          if (locationError instanceof Error) {
-            setError(locationError.message);
-          } else {
-            setError("Gagal mendapatkan lokasi untuk membuat titik analisis.");
-          }
-          return;
-        }
-      }
-
-      if (position) {
-        try {
-          const newLocation = await mapService.addNoiseLocation({
-            coordinates: position,
-            noiseLevel: sharedData.analysis.noise_level,
-            source: sharedData.analysis.noise_source,
-            healthImpact: sharedData.analysis.health_impact,
-            description: `Analisis suara otomatis`,
-            address: sharedData.address || "Alamat tidak tersedia",
-            radius: 100,
-          });
-
-          if (newLocation) {
-            await loadNoiseLocations();
-            zoomToLocation(position, 17);
-          }
-        } catch (addError: any) {
-          console.error("Error adding noise location:", addError);
-          if (
-            addError.message &&
-            addError.message.includes("Koordinat sudah digunakan")
-          ) {
-            setError(addError.message);
-          } else {
-            setError("Gagal menyimpan data analisis ke server");
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Error processing shared data:", err);
-      setError("Gagal memproses data analisis.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const zoomToLocation = (
     coordinates: [number, number],
@@ -308,20 +263,14 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     showMarker: boolean = true
   ) => {
     if (mapRef.current) {
-      // Smooth pan dan zoom
       mapRef.current.flyTo(coordinates, zoomLevel, {
         animate: true,
         duration: 1.5, // Durasi animasi dalam detik
         easeLinearity: 0.25,
       });
-
-      // Tampilkan marker pencarian jika diperlukan
       if (showMarker && !userLocation) {
         setSearchMarker(coordinates);
-        // Hilangkan marker setelah 5 detik
-        setTimeout(() => {
-          setSearchMarker(null);
-        }, 5000);
+        setTimeout(() => setSearchMarker(null), 5000);
       }
     }
   };
@@ -362,7 +311,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       const locations = await mapService.getNoiseLocations();
       setNoiseLocations(locations);
     } catch (error) {
-      console.error("Error loading noise locations:", error);
+      logger.error("Error loading noise locations:", error);
       setError("Gagal memuat data area noise");
     } finally {
       setLoading(false);
@@ -455,13 +404,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     setError("");
 
     try {
-      console.log("🎵 Memulai analisis audio:", {
-        fileName: audioFile.name,
-        fileSize: `${(audioFile.size / 1024 / 1024).toFixed(2)}MB`,
-        fileType: audioFile.type,
-        position: selectedPosition,
-        address: formAddress,
-      });
+      logger.info("🎵 Memulai analisis audio:", {
+         fileName: audioFile.name,
+         fileSize: `${(audioFile.size / 1024 / 1024).toFixed(2)}MB`,
+         fileType: audioFile.type,
+         position: selectedPosition,
+         address: formAddress,
+       });
 
       const newLocation = await mapService.analyzeAudioAndAddArea(
         audioFile,
@@ -471,7 +420,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       );
 
       if (newLocation) {
-        console.log("✅ Area berhasil ditambahkan:", newLocation);
+        logger.info("✅ Area berhasil ditambahkan:", newLocation);
 
         // Reload data dan zoom ke lokasi baru
         await loadNoiseLocations();
@@ -494,7 +443,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         setError("Gagal membuat area kebisingan baru setelah analisis.");
       }
     } catch (err: any) {
-      console.error("❌ Error saat analisis:", err);
+      logger.error("❌ Error saat analisis:", err);
 
       // Tangani error koordinat sama
       if (err.message && err.message.includes("Koordinat sudah digunakan")) {
@@ -565,10 +514,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         return;
       }
 
-      console.log("📁 File dipilih:", {
-        name: file.name,
-        size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-        type: file.type,
+      logger.info("📁 File dipilih:", {
+         name: file.name,
+         size: file.size,
+         type: file.type,
       });
 
       setAudioFile(file);
@@ -642,7 +591,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         setError("Gagal menghapus area berisik");
       }
     } catch (error: any) {
-      console.error("Error deleting noise location:", error);
+      logger.error("Error deleting noise location:", error);
       // Tampilkan pesan error dari server jika ada
       setError(error.message || "Gagal menghapus area berisik");
     } finally {
@@ -663,7 +612,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         zoomToLocation(position, 16, false); // false karena sudah ada user location icon
       }
     } catch (error) {
-      console.error("Error getting location:", error);
+      logger.error("Error getting location:", error);
       if (error instanceof Error) {
         setError(error.message);
       } else {
@@ -689,7 +638,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
             showError("Gagal", "Gagal menghapus area berisik");
           }
         } catch (error) {
-          console.error("Error clearing noise areas:", error);
+          logger.error("Error clearing noise areas:", error);
           showError("Error", "Gagal menghapus area berisik");
         } finally {
           setLoading(false);

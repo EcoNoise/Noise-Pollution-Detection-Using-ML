@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { logger } from "../config/appConfig";
 import {
   AlertTriangle,
   Activity,
@@ -30,7 +31,7 @@ const HealthDashboard: React.FC = () => {
       setDashboard(dashboardData);
       setWeeklySummary(weeklyData);
     } catch (err: any) {
-      console.error("Error fetching dashboard data:", err);
+      logger.error("Error fetching dashboard data:", err);
       setError(err.message);
     } finally {
       setLoading(false);
