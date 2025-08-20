@@ -39,6 +39,28 @@ export const register = async (formData: FormData) => {
   return { data: result.data };
 };
 
+// Fungsi untuk logout
+export const logout = async () => {
+  const { error } = await apiService.signOut();
+  
+  if (error) {
+    throw new Error('Logout failed');
+  }
+  
+  // Clear local storage
+  localStorage.removeItem("userId");
+  localStorage.removeItem("userEmail");
+  localStorage.removeItem("username");
+  localStorage.removeItem("firstName");
+  localStorage.removeItem("lastName");
+  
+  // Clear session tokens
+  const sessionManager = SessionManager.getInstance();
+  sessionManager.clearTokens();
+  
+  return { success: true };
+};
+
 // Fungsi untuk login
 export const login = async (loginField: string, password: string) => {
   const result = await apiService.signIn(loginField, password);

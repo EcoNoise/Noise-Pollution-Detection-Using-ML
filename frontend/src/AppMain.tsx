@@ -306,7 +306,7 @@ const ProtectedRoute: React.FC<{
 function App() {
   const { user, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
-  
+
   // Determine authentication status from AuthContext
   const isAuthenticated = !!user;
 
@@ -314,7 +314,7 @@ function App() {
     // Login is now handled by AuthContext
     // This function is kept for compatibility with existing components
   };
-  
+
   const handleLogout = async () => {
     try {
       await signOut();

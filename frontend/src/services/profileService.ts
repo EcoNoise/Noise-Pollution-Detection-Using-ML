@@ -1,93 +1,241 @@
 // File: src/services/profileService.ts
-// Supabase removed: using localStorage-backed mock profile
+// Supabase integration for user profiles
 
-// Helper: get current user id from localStorage
-const getCurrentUserId = (): string | null => {
-  return localStorage.getItem('userId');
-};
+import { supabase } from '../config/supabaseConfig';
+import { logger } from '../config/appConfig';
 
-// Shape of stored profile
-interface LocalUserProfile {
+// Profile interface matching database schema
+export interface UserProfile {
   id: string;
-  first_name: string;
-  last_name: string;
   username: string;
+  first_name: string | null;
+  last_name: string | null;
   email: string;
-  photo?: string;
-  date_joined?: string;
-  last_login?: string;
-  is_active?: boolean;
+  photo_url: string | null;
+  status_aktif: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
-const PROFILE_KEY = 'mock_profile';
+// Profile update interface (excludes read-only fields)
+export interface ProfileUpdateData {
+  username?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string;
+  photo_url?: string | null;
+}
 
-const loadProfile = (): LocalUserProfile | null => {
-  const raw = localStorage.getItem(PROFILE_KEY);
-  if (!raw) return null;
+// Helper: get current user from Supabase auth
+const getCurrentUser = async () => {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error) {
+    logger.error('Error getting current user:', error);
+    throw new Error('User not authenticated');
+  }
+  return user;
+};
+
+/**
+ * Mengambil data profil pengguna yang sedang login dari Supabase.
+ */
+export const getUserProfile = async (): Promise<UserProfile> => {
   try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
+    const user = await getCurrentUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      logger.error('Error fetching user profile:', error);
+      throw new Error('Failed to fetch user profile');
+    }
+
+    if (!profile) {
+      throw new Error('Profile not found');
+    }
+
+    return profile as UserProfile;
+  } catch (error) {
+    logger.error('getUserProfile error:', error);
+    throw error;
   }
 };
 
-const saveProfile = (profile: LocalUserProfile) => {
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-};
-
 /**
- * Mengambil data profil pengguna yang sedang login (mock).
+ * Memperbarui data profil pengguna di Supabase.
  */
-export const getUserProfile = async (): Promise<any> => {
-  const userId = getCurrentUserId();
-  if (!userId) throw new Error('User not authenticated');
+export const updateUserProfile = async (profileData: ProfileUpdateData): Promise<UserProfile> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('User not authenticated');
 
-  // Try load from storage
-  let profile = loadProfile();
-  if (!profile) {
-    // Initialize default profile from basic info
-    const email = localStorage.getItem('userEmail') || '';
-    const username = localStorage.getItem('username') || 'user';
-    const first_name = localStorage.getItem('firstName') || '';
-    const last_name = localStorage.getItem('lastName') || '';
+    // Validate email uniqueness if email is being updated
+    if (profileData.email) {
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', profileData.email)
+        .neq('id', user.id)
+        .single();
 
-    profile = {
-      id: userId,
-      username,
-      first_name,
-      last_name,
-      email,
-      date_joined: new Date().toISOString(),
-      last_login: new Date().toISOString(),
-      is_active: true,
-      photo: undefined,
-    };
-    saveProfile(profile);
+      if (existingProfile) {
+        throw new Error('Email already exists');
+      }
+    }
+
+    // Validate username uniqueness if username is being updated
+    if (profileData.username) {
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', profileData.username)
+        .neq('id', user.id)
+        .single();
+
+      if (existingProfile) {
+        throw new Error('Username already exists');
+      }
+    }
+
+    const { data: updatedProfile, error } = await supabase
+      .from('profiles')
+      .update(profileData)
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      logger.error('Error updating user profile:', error);
+      throw new Error('Failed to update user profile');
+    }
+
+    return updatedProfile as UserProfile;
+  } catch (error) {
+    logger.error('updateUserProfile error:', error);
+    throw error;
   }
-  return profile;
 };
 
 /**
- * Memperbarui data profil pengguna (mock).
+ * Upload foto profil ke Supabase Storage.
  */
-export const updateUserProfile = async (profileData: any): Promise<any> => {
-  const userId = getCurrentUserId();
-  if (!userId) throw new Error('User not authenticated');
+export const uploadProfilePhoto = async (file: File): Promise<string> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('User not authenticated');
 
-  const current = (await getUserProfile()) as LocalUserProfile;
-  const updated: LocalUserProfile = {
-    ...current,
-    ...profileData,
-    id: userId,
-    last_login: new Date().toISOString(),
-  };
-  saveProfile(updated);
+    // Generate unique filename
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}/profile.${fileExt}`;
 
-  // Keep simple mirrors in localStorage for other parts of app
-  if (updated.email) localStorage.setItem('userEmail', updated.email);
-  if (updated.username) localStorage.setItem('username', updated.username);
-  if (updated.first_name) localStorage.setItem('firstName', updated.first_name);
-  if (updated.last_name) localStorage.setItem('lastName', updated.last_name);
+    // Upload file to storage
+    const { data, error } = await supabase.storage
+      .from('profile-photos')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: true // Replace existing file
+      });
 
-  return updated;
+    if (error) {
+      logger.error('Error uploading profile photo:', error);
+      throw new Error('Failed to upload profile photo');
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('profile-photos')
+      .getPublicUrl(fileName);
+
+    return publicUrl;
+  } catch (error) {
+    logger.error('uploadProfilePhoto error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Hapus foto profil dari Supabase Storage.
+ */
+export const deleteProfilePhoto = async (): Promise<void> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('User not authenticated');
+
+    // List all files in user's folder
+    const { data: files, error: listError } = await supabase.storage
+      .from('profile-photos')
+      .list(user.id);
+
+    if (listError) {
+      logger.error('Error listing profile photos:', listError);
+      throw new Error('Failed to list profile photos');
+    }
+
+    if (files && files.length > 0) {
+      // Delete all files in user's folder
+      const filePaths = files.map(file => `${user.id}/${file.name}`);
+      const { error: deleteError } = await supabase.storage
+        .from('profile-photos')
+        .remove(filePaths);
+
+      if (deleteError) {
+        logger.error('Error deleting profile photos:', deleteError);
+        throw new Error('Failed to delete profile photos');
+      }
+    }
+  } catch (error) {
+    logger.error('deleteProfilePhoto error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Deaktivasi akun pengguna (soft delete).
+ */
+export const deactivateAccount = async (): Promise<void> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ status_aktif: false })
+      .eq('id', user.id);
+
+    if (error) {
+      logger.error('Error deactivating account:', error);
+      throw new Error('Failed to deactivate account');
+    }
+  } catch (error) {
+    logger.error('deactivateAccount error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Aktivasi kembali akun pengguna.
+ */
+export const reactivateAccount = async (): Promise<void> => {
+  try {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ status_aktif: true })
+      .eq('id', user.id);
+
+    if (error) {
+      logger.error('Error reactivating account:', error);
+      throw new Error('Failed to reactivate account');
+    }
+  } catch (error) {
+    logger.error('reactivateAccount error:', error);
+    throw error;
+  }
 };
