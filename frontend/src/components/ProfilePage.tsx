@@ -1,6 +1,37 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  Box,
+  Typography,
+  Button,
+  Card,
+  CardContent,
+  Grid,
+  TextField,
+  Avatar,
+  Alert,
+  CircularProgress,
+  Paper,
+  Divider,
+  styled,
+  IconButton,
+  Badge,
+  Chip,
+} from "@mui/material";
+import {
+  Person,
+  PhotoCamera,
+  Delete,
+  Save,
+  Cancel,
+  Warning,
+  CheckCircle,
+  Email,
+  AccountCircle,
+  Schedule,
+  Security,
+} from "@mui/icons-material";
+import {
   getUserProfile,
   updateUserProfile,
   uploadProfilePhoto,
@@ -11,7 +42,107 @@ import {
 } from "../services/profileService";
 import { logout } from "../services/authService";
 import { logger } from "../config/appConfig";
-import "./ProfilePage.css";
+
+const StyledCard = styled(Card)(({ theme }) => ({
+  background: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)",
+  color: "white",
+  marginBottom: theme.spacing(3),
+  borderRadius: 16,
+  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+  border: "1px solid rgba(255, 255, 255, 0.1)",
+}));
+
+const GlassCard = styled(Card)(({ theme }) => ({
+  background: "rgba(255, 255, 255, 0.05)",
+  backdropFilter: "blur(10px)",
+  border: "1px solid rgba(255, 255, 255, 0.1)",
+  borderRadius: 16,
+  color: "white",
+  marginBottom: theme.spacing(3),
+  transition: "all 0.3s ease",
+  "&:hover": {
+    background: "rgba(255, 255, 255, 0.08)",
+    transform: "translateY(-2px)",
+    boxShadow: "0 12px 40px rgba(0, 0, 0, 0.4)",
+  },
+}));
+
+const StyledTextField = styled(TextField)(({ theme }) => ({
+  "& .MuiOutlinedInput-root": {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
+    "& fieldset": {
+      borderColor: "rgba(255, 255, 255, 0.3)",
+    },
+    "&:hover fieldset": {
+      borderColor: "rgba(255, 255, 255, 0.5)",
+    },
+    "&.Mui-focused fieldset": {
+      borderColor: "#2196F3",
+    },
+  },
+  "& .MuiInputLabel-root": {
+    color: "rgba(255, 255, 255, 0.7)",
+    "&.Mui-focused": {
+      color: "#2196F3",
+    },
+  },
+  "& .MuiOutlinedInput-input": {
+    color: "white",
+  },
+}));
+
+const ActionButton = styled(Button)(({ theme }) => ({
+  borderRadius: 50,
+  padding: "12px 24px",
+  fontSize: "1rem",
+  fontWeight: 600,
+  textTransform: "none",
+  marginRight: theme.spacing(2),
+  marginBottom: theme.spacing(1),
+  transition: "all 0.3s ease",
+  "&.MuiButton-contained": {
+    background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
+    "&:hover": {
+      background: "linear-gradient(45deg, #1976D2 30%, #0288D1 90%)",
+      transform: "translateY(-2px)",
+      boxShadow: "0 8px 25px rgba(33, 150, 243, 0.4)",
+    },
+  },
+  "&.MuiButton-outlined": {
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    color: "white",
+    "&:hover": {
+      borderColor: "rgba(255, 255, 255, 0.6)",
+      background: "rgba(255, 255, 255, 0.1)",
+    },
+  },
+}));
+
+const DangerButton = styled(Button)(({ theme }) => ({
+  borderRadius: 50,
+  padding: "12px 24px",
+  fontSize: "1rem",
+  fontWeight: 600,
+  textTransform: "none",
+  background: "linear-gradient(45deg, #f44336 30%, #E53935 90%)",
+  color: "white",
+  transition: "all 0.3s ease",
+  "&:hover": {
+    background: "linear-gradient(45deg, #d32f2f 30%, #c62828 90%)",
+    transform: "translateY(-2px)",
+    boxShadow: "0 8px 25px rgba(244, 67, 54, 0.4)",
+  },
+}));
+
+const ProfileAvatar = styled(Avatar)(({ theme }) => ({
+  width: 120,
+  height: 120,
+  fontSize: "3rem",
+  background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
+  boxShadow: "0 8px 32px rgba(33, 150, 243, 0.3)",
+  border: "4px solid rgba(255, 255, 255, 0.2)",
+}));
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
@@ -195,222 +326,530 @@ const ProfilePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="profile-page">
-        <div className="profile-container">
-          <div className="loading-spinner">
-            <div className="spinner"></div>
-            <p>Loading profile...</p>
-          </div>
-        </div>
-      </div>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: 3,
+        }}
+      >
+        <GlassCard sx={{ textAlign: "center", p: 4 }}>
+          <CircularProgress 
+            size={60} 
+            sx={{ 
+              mb: 3, 
+              color: "#2196F3",
+              "& .MuiCircularProgress-circle": {
+                strokeLinecap: "round",
+              },
+            }} 
+          />
+          <Typography variant="h6" sx={{ color: "#e3f2fd" }}>
+            Loading profile...
+          </Typography>
+        </GlassCard>
+      </Box>
     );
   }
 
   if (!profile) {
     return (
-      <div className="profile-page">
-        <div className="profile-container">
-          <div className="error-message">
-            <h2>Profile Not Found</h2>
-            <p>Unable to load your profile. Please try again.</p>
-            <button onClick={loadProfile} className="btn btn-primary">
-              Retry
-            </button>
-          </div>
-        </div>
-      </div>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: 3,
+        }}
+      >
+        <GlassCard sx={{ textAlign: "center", p: 4 }}>
+          <Warning sx={{ fontSize: 60, color: "#f44336", mb: 2 }} />
+          <Typography variant="h5" sx={{ mb: 2, color: "#e3f2fd" }}>
+            Profile Not Found
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 3, opacity: 0.8 }}>
+            Unable to load your profile. Please try again.
+          </Typography>
+          <ActionButton
+            variant="contained"
+            onClick={loadProfile}
+            startIcon={<CheckCircle />}
+          >
+            Retry
+          </ActionButton>
+        </GlassCard>
+      </Box>
     );
   }
 
   return (
-    <div className="profile-page">
-      <div className="profile-container">
-        <div className="profile-header">
-          <h1>My Profile</h1>
-          <p>Manage your account information and preferences</p>
-        </div>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%)",
+        p: 3,
+      }}
+    >
+      <Box sx={{ maxWidth: 1200, mx: "auto" }}>
+        {/* Header */}
+        <Box sx={{ textAlign: "center", mb: 4 }}>
+          <Typography
+            variant="h3"
+            sx={{ 
+              fontWeight: 700, 
+              color: "white",
+              mb: 1,
+            }}
+          >
+            Profile
+          </Typography>
+          <Typography variant="body1" sx={{ opacity: 0.7, color: "white" }}>
+            View all your profile details here
+          </Typography>
+        </Box>
 
+        {/* Error Alert */}
         {error && (
-          <div className="alert alert-error">
-            <span className="alert-icon">⚠️</span>
+          <Alert 
+            severity="error" 
+            onClose={() => setError(null)}
+            sx={{ 
+              mb: 3,
+              backgroundColor: "rgba(244, 67, 54, 0.1)",
+              color: "white",
+              border: "1px solid rgba(244, 67, 54, 0.3)",
+              borderRadius: 2,
+              "& .MuiAlert-icon": {
+                color: "#f44336",
+              },
+            }}
+          >
             {error}
-          </div>
+          </Alert>
         )}
 
+        {/* Success Alert */}
         {success && (
-          <div className="alert alert-success">
-            <span className="alert-icon">✅</span>
+          <Alert 
+            severity="success" 
+            onClose={() => setSuccess(null)}
+            sx={{ 
+              mb: 3,
+              backgroundColor: "rgba(76, 175, 80, 0.1)",
+              color: "white",
+              border: "1px solid rgba(76, 175, 80, 0.3)",
+              borderRadius: 2,
+              "& .MuiAlert-icon": {
+                color: "#4CAF50",
+              },
+            }}
+          >
             {success}
-          </div>
+          </Alert>
         )}
 
-        <form onSubmit={handleSubmit} className="profile-form">
-          {/* Photo Section */}
-          <div className="form-section">
-            <h3>Profile Photo</h3>
-            <div className="photo-section">
-              <div className="photo-preview">
-                {photoPreview ? (
-                  <img
-                    src={photoPreview}
-                    alt="Profile"
-                    className="profile-photo"
-                  />
-                ) : (
-                  <div className="photo-placeholder">
-                    <span className="photo-icon">👤</span>
-                  </div>
-                )}
-              </div>
-              <div className="photo-controls">
-                <input
-                  type="file"
-                  id="photo-upload"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
-                  className="file-input"
-                />
-                <label htmlFor="photo-upload" className="btn btn-secondary">
-                  {uploading ? "Uploading..." : "Choose Photo"}
-                </label>
-                {photoPreview && (
-                  <button
-                    type="button"
-                    onClick={handleRemovePhoto}
-                    className="btn btn-danger"
-                    disabled={uploading}
-                  >
-                    Remove Photo
-                  </button>
-                )}
-              </div>
-              <p className="photo-hint">
-                Supported formats: JPG, PNG, GIF. Max size: 5MB
-              </p>
-            </div>
-          </div>
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={3} sx={{ alignItems: "stretch", justifyContent: "center" }}>
+            {/* Profile Card */}
+            <Grid item xs={12} md={6} lg={5}>
+              <GlassCard sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                <CardContent sx={{ p: 4, textAlign: "center", flex: 1, display: "flex", flexDirection: "column" }}>
+                  {/* Profile Name & Status */}
+                  <Typography variant="h4" sx={{ 
+                    color: "white", 
+                    fontWeight: 700,
+                    mb: 1 
+                  }}>
+                    {formData.first_name && formData.last_name 
+                      ? `${formData.first_name} ${formData.last_name}` 
+                      : formData.username}
+                  </Typography>
 
-          {/* Basic Information */}
-          <div className="form-section">
-            <h3>Basic Information</h3>
-            <div className="form-grid">
-              <div className="form-group">
-                <label htmlFor="username">Username *</label>
-                <input
-                  type="text"
-                  id="username"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  required
-                  className="form-input"
-                  placeholder="Enter your username"
-                />
-              </div>
+                  {/* Avatar Section */}
+                  <Box sx={{ mt: "auto", position: "relative", display: "inline-block", alignSelf: "center" }}>
+                    <Badge
+                      overlap="circular"
+                      anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                      badgeContent={
+                        <IconButton
+                          component="label"
+                          sx={{
+                            background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
+                            color: "white",
+                            width: 48,
+                            height: 48,
+                            "&:hover": {
+                              background: "linear-gradient(45deg, #1976D2 30%, #0288D1 90%)",
+                              transform: "scale(1.1)",
+                            },
+                            transition: "all 0.3s ease",
+                          }}
+                        >
+                          <PhotoCamera sx={{ fontSize: 24 }} />
+                          <input
+                            type="file"
+                            hidden
+                            accept="image/*"
+                            onChange={handlePhotoChange}
+                          />
+                        </IconButton>
+                      }
+                    >
+                      <Avatar
+                        src={photoPreview || undefined}
+                        sx={{
+                          width: 200,
+                          height: 200,
+                          fontSize: "4rem",
+                          background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
+                          boxShadow: "0 12px 40px rgba(33, 150, 243, 0.4)",
+                          border: "6px solid rgba(255, 255, 255, 0.1)",
+                          transition: "all 0.3s ease",
+                          "&:hover": {
+                            transform: "scale(1.05)",
+                            boxShadow: "0 16px 50px rgba(33, 150, 243, 0.6)",
+                          },
+                        }}
+                      >
+                        {!photoPreview && <Person sx={{ fontSize: "4rem" }} />}
+                      </Avatar>
+                    </Badge>
 
-              <div className="form-group">
-                <label htmlFor="email">Email *</label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  required
-                  className="form-input"
-                  placeholder="Enter your email"
-                />
-              </div>
+                    {uploading && (
+                      <Box sx={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                        background: "rgba(0, 0, 0, 0.7)",
+                        borderRadius: "50%",
+                        width: 200,
+                        height: 200,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexDirection: "column",
+                      }}>
+                        <CircularProgress size={40} sx={{ color: "#2196F3", mb: 1 }} />
+                        <Typography variant="body2" sx={{ color: "white" }}>
+                          Uploading...
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
 
-              <div className="form-group">
-                <label htmlFor="first_name">First Name</label>
-                <input
-                  type="text"
-                  id="first_name"
-                  name="first_name"
-                  value={formData.first_name}
-                  onChange={handleInputChange}
-                  className="form-input"
-                  placeholder="Enter your first name"
-                />
-              </div>
+                  {/* Upload Guidelines */}
+                  <Box sx={{ mt: "auto" }}>
+                    <Typography variant="body2" sx={{ 
+                      opacity: 0.7, 
+                      lineHeight: 1.6,
+                      color: "rgba(255, 255, 255, 0.7)",
+                      mb: 3
+                    }}>
+                      Supported formats: JPG, PNG, GIF<br />
+                      Max size: 5MB
+                    </Typography>
 
-              <div className="form-group">
-                <label htmlFor="last_name">Last Name</label>
-                <input
-                  type="text"
-                  id="last_name"
-                  name="last_name"
-                  value={formData.last_name}
-                  onChange={handleInputChange}
-                  className="form-input"
-                  placeholder="Enter your last name"
-                />
-              </div>
-            </div>
-          </div>
+                    {/* Remove Photo Button */}
+                    {photoPreview && (
+                      <ActionButton
+                        variant="outlined"
+                        onClick={handleRemovePhoto}
+                        disabled={uploading}
+                        startIcon={<Delete />}
+                        fullWidth
+                      >
+                        Remove Photo
+                      </ActionButton>
+                    )}
+                  </Box>
+                </CardContent>
+              </GlassCard>
+            </Grid>
 
-          {/* Account Status */}
-          <div className="form-section">
-            <h3>Account Status</h3>
-            <div className="status-info">
-              <div className="status-item">
-                <span className="status-label">Status:</span>
-                <span
-                  className={`status-badge ${
-                    profile.status_aktif ? "active" : "inactive"
-                  }`}
-                >
-                  {profile.status_aktif ? "Active" : "Inactive"}
-                </span>
-              </div>
-              <div className="status-item">
-                <span className="status-label">Member since:</span>
-                <span className="status-value">
-                  {new Date(profile.created_at).toLocaleDateString()}
-                </span>
-              </div>
-            </div>
-          </div>
+            {/* Bio & Details */}
+            <Grid item xs={12} md={7}>
+              <GlassCard sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                <CardContent sx={{ p: 4, flex: 1, display: "flex", flexDirection: "column" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 4 }}>
+                    <AccountCircle sx={{ fontSize: 28, color: "#2196F3" }} />
+                    <Typography variant="h5" sx={{ 
+                      fontWeight: 600, 
+                      color: "white",
+                      background: "linear-gradient(45deg, #ffffff 30%, #e3f2fd 90%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                    }}>
+                      Bio & other details
+                    </Typography>
+                    <Box sx={{ ml: "auto" }}>
+                      <Box sx={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        background: profile.status_aktif 
+                          ? "linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)"
+                          : "linear-gradient(45deg, #f44336 30%, #E53935 90%)",
+                        boxShadow: profile.status_aktif 
+                          ? "0 0 10px rgba(76, 175, 80, 0.6)"
+                          : "0 0 10px rgba(244, 67, 54, 0.6)",
+                      }} />
+                    </Box>
+                  </Box>
 
-          {/* Action Buttons */}
-          <div className="form-actions">
-            <button
-              type="submit"
-              disabled={updating || uploading}
-              className="btn btn-primary"
-            >
-              {updating ? "Updating..." : "Update Profile"}
-            </button>
+                  <Grid container spacing={3} sx={{ flex: 1 }}>
+                    {/* Left Column */}
+                    <Grid item xs={12} sm={6} sx={{ display: "flex", flexDirection: "column" }}>
+                      <Box sx={{ mb: 3, height: "100px" }}>
+                        <Typography variant="body2" sx={{ 
+                          color: "rgba(255, 255, 255, 0.7)", 
+                          mb: 1,
+                          fontSize: "0.875rem"
+                        }}>
+                          Username
+                        </Typography>
+                        <StyledTextField
+                          fullWidth
+                          name="username"
+                          value={formData.username}
+                          onChange={handleInputChange}
+                          required
+                          variant="outlined"
+                          size="small"
+                          InputProps={{
+                            startAdornment: <AccountCircle sx={{ color: "rgba(255, 255, 255, 0.5)", mr: 1 }} />,
+                          }}
+                        />
+                      </Box>
 
-            <button
-              type="button"
-              onClick={() => navigate("/dashboard")}
-              className="btn btn-secondary"
-            >
-              Cancel
-            </button>
-          </div>
+                      <Box sx={{ mb: 3, height: "100px" }}>
+                        <Typography variant="body2" sx={{ 
+                          color: "rgba(255, 255, 255, 0.7)", 
+                          mb: 1,
+                          fontSize: "0.875rem"
+                        }}>
+                          First Name
+                        </Typography>
+                        <StyledTextField
+                          fullWidth
+                          name="first_name"
+                          value={formData.first_name}
+                          onChange={handleInputChange}
+                          variant="outlined"
+                          size="small"
+                          InputProps={{
+                            startAdornment: <Person sx={{ color: "rgba(255, 255, 255, 0.5)", mr: 1 }} />,
+                          }}
+                        />
+                      </Box>
+
+                      <Box sx={{ mb: 3, height: "80px" }}>
+                        <Typography variant="body2" sx={{ 
+                          color: "rgba(255, 255, 255, 0.7)", 
+                          mb: 1,
+                          fontSize: "0.875rem"
+                        }}>
+                          Account Status
+                        </Typography>
+                        <Box sx={{ 
+                          display: "flex", 
+                          alignItems: "center", 
+                          gap: 2,
+                          p: 2,
+                          borderRadius: 2,
+                          background: "rgba(255, 255, 255, 0.05)",
+                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          height: "48px",
+                        }}>
+                          <Security sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 20 }} />
+                          <Typography variant="body2" sx={{ color: "#e3f2fd", fontWeight: 600 }}>
+                            {profile.status_aktif ? "Active" : "Inactive"}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Grid>
+
+                    {/* Right Column */}
+                    <Grid item xs={12} sm={6} sx={{ display: "flex", flexDirection: "column" }}>
+                      <Box sx={{ mb: 3, height: "100px" }}>
+                        <Typography variant="body2" sx={{ 
+                          color: "rgba(255, 255, 255, 0.7)", 
+                          mb: 1,
+                          fontSize: "0.875rem"
+                        }}>
+                          Email
+                        </Typography>
+                        <StyledTextField
+                          fullWidth
+                          name="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          required
+                          variant="outlined"
+                          size="small"
+                          InputProps={{
+                            startAdornment: <Email sx={{ color: "rgba(255, 255, 255, 0.5)", mr: 1 }} />,
+                          }}
+                        />
+                      </Box>
+
+                      <Box sx={{ mb: 3, height: "100px" }}>
+                        <Typography variant="body2" sx={{ 
+                          color: "rgba(255, 255, 255, 0.7)", 
+                          mb: 1,
+                          fontSize: "0.875rem"
+                        }}>
+                          Last Name
+                        </Typography>
+                        <StyledTextField
+                          fullWidth
+                          name="last_name"
+                          value={formData.last_name}
+                          onChange={handleInputChange}
+                          variant="outlined"
+                          size="small"
+                          InputProps={{
+                            startAdornment: <Person sx={{ color: "rgba(255, 255, 255, 0.5)", mr: 1 }} />,
+                          }}
+                        />
+                      </Box>
+
+                      <Box sx={{ mb: 3, height: "80px" }}>
+                        <Typography variant="body2" sx={{ 
+                          color: "rgba(255, 255, 255, 0.7)", 
+                          mb: 1,
+                          fontSize: "0.875rem"
+                        }}>
+                          Member since
+                        </Typography>
+                        <Box sx={{ 
+                          display: "flex", 
+                          alignItems: "center", 
+                          gap: 2,
+                          p: 2,
+                          borderRadius: 2,
+                          background: "rgba(255, 255, 255, 0.05)",
+                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          height: "48px",
+                        }}>
+                          <Schedule sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: 20 }} />
+                          <Typography variant="body2" sx={{ color: "#2196F3", fontWeight: 600 }}>
+                            {new Date(profile.created_at).toLocaleDateString()}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Grid>
+                  </Grid>
+
+                  {/* Action Buttons */}
+                  <Box sx={{ 
+                    display: "flex", 
+                    gap: 2, 
+                    mt: "auto",
+                    pt: 3,
+                    justifyContent: "flex-end"
+                  }}>
+                    <ActionButton
+                      variant="outlined"
+                      onClick={() => navigate("/dashboard")}
+                      startIcon={<Cancel />}
+                    >
+                      Cancel
+                    </ActionButton>
+                    <ActionButton
+                      type="submit"
+                      variant="contained"
+                      disabled={updating || uploading}
+                      startIcon={<Save />}
+                    >
+                      {updating ? "Updating..." : "Save Changes"}
+                    </ActionButton>
+                  </Box>
+                </CardContent>
+              </GlassCard>
+            </Grid>
+          </Grid>
         </form>
 
         {/* Danger Zone */}
-        <div className="danger-zone">
-          <h3>Danger Zone</h3>
-          <p>
-            Once you deactivate your account, you will be logged out and your
-            account will be disabled.
-          </p>
-          <button
-            type="button"
-            onClick={handleDeactivateAccount}
-            disabled={updating}
-            className="btn btn-danger"
-          >
-            Deactivate Account
-          </button>
-        </div>
-      </div>
-    </div>
+        {/* <GlassCard sx={{ 
+          mt: 4,
+          border: "1px solid rgba(244, 67, 54, 0.3)",
+          background: "rgba(244, 67, 54, 0.05)",
+        }}>
+          <CardContent sx={{ p: 4 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 4 }}>
+              <Warning sx={{ fontSize: 28, color: "#f44336" }} />
+              <Typography variant="h6" sx={{ fontWeight: 600, color: "#f44336" }}>
+                Danger Zone
+              </Typography>
+            </Box>
+
+            <Box sx={{ 
+              display: "flex", 
+              flexDirection: { xs: "column", sm: "row" }, 
+              gap: 3, 
+              alignItems: { xs: "flex-start", sm: "center" },
+              p: 3,
+              borderRadius: 2,
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(244, 67, 54, 0.2)",
+            }}>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" sx={{ color: "#e3f2fd", mb: 2, fontWeight: 600 }}>
+                  Deactivate Account
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.8, lineHeight: 1.6 }}>
+                  Once you deactivate your account, you will be logged out and your
+                  account will be disabled. This action can be reversed later by
+                  contacting support or logging in again.
+                </Typography>
+                <Typography variant="body2" sx={{ 
+                  opacity: 0.7, 
+                  mt: 2, 
+                  fontStyle: "italic",
+                  color: "#f44336"
+                }}>
+                  ⚠️ This action requires confirmation and will immediately log you out.
+                </Typography>
+              </Box>
+              <Box sx={{ 
+                display: "flex", 
+                flexDirection: "column", 
+                alignItems: { xs: "stretch", sm: "center" },
+                minWidth: { sm: "200px" }
+              }}>
+                <DangerButton
+                  onClick={handleDeactivateAccount}
+                  disabled={updating}
+                  startIcon={<Security />}
+                  fullWidth
+                  size="large"
+                >
+                  Deactivate Account
+                </DangerButton>
+                {updating && (
+                  <Typography variant="caption" sx={{ 
+                    mt: 1, 
+                    opacity: 0.8,
+                    textAlign: "center" 
+                  }}>
+                    Processing...
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          </CardContent>
+        </GlassCard> */}
+      </Box>
+    </Box>
   );
 };
 
