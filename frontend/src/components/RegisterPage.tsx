@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { register } from "../services/authService";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { logger } from "../config/appConfig";
+import { useAuth, isSupabaseConfigured } from "../contexts/AuthContext";
 
 interface RegisterPageProps {
   onRegisterSuccess?: () => void;
@@ -104,42 +104,54 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
     setStep(step - 1);
   };
 
-  // Handle registration - hanya dipanggil di step 3
+  const { signUpWithEmail, signInWithGoogle, loading: authLoading } = useAuth();
+
+  // Handle Google registration
+  const handleGoogleRegister = async () => {
+    try {
+      setError("");
+      await signInWithGoogle();
+      // Navigation will be handled by AuthCallback component
+    } catch (err: any) {
+      setError("Gagal mendaftar dengan Google. Silakan coba lagi.");
+      logger.error("Google register error:", err);
+    }
+  };
+
+  // Handle email registration - hanya dipanggil di step 3
   const handleRegister = async () => {
     setError("");
     setLoading(true);
 
-    const formData = new FormData();
-    formData.append("firstName", firstName);
-    formData.append("lastName", lastName);
-    formData.append("fullName", fullName);
-    formData.append("username", username);
-    formData.append("password", password);
-    if (email) formData.append("email", email);
-    if (photo) formData.append("photo", photo);
-
     try {
-      const response = await register(formData);
-      logger.info("Registrasi berhasil:", response.data);
+      // Prepare user metadata
+      const metadata = {
+        firstName,
+        lastName,
+        fullName,
+        username,
+        // Note: photo upload will need to be handled separately with Supabase Storage
+        // For now, we'll just store the basic info
+      };
 
-      // Show success modal
-      setShowSuccessModal(true);
+      const result = await signUpWithEmail(email, password, metadata);
+      
+      if (result.success) {
+        logger.info("Registrasi berhasil dengan email:", email);
+        
+        // Show success modal
+        setShowSuccessModal(true);
 
-      // Call onRegisterSuccess if provided
-      if (onRegisterSuccess) {
-        onRegisterSuccess();
+        // Call onRegisterSuccess if provided
+        if (onRegisterSuccess) {
+          onRegisterSuccess();
+        }
+      } else {
+        setError(result.error || "Registrasi gagal. Coba lagi.");
       }
     } catch (err: any) {
-      const responseData = err.response?.data;
-
-      if (responseData && typeof responseData === "object") {
-        const errorMessages = Object.values(responseData).flat().join(" ");
-        setError(errorMessages || "Registrasi gagal. Coba lagi.");
-      } else {
-        setError("Terjadi galat pada server. Silakan coba lagi nanti.");
-        logger.error("Server returned non-JSON error:", responseData);
-      }
-      logger.error(err);
+      setError("Terjadi kesalahan saat registrasi. Silakan coba lagi.");
+      logger.error("Registration error:", err);
     } finally {
       setLoading(false);
     }
@@ -290,9 +302,38 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
             </div>
             <h2 className="text-3xl font-bold text-blue-400 mb-2">Buat Akun</h2>
             <p className="text-slate-300 text-sm">
-              Step {step} dari 3 - Daftar untuk memulai perjalanan Anda
+              {step === 1 ? 'Daftar untuk memulai perjalanan Anda' : `Step ${step} dari 3`}
             </p>
           </div>
+
+          {/* Google Register Button - Only show on step 1 */}
+          {step === 1 && isSupabaseConfigured() && (
+            <div className="mb-6">
+              <button
+                type="button"
+                onClick={handleGoogleRegister}
+                disabled={loading || authLoading}
+                className="w-full flex items-center justify-center px-4 py-3 border border-slate-600 rounded-lg bg-white hover:bg-gray-50 text-gray-700 font-medium transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                {loading || authLoading ? 'Memproses...' : 'Daftar dengan Google'}
+              </button>
+              
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-600"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-slate-800 text-slate-400">atau daftar dengan email</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <StepIndicator />
 
@@ -567,14 +608,14 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                 <button
                   type="button"
                   onClick={handleRegister}
-                  disabled={loading}
+                  disabled={loading || authLoading}
                   className={`flex-1 py-3 px-4 rounded-lg font-semibold text-white transition-all duration-200 ${
-                    loading
+                    loading || authLoading
                       ? "bg-slate-600 cursor-not-allowed"
                       : "bg-green-600 hover:bg-green-700 transform hover:scale-105 shadow-lg"
                   }`}
                 >
-                  {loading ? (
+                  {loading || authLoading ? (
                     <div className="flex items-center justify-center">
                       <svg
                         className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
@@ -598,7 +639,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                       Mendaftar...
                     </div>
                   ) : (
-                    "Daftar Sekarang"
+                    "Daftar dengan Email"
                   )}
                 </button>
               )}

@@ -2178,13 +2178,46 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
                   monitoring polusi suara terdepan.
                 </p>
                 <div className="footer-social">
-                  <button type="button" className="social-link" aria-label="Twitter" onClick={() => window.open('https://twitter.com', '_blank', 'noopener,noreferrer')}>
+                  <button
+                    type="button"
+                    className="social-link"
+                    aria-label="Twitter"
+                    onClick={() =>
+                      window.open(
+                        "https://twitter.com",
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                  >
                     <div className="social-icon twitter"></div>
                   </button>
-                  <button type="button" className="social-link" aria-label="LinkedIn" onClick={() => window.open('https://linkedin.com', '_blank', 'noopener,noreferrer')}>
+                  <button
+                    type="button"
+                    className="social-link"
+                    aria-label="LinkedIn"
+                    onClick={() =>
+                      window.open(
+                        "https://linkedin.com",
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                  >
                     <div className="social-icon linkedin"></div>
                   </button>
-                  <button type="button" className="social-link" aria-label="GitHub" onClick={() => window.open('https://github.com', '_blank', 'noopener,noreferrer')}>
+                  <button
+                    type="button"
+                    className="social-link"
+                    aria-label="GitHub"
+                    onClick={() =>
+                      window.open(
+                        "https://github.com",
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                  >
                     <div className="social-icon github"></div>
                   </button>
                 </div>

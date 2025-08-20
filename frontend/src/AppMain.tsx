@@ -5,6 +5,7 @@ import { apiService } from "./services/api";
 import SessionManager from "./utils/tokenManager";
 import { Alert } from "@mui/material";
 import { appConfig, backendNotice, logger } from "./config/appConfig";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 import {
   BrowserRouter as Router,
@@ -26,6 +27,7 @@ import MapsPage from "./components/MapsPage"; // Import yang benar
 import RegisterPage from "./components/RegisterPage";
 import LoginPage from "./components/LoginPage";
 import ProfilePage from "./components/ProfilePage";
+import AuthCallback from "./components/AuthCallback";
 
 // Updated theme to match landing page
 const theme = createTheme({
@@ -302,27 +304,35 @@ const ProtectedRoute: React.FC<{
 
 // 4. Komponen App Utama: Mengatur semua routing
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { user, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
+  
+  // Determine authentication status from AuthContext
+  const isAuthenticated = !!user;
 
-  const handleLogin = () => setIsAuthenticated(true);
+  const handleLogin = () => {
+    // Login is now handled by AuthContext
+    // This function is kept for compatibility with existing components
+  };
+  
   const handleLogout = async () => {
     try {
-      await apiService.signOut();
+      await signOut();
+      // Also clear legacy tokens for backward compatibility
+      const sessionManager = SessionManager.getInstance();
+      await sessionManager.clearTokens();
+      localStorage.removeItem("userId");
+      localStorage.removeItem("userEmail");
     } catch (err) {
       logger.warn("Sign out error:", err);
     }
-    const sessionManager = SessionManager.getInstance();
-    await sessionManager.clearTokens();
-    localStorage.removeItem("userId");
-    localStorage.removeItem("userEmail");
-    setIsAuthenticated(false);
   };
 
-  // Listen untuk auth logout events dari API interceptor
+  // Listen untuk auth logout events dari API interceptor (legacy support)
   useEffect(() => {
     const handleAuthLogout = () => {
-      setIsAuthenticated(false);
+      // Auth state is now managed by AuthContext
+      logger.info("Legacy auth logout event received");
     };
 
     window.addEventListener("auth:logout", handleAuthLogout);
@@ -332,27 +342,17 @@ function App() {
     };
   }, []);
 
-  // Check authentication status saat app load
+  // Sync loading state with AuthContext
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const sessionManager = SessionManager.getInstance();
-        const auth = await sessionManager.isAuthenticated();
-        setIsAuthenticated(auth);
-      } catch (error) {
-        logger.error("Error checking auth status:", error);
-        setIsAuthenticated(false);
-      } finally {
-        setLoading(false);
-      }
-    };
+    setLoading(authLoading);
+  }, [authLoading]);
 
-    checkAuth();
-
-    // Listen to storage changes for cross-tab auth updates
+  // Listen to storage changes for cross-tab auth updates (legacy support)
+  useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === "mock_access_token") {
-        setIsAuthenticated(!!e.newValue);
+        // Legacy token handling - AuthContext will handle Supabase tokens
+        logger.info("Legacy token change detected:", e.key);
       }
     };
     window.addEventListener("storage", onStorage);
@@ -361,7 +361,7 @@ function App() {
     };
   }, []);
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
@@ -388,8 +388,27 @@ function App() {
       <CssBaseline />
       {/* Global backend disabled banner */}
       {appConfig.showBackendNotice && !appConfig.backendEnabled && (
-        <Box sx={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 2000, px: 2, py: 1 }}>
-          <Alert severity={backendNotice.type} sx={{ borderRadius: 0, bgcolor: "#1E293B", color: "#E2E8F0", border: "1px solid #334155" }} icon={<VolumeX size={18} />}>
+        <Box
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 2000,
+            px: 2,
+            py: 1,
+          }}
+        >
+          <Alert
+            severity={backendNotice.type}
+            sx={{
+              borderRadius: 0,
+              bgcolor: "#1E293B",
+              color: "#E2E8F0",
+              border: "1px solid #334155",
+            }}
+            icon={<VolumeX size={18} />}
+          >
             <strong>{backendNotice.title}:</strong> {backendNotice.message}
           </Alert>
         </Box>
@@ -411,6 +430,7 @@ function App() {
             element={<LoginPage onLoginSuccess={handleLogin} />}
           />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* Rute publik dengan sidebar (Home & Maps) */}
           <Route
@@ -488,4 +508,13 @@ function App() {
   );
 }
 
-export default App;
+// Wrapper component with AuthProvider
+function AppWithAuth() {
+  return (
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
+}
+
+export default AppWithAuth;
