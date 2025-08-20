@@ -49,7 +49,11 @@ const ProfilePage: React.FC = () => {
         last_name: profileData.last_name || '',
         email: profileData.email || ''
       });
-      setPhotoPreview(profileData.photo_url);
+      // Add cache-busting parameter to photo URL to prevent caching issues
+      const photoUrl = profileData.photo_url 
+        ? `${profileData.photo_url}${profileData.photo_url.includes('?') ? '&' : '?'}t=${Date.now()}`
+        : null;
+      setPhotoPreview(photoUrl);
     } catch (err: any) {
       logger.error('Error loading profile:', err);
       setError(err.message || 'Failed to load profile');
@@ -145,6 +149,11 @@ const ProfilePage: React.FC = () => {
       const updatedProfile = await updateUserProfile(updateData);
       setProfile(updatedProfile);
       setPhotoFile(null);
+      
+      // Update photo preview with the new URL (with cache-busting)
+      if (photoUrl && photoUrl !== profile?.photo_url) {
+        setPhotoPreview(photoUrl);
+      }
       
       setSuccess('Profile updated successfully');
     } catch (err: any) {

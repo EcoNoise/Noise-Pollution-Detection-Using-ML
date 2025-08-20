@@ -146,12 +146,15 @@ export const uploadProfilePhoto = async (file: File): Promise<string> => {
       throw new Error('Failed to upload profile photo');
     }
 
-    // Get public URL
+    // Get public URL with cache-busting parameter
     const { data: { publicUrl } } = supabase.storage
       .from('profile-photos')
       .getPublicUrl(fileName);
 
-    return publicUrl;
+    // Add timestamp to prevent caching issues
+    const urlWithTimestamp = `${publicUrl}?t=${Date.now()}`;
+    
+    return urlWithTimestamp;
   } catch (error) {
     logger.error('uploadProfilePhoto error:', error);
     throw error;
