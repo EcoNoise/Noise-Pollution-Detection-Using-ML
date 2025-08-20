@@ -129,6 +129,39 @@ export const uploadProfilePhoto = async (file: File): Promise<string> => {
     const user = await getCurrentUser();
     if (!user) throw new Error('User not authenticated');
 
+    // Get current profile to check for existing photo
+    const currentProfile = await getUserProfile();
+    
+    // Delete existing photo files if any exist
+    if (currentProfile.photo_url) {
+      try {
+        // List all files in user's folder to delete any existing photos
+        const { data: files, error: listError } = await supabase.storage
+          .from('profile-photos')
+          .list(`${user.id}/`, {
+            limit: 100,
+            sortBy: { column: 'name', order: 'asc' }
+          });
+
+        if (!listError && files && files.length > 0) {
+          // Delete all existing files in user's folder
+          const filesToDelete = files.map(file => `${user.id}/${file.name}`);
+          const { error: deleteError } = await supabase.storage
+            .from('profile-photos')
+            .remove(filesToDelete);
+          
+          if (deleteError) {
+            logger.warn('Warning: Could not delete old profile photos:', deleteError);
+          } else {
+            logger.info('Successfully deleted old profile photos');
+          }
+        }
+      } catch (deleteErr) {
+        logger.warn('Warning: Error during old photo cleanup:', deleteErr);
+        // Continue with upload even if deletion fails
+      }
+    }
+
     // Generate unique filename
     const fileExt = file.name.split('.').pop();
     const fileName = `${user.id}/profile.${fileExt}`;
@@ -138,7 +171,7 @@ export const uploadProfilePhoto = async (file: File): Promise<string> => {
       .from('profile-photos')
       .upload(fileName, file, {
         cacheControl: '3600',
-        upsert: true // Replace existing file
+        upsert: false // Don't use upsert since we already deleted old files
       });
 
     if (error) {
