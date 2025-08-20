@@ -3,7 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { logger } from "../config/appConfig";
 import { useAuth, isSupabaseConfigured } from "../contexts/AuthContext";
-import { uploadProfilePhoto, updateUserProfile } from "../services/profileService";
+import {
+  uploadProfilePhoto,
+  updateUserProfile,
+} from "../services/profileService";
 
 interface RegisterPageProps {
   onRegisterSuccess?: () => void;
@@ -143,13 +146,16 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
           try {
             logger.info("Uploading profile photo...");
             const photoUrl = await uploadProfilePhoto(photo);
-            
+
             // Update profile with photo URL
             await updateUserProfile({ photo_url: photoUrl });
             logger.info("Profile photo uploaded successfully");
           } catch (photoError: any) {
             // Don't fail registration if photo upload fails
-            logger.warn("Photo upload failed, but registration succeeded:", photoError);
+            logger.warn(
+              "Photo upload failed, but registration succeeded:",
+              photoError
+            );
           }
         }
 

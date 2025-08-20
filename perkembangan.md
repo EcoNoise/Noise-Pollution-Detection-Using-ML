@@ -109,6 +109,7 @@
 #### Yang Telah Diselesaikan:
 
 1. **Database Schema untuk Profiles**
+
    - ✅ Membuat migration `20250121000000_create_profiles_table.sql`
    - ✅ Tabel `profiles` dengan kolom: id, username, first_name, last_name, email, photo_url, status_aktif, created_at, updated_at
    - ✅ Implementasi Row Level Security (RLS) policies untuk multi-tenant architecture
@@ -116,12 +117,14 @@
    - ✅ Trigger untuk auto-update `updated_at` timestamp
 
 2. **Function handle_new_user Update**
+
    - ✅ Migration `20250121000001_update_handle_new_user_function.sql`
    - ✅ Update function untuk populate tabel profiles saat user baru registrasi
    - ✅ Unique username generation dengan fallback ke UUID
    - ✅ Error handling dan logging yang robust
 
 3. **Profile Service Integration**
+
    - ✅ Refactor `frontend/src/services/profileService.ts` untuk Supabase
    - ✅ Implementasi CRUD operations: getUserProfile, updateUserProfile
    - ✅ Upload/delete foto profil ke Supabase Storage
@@ -129,6 +132,7 @@
    - ✅ Validasi uniqueness untuk email dan username
 
 4. **Profile Page UI**
+
    - ✅ Implementasi lengkap `frontend/src/components/ProfilePage.tsx`
    - ✅ Form untuk edit profile dengan validasi
    - ✅ Upload foto profil dengan preview dan validasi file
@@ -145,13 +149,16 @@
 #### File yang Dibuat/Dimodifikasi:
 
 **Database Migrations:**
+
 - `supabase/migrations/20250121000000_create_profiles_table.sql` (BARU)
 - `supabase/migrations/20250121000001_update_handle_new_user_function.sql` (BARU)
 
 **Frontend Services:**
+
 - `frontend/src/services/profileService.ts` (REFACTOR LENGKAP)
 
 **Frontend Components:**
+
 - `frontend/src/components/ProfilePage.tsx` (REFACTOR LENGKAP)
 - `frontend/src/components/ProfilePage.css` (BARU)
 - `frontend/src/components/RegisterPage.tsx` (UPDATE)

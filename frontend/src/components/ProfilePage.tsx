@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   getUserProfile,
   updateUserProfile,
@@ -7,11 +7,11 @@ import {
   deleteProfilePhoto,
   deactivateAccount,
   UserProfile,
-  ProfileUpdateData
-} from '../services/profileService';
-import { logout } from '../services/authService';
-import { logger } from '../config/appConfig';
-import './ProfilePage.css';
+  ProfileUpdateData,
+} from "../services/profileService";
+import { logout } from "../services/authService";
+import { logger } from "../config/appConfig";
+import "./ProfilePage.css";
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
@@ -21,15 +21,15 @@ const ProfilePage: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   // Form state
   const [formData, setFormData] = useState({
-    username: '',
-    first_name: '',
-    last_name: '',
-    email: ''
+    username: "",
+    first_name: "",
+    last_name: "",
+    email: "",
   });
-  
+
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
@@ -44,19 +44,21 @@ const ProfilePage: React.FC = () => {
       const profileData = await getUserProfile();
       setProfile(profileData);
       setFormData({
-        username: profileData.username || '',
-        first_name: profileData.first_name || '',
-        last_name: profileData.last_name || '',
-        email: profileData.email || ''
+        username: profileData.username || "",
+        first_name: profileData.first_name || "",
+        last_name: profileData.last_name || "",
+        email: profileData.email || "",
       });
       // Add cache-busting parameter to photo URL to prevent caching issues
-      const photoUrl = profileData.photo_url 
-        ? `${profileData.photo_url}${profileData.photo_url.includes('?') ? '&' : '?'}t=${Date.now()}`
+      const photoUrl = profileData.photo_url
+        ? `${profileData.photo_url}${
+            profileData.photo_url.includes("?") ? "&" : "?"
+          }t=${Date.now()}`
         : null;
       setPhotoPreview(photoUrl);
     } catch (err: any) {
-      logger.error('Error loading profile:', err);
-      setError(err.message || 'Failed to load profile');
+      logger.error("Error loading profile:", err);
+      setError(err.message || "Failed to load profile");
     } finally {
       setLoading(false);
     }
@@ -64,9 +66,9 @@ const ProfilePage: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -74,19 +76,19 @@ const ProfilePage: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setError('Please select a valid image file');
+      if (!file.type.startsWith("image/")) {
+        setError("Please select a valid image file");
         return;
       }
-      
+
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        setError('Image size must be less than 5MB');
+        setError("Image size must be less than 5MB");
         return;
       }
-      
+
       setPhotoFile(file);
-      
+
       // Create preview
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -100,19 +102,19 @@ const ProfilePage: React.FC = () => {
     try {
       setUploading(true);
       setError(null);
-      
+
       await deleteProfilePhoto();
-      
+
       // Update profile with null photo_url
       const updatedProfile = await updateUserProfile({ photo_url: null });
       setProfile(updatedProfile);
       setPhotoPreview(null);
       setPhotoFile(null);
-      
-      setSuccess('Photo removed successfully');
+
+      setSuccess("Photo removed successfully");
     } catch (err: any) {
-      logger.error('Error removing photo:', err);
-      setError(err.message || 'Failed to remove photo');
+      logger.error("Error removing photo:", err);
+      setError(err.message || "Failed to remove photo");
     } finally {
       setUploading(false);
     }
@@ -126,39 +128,39 @@ const ProfilePage: React.FC = () => {
 
     try {
       let photoUrl = profile?.photo_url;
-      
+
       // Upload photo if new file selected
       if (photoFile) {
         setUploading(true);
         photoUrl = await uploadProfilePhoto(photoFile);
       }
-      
+
       // Prepare update data
       const updateData: ProfileUpdateData = {
         username: formData.username.trim(),
         first_name: formData.first_name.trim() || null,
         last_name: formData.last_name.trim() || null,
-        email: formData.email.trim()
+        email: formData.email.trim(),
       };
-      
+
       if (photoUrl !== profile?.photo_url) {
         updateData.photo_url = photoUrl;
       }
-      
+
       // Update profile
       const updatedProfile = await updateUserProfile(updateData);
       setProfile(updatedProfile);
       setPhotoFile(null);
-      
+
       // Update photo preview with the new URL (with cache-busting)
       if (photoUrl && photoUrl !== profile?.photo_url) {
         setPhotoPreview(photoUrl);
       }
-      
-      setSuccess('Profile updated successfully');
+
+      setSuccess("Profile updated successfully");
     } catch (err: any) {
-      logger.error('Error updating profile:', err);
-      setError(err.message || 'Failed to update profile');
+      logger.error("Error updating profile:", err);
+      setError(err.message || "Failed to update profile");
     } finally {
       setUpdating(false);
       setUploading(false);
@@ -166,23 +168,27 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleDeactivateAccount = async () => {
-    if (!window.confirm('Are you sure you want to deactivate your account? This action can be reversed later.')) {
+    if (
+      !window.confirm(
+        "Are you sure you want to deactivate your account? This action can be reversed later."
+      )
+    ) {
       return;
     }
-    
+
     try {
       setUpdating(true);
       setError(null);
-      
+
       await deactivateAccount();
       await logout();
-      
-      navigate('/login', { 
-        state: { message: 'Account deactivated successfully' }
+
+      navigate("/login", {
+        state: { message: "Account deactivated successfully" },
       });
     } catch (err: any) {
-      logger.error('Error deactivating account:', err);
-      setError(err.message || 'Failed to deactivate account');
+      logger.error("Error deactivating account:", err);
+      setError(err.message || "Failed to deactivate account");
       setUpdating(false);
     }
   };
@@ -245,7 +251,11 @@ const ProfilePage: React.FC = () => {
             <div className="photo-section">
               <div className="photo-preview">
                 {photoPreview ? (
-                  <img src={photoPreview} alt="Profile" className="profile-photo" />
+                  <img
+                    src={photoPreview}
+                    alt="Profile"
+                    className="profile-photo"
+                  />
                 ) : (
                   <div className="photo-placeholder">
                     <span className="photo-icon">👤</span>
@@ -261,7 +271,7 @@ const ProfilePage: React.FC = () => {
                   className="file-input"
                 />
                 <label htmlFor="photo-upload" className="btn btn-secondary">
-                  {uploading ? 'Uploading...' : 'Choose Photo'}
+                  {uploading ? "Uploading..." : "Choose Photo"}
                 </label>
                 {photoPreview && (
                   <button
@@ -274,7 +284,9 @@ const ProfilePage: React.FC = () => {
                   </button>
                 )}
               </div>
-              <p className="photo-hint">Supported formats: JPG, PNG, GIF. Max size: 5MB</p>
+              <p className="photo-hint">
+                Supported formats: JPG, PNG, GIF. Max size: 5MB
+              </p>
             </div>
           </div>
 
@@ -344,8 +356,12 @@ const ProfilePage: React.FC = () => {
             <div className="status-info">
               <div className="status-item">
                 <span className="status-label">Status:</span>
-                <span className={`status-badge ${profile.status_aktif ? 'active' : 'inactive'}`}>
-                  {profile.status_aktif ? 'Active' : 'Inactive'}
+                <span
+                  className={`status-badge ${
+                    profile.status_aktif ? "active" : "inactive"
+                  }`}
+                >
+                  {profile.status_aktif ? "Active" : "Inactive"}
                 </span>
               </div>
               <div className="status-item">
@@ -364,12 +380,12 @@ const ProfilePage: React.FC = () => {
               disabled={updating || uploading}
               className="btn btn-primary"
             >
-              {updating ? 'Updating...' : 'Update Profile'}
+              {updating ? "Updating..." : "Update Profile"}
             </button>
-            
+
             <button
               type="button"
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate("/dashboard")}
               className="btn btn-secondary"
             >
               Cancel
@@ -380,7 +396,10 @@ const ProfilePage: React.FC = () => {
         {/* Danger Zone */}
         <div className="danger-zone">
           <h3>Danger Zone</h3>
-          <p>Once you deactivate your account, you will be logged out and your account will be disabled.</p>
+          <p>
+            Once you deactivate your account, you will be logged out and your
+            account will be disabled.
+          </p>
           <button
             type="button"
             onClick={handleDeactivateAccount}

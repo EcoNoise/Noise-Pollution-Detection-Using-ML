@@ -11,6 +11,11 @@ if (!supabaseUrl || !supabaseKey) {
 // Create Supabase client
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Storage configuration (centralized bucket names)
+export const storageConfig = {
+  profileBucket: process.env.REACT_APP_SUPABASE_PROFILE_BUCKET || 'profile-photos',
+};
+
 // Export configuration for debugging purposes
 export const supabaseConfig = {
   url: supabaseUrl,

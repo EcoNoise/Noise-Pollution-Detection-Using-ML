@@ -3,7 +3,8 @@
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 2rem 1rem;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
 }
 
 .profile-container {
@@ -55,8 +56,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Error Message */
@@ -346,52 +351,52 @@
   .profile-page {
     padding: 1rem 0.5rem;
   }
-  
+
   .profile-container {
     border-radius: 0;
     margin: 0;
   }
-  
+
   .profile-header {
     padding: 1.5rem 1rem;
   }
-  
+
   .profile-header h1 {
     font-size: 1.5rem;
   }
-  
+
   .profile-form {
     padding: 1.5rem 1rem;
   }
-  
+
   .form-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .form-actions {
     flex-direction: column;
   }
-  
+
   .photo-controls {
     flex-direction: column;
     width: 100%;
   }
-  
+
   .btn {
     width: 100%;
   }
-  
+
   .danger-zone {
     margin: 1rem;
     padding: 1.5rem;
   }
-  
+
   .status-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .status-label {
     min-width: auto;
   }
@@ -401,16 +406,16 @@
   .profile-header h1 {
     font-size: 1.25rem;
   }
-  
+
   .form-section h3 {
     font-size: 1.125rem;
   }
-  
+
   .photo-preview {
     width: 100px;
     height: 100px;
   }
-  
+
   .photo-icon {
     font-size: 2.5rem;
   }
