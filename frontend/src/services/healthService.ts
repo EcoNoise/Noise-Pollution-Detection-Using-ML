@@ -1,6 +1,6 @@
 // src/services/healthService.ts
 
-// Remove Supabase; implement localStorage-backed mock data
+import { supabase } from '../config/supabaseConfig';
 
 export interface HealthProfile {
   id?: number;
@@ -38,6 +38,132 @@ export interface WeeklySummary {
   recommendations: string[];
 }
 
+// New interfaces for Supabase integration
+export interface HealthAnalysisSession {
+  id?: string;
+  user_id?: string;
+  started_at: string;
+  ended_at?: string;
+  duration_seconds?: number;
+  avg_db?: number;
+  avg_dba?: number;
+  health_impact?: 'Aman' | 'Perhatian' | 'Berbahaya' | 'Sangat Berbahaya';
+  created_at?: string;
+}
+
+export interface TodayDashboard {
+  total_analysis: number;
+  average_noise: number;
+  health_status: 'Aman' | 'Perhatian' | 'Berbahaya' | 'Sangat Berbahaya' | null;
+}
+
+export interface WeeklyAudioSummary {
+  day_index: number;
+  day_date: string;
+  total_analysis_hours: number;
+  average_noise_level: number;
+}
+
+export interface WeeklyAlertsRecommendations {
+  alerts: string[];
+  recommendations: string[];
+}
+
+// Health Session Services
+export const createHealthSession = async (data: {
+  avg_db?: number;
+  avg_dba?: number;
+  health_impact?: 'Aman' | 'Perhatian' | 'Berbahaya' | 'Sangat Berbahaya';
+}): Promise<HealthAnalysisSession> => {
+  const { data: result, error } = await supabase
+    .from('health_analysis_sessions')
+    .insert({
+      user_id: (await supabase.auth.getUser()).data.user?.id,
+      started_at: new Date().toISOString(),
+      avg_db: data.avg_db,
+      avg_dba: data.avg_dba,
+      health_impact: data.health_impact,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return result;
+};
+
+export const endHealthSession = async (
+  sessionId: string,
+  data: {
+    duration_seconds?: number;
+    avg_db?: number;
+    avg_dba?: number;
+    health_impact?: 'Aman' | 'Perhatian' | 'Berbahaya' | 'Sangat Berbahaya';
+  }
+): Promise<HealthAnalysisSession> => {
+  const { data: result, error } = await supabase
+    .from('health_analysis_sessions')
+    .update({
+      ended_at: new Date().toISOString(),
+      duration_seconds: data.duration_seconds,
+      avg_db: data.avg_db,
+      avg_dba: data.avg_dba,
+      health_impact: data.health_impact,
+    })
+    .eq('id', sessionId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return result;
+};
+
+// Dashboard Data Services
+export const getTodayDashboard = async (date?: string): Promise<TodayDashboard | null> => {
+  const targetDate = date || new Date().toISOString().split('T')[0];
+  const userId = (await supabase.auth.getUser()).data.user?.id;
+  
+  if (!userId) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase.rpc('get_today_dashboard', {
+    p_user_id: userId,
+    p_date: targetDate,
+  });
+
+  if (error) throw error;
+  return data && data.length > 0 ? data[0] : null;
+};
+
+export const getWeeklyAudioSummary = async (date?: string): Promise<WeeklyAudioSummary[]> => {
+  const targetDate = date || new Date().toISOString().split('T')[0];
+  const userId = (await supabase.auth.getUser()).data.user?.id;
+  
+  if (!userId) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase.rpc('get_weekly_audio_summary', {
+    p_user_id: userId,
+    p_date: targetDate,
+  });
+
+  if (error) throw error;
+  return data || [];
+};
+
+export const getWeeklyAlertsRecommendations = async (date?: string): Promise<WeeklyAlertsRecommendations> => {
+  const targetDate = date || new Date().toISOString().split('T')[0];
+  const userId = (await supabase.auth.getUser()).data.user?.id;
+  
+  if (!userId) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase.rpc('get_weekly_alerts_recommendations', {
+    p_user_id: userId,
+    p_date: targetDate,
+  });
+
+  if (error) throw error;
+  return data || { alerts: [], recommendations: [] };
+};
+
+// Health Dashboard Integration
 export interface HealthDashboard {
   profile: HealthProfile;
   recent_logs: ExposureLog[];
@@ -48,7 +174,7 @@ export interface HealthDashboard {
   };
 }
 
-// Helpers for auth and storage
+// Helpers for auth and storage (for backward compatibility)
 const getCurrentUserId = (): string | null => localStorage.getItem('userId');
 const profileKey = (userId: string) => `health_profile_${userId}`;
 const logsKey = (userId: string) => `exposure_logs_${userId}`;
@@ -71,7 +197,7 @@ const saveLogs = (userId: string, logs: ExposureLog[]) => {
   localStorage.setItem(logsKey(userId), JSON.stringify(logs));
 };
 
-// Health Profile API calls (mock)
+// Health Profile API calls (mock - maintained for backward compatibility)
 export const getHealthProfile = async (): Promise<HealthProfile> => {
   const userId = getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
@@ -99,7 +225,7 @@ export const updateHealthProfile = async (
   return updated;
 };
 
-// Exposure Log API calls (mock)
+// Exposure Log API calls (mock - maintained for backward compatibility)
 export const getExposureLogs = async (
   startDate?: string,
   endDate?: string
@@ -156,7 +282,7 @@ export const createExposureLog = async (
   return log;
 };
 
-// Weekly Summary (mock)
+// Weekly Summary (mock - maintained for backward compatibility)
 export const getWeeklySummary = async (
   weekStart?: string
 ): Promise<WeeklySummary> => {
@@ -183,7 +309,7 @@ export const getWeeklySummary = async (
   };
 };
 
-// Health Dashboard (mock)
+// Health Dashboard (now integrates with Supabase)
 export const getHealthDashboard = async (): Promise<HealthDashboard> => {
   const profile = await getHealthProfile();
   const recentLogs = await getExposureLogs();

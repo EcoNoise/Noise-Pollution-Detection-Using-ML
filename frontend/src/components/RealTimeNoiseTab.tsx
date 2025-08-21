@@ -1,5 +1,5 @@
 // src/components/RealTimeNoiseTab.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -28,7 +28,9 @@ import {
 } from "@mui/icons-material";
 import { useRealTimeNoise } from "../hooks/useRealTimeNoise";
 import { audioClassificationService } from "../services/audioClassificationService";
-import { logger } from "../config/appConfig";
+import { logger, appConfig } from "../config/appConfig";
+import { createHealthSession, endHealthSession, createExposureLog } from "../services/healthService";
+import { DailyAudioService } from "../services/dailyAudioService";
 
 const StyledCard = styled(Card)(({ theme }) => ({
   background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -66,6 +68,113 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     enableRealTimeClassification: true,
     classificationInterval: 3000,
   });
+
+  // Session tracking refs for Supabase integration
+  const sessionIdRef = useRef<string | null>(null);
+  const sessionStartRef = useRef<number | null>(null);
+  const sumDbRef = useRef<number>(0);
+  const sumDbARef = useRef<number>(0);
+  const countRef = useRef<number>(0);
+
+  // Accumulate readings while listening to compute session averages
+  useEffect(() => {
+    if (isListening && currentReading) {
+      sumDbRef.current += currentReading.db;
+      sumDbARef.current += currentReading.dbA;
+      countRef.current += 1;
+    }
+  }, [isListening, currentReading]);
+
+  const handleStartListening = useCallback(async () => {
+    await startListening();
+    // Only create a backend session when backend enabled
+    if (appConfig.backendEnabled) {
+      sessionStartRef.current = Date.now();
+      sumDbRef.current = 0;
+      sumDbARef.current = 0;
+      countRef.current = 0;
+      try {
+        const session = await createHealthSession({});
+        sessionIdRef.current = session.id || null;
+        logger.info("Health session created", sessionIdRef.current);
+      } catch (e) {
+        logger.error("Failed to create health session", e);
+      }
+    } else {
+      // offline path: mark start time for duration calculation
+      sessionStartRef.current = Date.now();
+      sumDbRef.current = 0;
+      sumDbARef.current = 0;
+      countRef.current = 0;
+    }
+  }, [startListening]);
+
+  const handleStopListening = useCallback(async () => {
+    stopListening();
+    const start = sessionStartRef.current;
+    const count = countRef.current || 0;
+    const avg_db = count > 0 ? sumDbRef.current / count : undefined;
+    const avg_dba = count > 0 ? sumDbARef.current / count : undefined;
+    const duration_seconds = start ? Math.max(1, Math.round((Date.now() - start) / 1000)) : 0;
+
+    // Map to health impact categories based on avg_dba thresholds
+    const health_impact =
+      avg_dba === undefined
+        ? undefined
+        : avg_dba < 55
+        ? "Aman"
+        : avg_dba < 70
+        ? "Perhatian"
+        : avg_dba < 85
+        ? "Berbahaya"
+        : "Sangat Berbahaya";
+
+    try {
+      if (appConfig.backendEnabled && sessionIdRef.current) {
+        await endHealthSession(sessionIdRef.current, {
+          duration_seconds,
+          avg_db,
+          avg_dba,
+          health_impact,
+        });
+        logger.info("Health session ended", sessionIdRef.current);
+      } else {
+        // Fallback to local exposure log so dashboard reflects activity offline
+        const hours = duration_seconds / 3600;
+        // Ensure a local user id exists in offline mode
+        if (!localStorage.getItem("userId")) {
+          localStorage.setItem("userId", "guest");
+        }
+        await createExposureLog({
+          commute_hours: hours,
+          home_hours: 0,
+          work_hours: 0,
+          commute_avg_noise: avg_dba || 0,
+          home_avg_noise: 0,
+          work_avg_noise: 0,
+          health_alerts: [],
+        });
+        logger.info("Offline exposure log created");
+      }
+    } catch (e) {
+      logger.error("Failed to end session or create offline log", e);
+    } finally {
+      try {
+        // Ensure DailyAudioService cache is refreshed so other views show latest data
+        await DailyAudioService.refreshTodayAudioSummary();
+      } catch (err) {
+        logger.error("Failed to refresh daily summary", err);
+      }
+      // Notify listeners (e.g., HealthDashboard) that data has changed
+      window.dispatchEvent(new CustomEvent("health:data-updated"));
+
+      sessionIdRef.current = null;
+      sessionStartRef.current = null;
+      sumDbRef.current = 0;
+      sumDbARef.current = 0;
+      countRef.current = 0;
+    }
+  }, [stopListening]);
 
   const getHealthIcon = (healthImpact: string) => {
     switch (healthImpact) {
@@ -165,11 +274,11 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                 color={isListening ? "error" : "primary"}
                 fullWidth
                 startIcon={isListening ? <MicOff /> : <Mic />}
-                onClick={isListening ? stopListening : startListening}
-                size="large"
-              >
-                {isListening ? "Stop Monitor" : "Mulai Monitor"}
-              </Button>
+                onClick={isListening ? handleStopListening : handleStartListening}
+                 size="large"
+               >
+                 {isListening ? "Stop Monitor" : "Mulai Monitor"}
+               </Button>
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>

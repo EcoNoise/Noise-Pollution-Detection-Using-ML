@@ -185,11 +185,59 @@
 
 ---
 
-### 🔄 Fase Selanjutnya (Belum Dimulai):
+### ✅ Fase 4: Skema Data Dashboard Kesehatan (SELESAI)
 
-#### Fase 4: Noise Map Core Features
+Tanggal: 2025-01-22
 
-## Catatan Teknis
+Yang Telah Diselesaikan:
+
+1. Tipe dan Tabel Utama
+
+- health_status_enum: enum ('Aman','Perhatian','Berbahaya','Sangat Berbahaya')
+- public.health_analysis_sessions: log setiap kali user menekan/menggunakan mic (sesi monitoring)
+  - Fields: id, user_id, started_at, ended_at, duration_seconds, avg_db, avg_dba, health_impact, created_at
+- public.health_daily_metrics: agregasi per hari untuk setiap user
+  - Fields: id, user_id, metric_date, total_analysis, total_exposure_seconds, average_noise_db, average_noise_dba, health_status, created_at, updated_at
+
+2. Fungsi & Trigger
+
+- evaluate_health_status(avg_dba): menentukan status kesehatan berdasarkan rata-rata dB(A)
+- upsert_health_daily_metrics(...): mengakumulasikan data sesi ke metrik harian (weighted average)
+- Trigger trg_health_session_to_daily: ketika sesi selesai (ended_at terisi), otomatis mengupdate metrik harian
+
+3. Query Helper untuk UI HealthDashboard.tsx
+
+- get_today_dashboard(user_id, date):
+  - Mengembalikan total_analysis (kali penggunaan mic), average_noise (dB(A)), dan health_status untuk “Laporan Hari Ini”
+- get_weekly_audio_summary(user_id, date):
+  - Mengembalikan 7 baris Sen–Min: total paparan per hari (jam) dan rata-rata kebisingan (dB)
+- get_weekly_alerts_recommendations(user_id, date):
+  - Menghitung Peringatan & Rekomendasi berbasis ringkasan mingguan (mis. >70 dB lebih dari 2 jam, rata-rata pekan ini > pekan lalu)
+
+4. Keamanan (RLS)
+
+- RLS diaktifkan pada kedua tabel; user hanya dapat mengakses baris miliknya (user_id = auth.uid())
+- Policy select/insert/update/delete untuk sessions; select/insert/update untuk daily metrics
+
+5. Kesesuaian dengan UI
+
+- Laporan Hari Ini:
+  - total_analysis: jumlah sesi hari ini
+  - average_noise: rata-rata dB(A) hari ini
+  - health_status: status kesehatan dari rata-rata dB(A)
+- Ringkasan Mingguan:
+  - total_exposure_seconds -> dikonversi ke jam untuk “Paparan Harian (Jam)”
+  - average_noise_dba -> “0.0 dB” per hari
+- Peringatan & Rekomendasi:
+  - Diambil dari fungsi get_weekly_alerts_recommendations
+- History/Tanggal:
+  - Semua tabel menyimpan metric_date sehingga pemilihan history per tanggal/minggu didukung
+
+Catatan Teknis:
+
+- Normalisasi tanggal menggunakan UTC; penentuan minggu memakai date_trunc('week') (Sen–Min)
+- Index disediakan pada (user_id, started_at) dan (user_id, metric_date)
+- File SQL: supabase/migrations/20250122000000_create_health_dashboard_schema.sql
 
 ### Struktur Konfigurasi:
 

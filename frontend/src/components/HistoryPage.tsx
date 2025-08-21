@@ -14,6 +14,7 @@ import {
 import { appConfig } from "../config/appConfig";
 import HealthDashboard from "./HealthDashboard";
 import { logger } from "../config/appConfig";
+import { getTodayDashboard } from "../services/healthService";
 
 const HistoryPage: React.FC = () => {
   const [dailySummary, setDailySummary] = useState<DailyAudioSummary | null>(
@@ -34,17 +35,88 @@ const HistoryPage: React.FC = () => {
       fetchDailySummary();
     };
 
+    // Event listener untuk refresh saat data kesehatan diperbarui (misal setelah Stop Monitor)
+    const handleHealthDataUpdated = () => {
+      fetchDailySummary();
+    };
+
     window.addEventListener("focus", handleFocus);
+    window.addEventListener(
+      "health:data-updated",
+      handleHealthDataUpdated as EventListener
+    );
 
     return () => {
       clearInterval(interval);
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener(
+        "health:data-updated",
+        handleHealthDataUpdated as EventListener
+      );
     };
   }, []);
 
   const fetchDailySummary = async () => {
     try {
       setSummaryLoading(true);
+
+      // Helper sederhana untuk menyelaraskan rekomendasi & risk level dengan DailyAudioService
+      const getRecommendation = (averageDb: number): {
+        recommendation: string;
+        riskLevel: "safe" | "moderate" | "high";
+      } => {
+        if (!averageDb || averageDb === 0) {
+          return {
+            recommendation: "Belum ada data analisis hari ini",
+            riskLevel: "safe",
+          };
+        }
+        if (averageDb <= 50) {
+          return {
+            recommendation:
+              "Masih aman! Tingkat kebisingan dalam batas normal.",
+            riskLevel: "safe",
+          };
+        } else if (averageDb <= 70) {
+          return {
+            recommendation:
+              "Perhatian! Tingkat kebisingan sedang. Batasi paparan lebih lanjut.",
+            riskLevel: "moderate",
+          };
+        } else {
+          return {
+            recommendation:
+              "Bahaya! Tingkat kebisingan tinggi. Segera hindari area bising dan gunakan pelindung telinga.",
+            riskLevel: "high",
+          };
+        }
+      };
+
+      if (appConfig.backendEnabled) {
+        try {
+          const today = await getTodayDashboard();
+          if (today) {
+            const avg = Math.round(today.average_noise || 0);
+            const { recommendation, riskLevel } = getRecommendation(avg);
+
+            const mapped: DailyAudioSummary = {
+              date: new Date().toDateString(),
+              totalAnalysis: today.total_analysis || 0,
+              averageNoiseLevel: avg,
+              noiseReadings: [],
+              recommendation,
+              riskLevel,
+            };
+            setDailySummary(mapped);
+            return; // selesai menggunakan backend
+          }
+        } catch (err) {
+          // Jika backend gagal, fallback ke cache lokal
+          logger.warn("Gagal memuat dashboard harian dari backend, fallback ke cache lokal", err);
+        }
+      }
+
+      // Mode offline atau fallback
       const summary = await DailyAudioService.getTodayAudioSummary();
       setDailySummary(summary);
     } catch (err: any) {
