@@ -25,7 +25,7 @@ import {
   VolumeUp,
   Warning,
   CheckCircle,
-  Error,
+  Error as ErrorIcon,
   Psychology,
   GraphicEq,
   Speed,
@@ -36,10 +36,14 @@ import { useRealTimeNoise } from "../hooks/useRealTimeNoise";
 import { audioClassificationService } from "../services/audioClassificationService";
 import { mapService } from "../services/mapService";
 import { logger, appConfig } from "../config/appConfig";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 import SessionManager from "../utils/tokenManager";
 import ModernPopup from "./ModernPopup";
-import { createHealthSession, endHealthSession, createExposureLog } from "../services/healthService";
+import {
+  createHealthSession,
+  endHealthSession,
+  createExposureLog,
+} from "../services/healthService";
 import { DailyAudioService } from "../services/dailyAudioService";
 
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -67,7 +71,8 @@ const GlassCard = styled(Card)(({ theme }) => ({
 }));
 
 const MetricCard = styled(Paper)(({ theme }) => ({
-  background: "linear-gradient(135deg, rgba(66, 165, 245, 0.1) 0%, rgba(33, 150, 243, 0.2) 100%)",
+  background:
+    "linear-gradient(135deg, rgba(66, 165, 245, 0.1) 0%, rgba(33, 150, 243, 0.2) 100%)",
   backdropFilter: "blur(10px)",
   border: "1px solid rgba(33, 150, 243, 0.3)",
   borderRadius: 20,
@@ -145,19 +150,22 @@ const StyledSwitch = styled(Switch)(({ theme }) => ({
   },
 }));
 
-const GradientChip = styled(Chip)(({ theme, severity }: { theme?: any, severity: string }) => ({
-  background: severity === "Aman" 
-    ? "linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)"
-    : severity === "Perhatian"
-    ? "linear-gradient(45deg, #FF9800 30%, #FFC107 90%)"
-    : "linear-gradient(45deg, #f44336 30%, #E53935 90%)",
-  color: "white",
-  fontWeight: "bold",
-  fontSize: "1rem",
-  padding: "8px 16px",
-  borderRadius: 20,
-  boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
-}));
+const GradientChip = styled(Chip)(
+  ({ theme, severity }: { theme?: any; severity: string }) => ({
+    background:
+      severity === "Aman"
+        ? "linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)"
+        : severity === "Perhatian"
+        ? "linear-gradient(45deg, #FF9800 30%, #FFC107 90%)"
+        : "linear-gradient(45deg, #f44336 30%, #E53935 90%)",
+    color: "white",
+    fontWeight: "bold",
+    fontSize: "1rem",
+    padding: "8px 16px",
+    borderRadius: 20,
+    boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
+  })
+);
 
 const PulsingIcon = styled(Box)(({ theme }) => ({
   animation: "pulse 2s infinite",
@@ -269,7 +277,9 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     const count = countRef.current || 0;
     const avg_db = count > 0 ? sumDbRef.current / count : undefined;
     const avg_dba = count > 0 ? sumDbARef.current / count : undefined;
-    const duration_seconds = start ? Math.max(1, Math.round((Date.now() - start) / 1000)) : 0;
+    const duration_seconds = start
+      ? Math.max(1, Math.round((Date.now() - start) / 1000))
+      : 0;
 
     // Map to health impact categories based on avg_dba thresholds
     const health_impact =
@@ -338,7 +348,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
         return <Warning sx={{ color: "#FF9800", fontSize: 28 }} />;
       case "Berbahaya":
       case "Sangat Berbahaya":
-        return <Error sx={{ color: "#f44336", fontSize: 28 }} />;
+        return <ErrorIcon sx={{ color: "#f44336", fontSize: 28 }} />;
       default:
         return <Settings sx={{ color: "#9E9E9E", fontSize: 28 }} />;
     }
@@ -362,23 +372,23 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   // Initialize TensorFlow.js model
   useEffect(() => {
     const loadModels = async () => {
-       try {
-         logger.info("Loading YAMNet and classifier models...");
-         await audioClassificationService.loadModels();
-         logger.info("Models loaded successfully!");
-       } catch (err: unknown) {
-         logger.error("Error loading models:", err);
-       }
-     };
+      try {
+        logger.info("Loading YAMNet and classifier models...");
+        await audioClassificationService.loadModels();
+        logger.info("Models loaded successfully!");
+      } catch (err: unknown) {
+        logger.error("Error loading models:", err);
+      }
+    };
 
-     loadModels();
-   }, []);
+    loadModels();
+  }, []);
 
   if (!isSupported) {
     return (
-      <Alert 
-        severity="error" 
-        sx={{ 
+      <Alert
+        severity="error"
+        sx={{
           backgroundColor: "rgba(244, 67, 54, 0.1)",
           color: "white",
           border: "1px solid rgba(244, 67, 54, 0.3)",
@@ -392,27 +402,47 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     );
   }
 
-  const shareToMap = () => {
+  const shareToMap = async () => {
     if (!isAuthenticated) {
       setShowLoginAlert(true);
       return;
     }
 
     if (!currentReading) return;
-    
-    // Create prediction data similar to HomePage format
-    const predictions = {
-      noiseLevel: currentReading.dbA,
-      noiseSource: currentReading.classification?.topPrediction || "Unknown",
-      healthImpact: currentReading.healthImpact,
-      timestamp: currentReading.timestamp.toISOString(),
-      confidence: currentReading.classification?.confidence || 0,
-    };
 
-    mapService.shareNoiseData({
-      analysis: predictions as any, // Type assertion for compatibility
-    });
-    navigate("/maps");
+    try {
+      const position = await mapService.getCurrentLocation();
+      if (!position) {
+        throw new Error("Tidak dapat memperoleh lokasi saat ini");
+      }
+
+      const source =
+        currentReading.classification?.topPrediction || "Unknown";
+      const confidence = currentReading.classification?.confidence;
+      const description = `Realtime: ${currentReading.dbA.toFixed(
+        1
+      )} dBA, sumber: ${source}$${"{"}${" "}${"}"}${
+        confidence !== undefined
+          ? ` (kepercayaan ${(confidence * 100).toFixed(0)}%)`
+          : ""
+      } pada ${currentReading.timestamp.toLocaleString()}`;
+
+      const saved = await mapService.addNoiseLocation({
+        coordinates: position,
+        noiseLevel: currentReading.dbA,
+        source,
+        healthImpact: currentReading.healthImpact,
+        description,
+        address: "Lokasi saat ini",
+        radius: 100,
+      });
+
+      if (saved) {
+        navigate("/maps");
+      }
+    } catch (err) {
+      logger.error("Gagal membagikan ke peta:", err);
+    }
   };
 
   const handleLoginRedirect = () => {
@@ -436,9 +466,10 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
             <Box>
               <Typography
                 variant="h4"
-                sx={{ 
-                  fontWeight: 700, 
-                  background: "linear-gradient(45deg, #ffffff 30%, #e3f2fd 90%)",
+                sx={{
+                  fontWeight: 700,
+                  background:
+                    "linear-gradient(45deg, #ffffff 30%, #e3f2fd 90%)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   backgroundClip: "text",
@@ -458,9 +489,9 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
 
       {/* Error Alert */}
       {error && (
-        <Alert 
-          severity="error" 
-          sx={{ 
+        <Alert
+          severity="error"
+          sx={{
             mb: 3,
             backgroundColor: "rgba(244, 67, 54, 0.1)",
             color: "white",
@@ -474,20 +505,27 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
 
       {/* Control Panel */}
       <Box sx={{ mb: 4 }}>
-        <Typography 
-          variant="h6" 
-          gutterBottom 
-          sx={{ 
-            color: "#fff", 
-            display: "flex", 
-            alignItems: "center", 
+        <Typography
+          variant="h6"
+          gutterBottom
+          sx={{
+            color: "#fff",
+            display: "flex",
+            alignItems: "center",
             mb: 2,
           }}
         >
           <Settings sx={{ mr: 1 }} />
           Kontrol & Pengaturan
         </Typography>
-        <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
           <ActionButton
             variant="outlined"
             onClick={isListening ? handleStopListening : handleStartListening}
@@ -502,11 +540,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
               },
             }}
             startIcon={
-              isListening ? (
-                <MicOff sx={{ color: "inherit" }} />
-              ) : (
-                <Mic />
-              )
+              isListening ? <MicOff sx={{ color: "inherit" }} /> : <Mic />
             }
           >
             {isListening ? "Stop Monitor" : "Mulai Monitor"}
@@ -537,7 +571,14 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
             Kalibrasi Manual
           </Button>
 
-          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
+          <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
             <FormControlLabel
               control={
                 <StyledSwitch
@@ -567,18 +608,30 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
               <MetricCard>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 1,
+                    mb: 2,
+                  }}
+                >
                   <GraphicEq sx={{ fontSize: 28, color: "#2196F3" }} />
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: "#e3f2fd" }}>
+                  <Typography
+                    variant="h6"
+                    sx={{ fontWeight: 600, color: "#e3f2fd" }}
+                  >
                     Tingkat Kebisingan
                   </Typography>
                 </Box>
-                
+
                 <Typography
                   sx={{
                     fontSize: "3.5rem",
                     fontWeight: "bold",
-                    background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
+                    background:
+                      "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                     backgroundClip: "text",
@@ -588,18 +641,19 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                 >
                   {currentReading.dbA.toFixed(1)} dBA
                 </Typography>
-                
-                
-                
-                
               </MetricCard>
             </Grid>
 
             <Grid item xs={12} md={6}>
               <StatusCard>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}
+                >
                   {getHealthIcon(currentReading.healthImpact)}
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: "#e3f2fd" }}>
+                  <Typography
+                    variant="h6"
+                    sx={{ fontWeight: 600, color: "#e3f2fd" }}
+                  >
                     Status Kesehatan
                   </Typography>
                 </Box>
@@ -611,7 +665,14 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                   />
                 </Box>
 
-                <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                <Box
+                  sx={{
+                    flexGrow: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                  }}
+                >
                   <Typography variant="body1" sx={{ mb: 2, color: "#e3f2fd" }}>
                     <strong>Dampak Kesehatan:</strong>{" "}
                     {currentReading.healthImpact}
@@ -637,21 +698,40 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <StatusCard sx={{ textAlign: "center", minHeight: 320 }}>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 2, mb: 3 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 2,
+                  mb: 3,
+                }}
+              >
                 <Psychology sx={{ fontSize: 28, color: "#2196F3" }} />
-                <Typography variant="h6" sx={{ fontWeight: 600, color: "#e3f2fd" }}>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 600, color: "#e3f2fd" }}
+                >
                   Klasifikasi Audio
                 </Typography>
               </Box>
-              
-              <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+
+              <Box
+                sx={{
+                  flexGrow: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                }}
+              >
                 {currentReading?.classification ? (
                   <>
                     <Typography
                       sx={{
                         fontSize: "2.2rem",
                         fontWeight: "bold",
-                        background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
+                        background:
+                          "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                         backgroundClip: "text",
@@ -665,30 +745,37 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                       sx={{
                         fontSize: "1.5rem",
                         fontWeight: "bold",
-                        background: "linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)",
+                        background:
+                          "linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
                         backgroundClip: "text",
                         mb: 2,
                       }}
                     >
-                      {(currentReading.classification.confidence * 100).toFixed(1)}% Confidence
+                      {(currentReading.classification.confidence * 100).toFixed(
+                        1
+                      )}
+                      % Confidence
                     </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.8, color: "#e3f2fd" }}>
+                    <Typography
+                      variant="body2"
+                      sx={{ opacity: 0.8, color: "#e3f2fd" }}
+                    >
                       Klasifikasi real-time setiap 3 detik
                     </Typography>
                   </>
                 ) : isListening ? (
                   <>
-                    <CircularProgress 
-                      size={60} 
-                      sx={{ 
-                        mb: 3, 
+                    <CircularProgress
+                      size={60}
+                      sx={{
+                        mb: 3,
                         color: "#2196F3",
                         "& .MuiCircularProgress-circle": {
                           strokeLinecap: "round",
                         },
-                      }} 
+                      }}
                     />
                     <Typography variant="h6" sx={{ mb: 2, color: "#e3f2fd" }}>
                       Menunggu Klasifikasi...
@@ -716,9 +803,14 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
 
           <Grid item xs={12} md={6}>
             <StatusCard sx={{ minHeight: 320 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}
+              >
                 <TrendingUp sx={{ fontSize: 28, color: "#2196F3" }} />
-                <Typography variant="h6" sx={{ fontWeight: 600, color: "#e3f2fd" }}>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 600, color: "#e3f2fd" }}
+                >
                   Detail Prediksi
                 </Typography>
               </Box>
@@ -746,18 +838,18 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                           >
                             <Typography
                               variant="body1"
-                              sx={{ 
+                              sx={{
                                 fontWeight: index === 0 ? "bold" : "normal",
-                                color: index === 0 ? "#2196F3" : "#e3f2fd"
+                                color: index === 0 ? "#2196F3" : "#e3f2fd",
                               }}
                             >
                               {prediction.label}
                             </Typography>
-                            <Typography 
-                              variant="body1" 
-                              sx={{ 
+                            <Typography
+                              variant="body1"
+                              sx={{
                                 fontWeight: 600,
-                                color: index === 0 ? "#4CAF50" : "#e3f2fd"
+                                color: index === 0 ? "#4CAF50" : "#e3f2fd",
                               }}
                             >
                               {(prediction.confidence * 100).toFixed(1)}%
@@ -772,11 +864,12 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                               backgroundColor: "rgba(255, 255, 255, 0.1)",
                               "& .MuiLinearProgress-bar": {
                                 borderRadius: 4,
-                                background: index === 0
-                                  ? "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)"
-                                  : prediction.confidence > 0.3
-                                  ? "linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)"
-                                  : "linear-gradient(45deg, #FF9800 30%, #FFC107 90%)",
+                                background:
+                                  index === 0
+                                    ? "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)"
+                                    : prediction.confidence > 0.3
+                                    ? "linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)"
+                                    : "linear-gradient(45deg, #FF9800 30%, #FFC107 90%)",
                               },
                             }}
                           />
@@ -784,18 +877,25 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                       ))}
 
                     <Box sx={{ mt: "auto", pt: 2 }}>
-                      <Typography
-                        variant="body2"
-                        sx={{ opacity: 0.8 }}
-                      >
+                      <Typography variant="body2" sx={{ opacity: 0.8 }}>
                         <strong>Waktu Klasifikasi:</strong>{" "}
                         {currentReading.timestamp.toLocaleTimeString()}
                       </Typography>
                     </Box>
                   </>
                 ) : (
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
-                    <Typography variant="body1" sx={{ opacity: 0.7, textAlign: "center" }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      height: "100%",
+                    }}
+                  >
+                    <Typography
+                      variant="body1"
+                      sx={{ opacity: 0.7, textAlign: "center" }}
+                    >
                       Hasil klasifikasi akan muncul di sini setelah monitoring
                       dimulai.
                     </Typography>
@@ -813,20 +913,29 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
           <CardContent sx={{ p: 4 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 4 }}>
               <Timeline sx={{ fontSize: 28, color: "#2196F3" }} />
-              <Typography variant="h6" sx={{ fontWeight: 600, color: "#e3f2fd" }}>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 600, color: "#e3f2fd" }}
+              >
                 Statistik (A-weighted)
               </Typography>
             </Box>
 
             <Grid container spacing={3} sx={{ mb: 3 }}>
               <Grid item xs={12} sm={4}>
-                <MetricCard sx={{ background: "linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 150, 243, 0.2) 100%)" }}>
+                <MetricCard
+                  sx={{
+                    background:
+                      "linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 150, 243, 0.2) 100%)",
+                  }}
+                >
                   <Speed sx={{ fontSize: 32, color: "#2196F3", mb: 2 }} />
-                  <Typography 
-                    variant="h4" 
-                    sx={{ 
+                  <Typography
+                    variant="h4"
+                    sx={{
                       fontWeight: "bold",
-                      background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
+                      background:
+                        "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
                       backgroundClip: "text",
@@ -842,13 +951,19 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
               </Grid>
 
               <Grid item xs={12} sm={4}>
-                <MetricCard sx={{ background: "linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(244, 67, 54, 0.2) 100%)" }}>
+                <MetricCard
+                  sx={{
+                    background:
+                      "linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(244, 67, 54, 0.2) 100%)",
+                  }}
+                >
                   <TrendingUp sx={{ fontSize: 32, color: "#f44336", mb: 2 }} />
-                  <Typography 
-                    variant="h4" 
-                    sx={{ 
+                  <Typography
+                    variant="h4"
+                    sx={{
                       fontWeight: "bold",
-                      background: "linear-gradient(45deg, #f44336 30%, #E53935 90%)",
+                      background:
+                        "linear-gradient(45deg, #f44336 30%, #E53935 90%)",
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
                       backgroundClip: "text",
@@ -864,13 +979,19 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
               </Grid>
 
               <Grid item xs={12} sm={4}>
-                <MetricCard sx={{ background: "linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.2) 100%)" }}>
+                <MetricCard
+                  sx={{
+                    background:
+                      "linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.2) 100%)",
+                  }}
+                >
                   <CheckCircle sx={{ fontSize: 32, color: "#4CAF50", mb: 2 }} />
-                  <Typography 
-                    variant="h4" 
-                    sx={{ 
+                  <Typography
+                    variant="h4"
+                    sx={{
                       fontWeight: "bold",
-                      background: "linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)",
+                      background:
+                        "linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)",
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
                       backgroundClip: "text",
@@ -888,7 +1009,10 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
 
             <Divider sx={{ my: 3, borderColor: "rgba(255, 255, 255, 0.2)" }} />
 
-            <Typography variant="body2" sx={{ opacity: 0.8, textAlign: "center" }}>
+            <Typography
+              variant="body2"
+              sx={{ opacity: 0.8, textAlign: "center" }}
+            >
               <strong>Jumlah Sampel:</strong> {statistics.readings.length} |{" "}
               <strong>Mode Kalibrasi:</strong>{" "}
               {calibrationMode === "auto" ? "Otomatis" : "Manual"} |{" "}
@@ -902,11 +1026,11 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       {/* Information Panel */}
       <GlassCard>
         <CardContent sx={{ p: 4 }}>
-          <Typography 
-            variant="h6" 
-            gutterBottom 
-            sx={{ 
-              fontWeight: 600, 
+          <Typography
+            variant="h6"
+            gutterBottom
+            sx={{
+              fontWeight: 600,
               color: "#e3f2fd",
               display: "flex",
               alignItems: "center",

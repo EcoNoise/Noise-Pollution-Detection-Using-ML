@@ -61,7 +61,9 @@ const HistoryPage: React.FC = () => {
       setSummaryLoading(true);
 
       // Helper sederhana untuk menyelaraskan rekomendasi & risk level dengan DailyAudioService
-      const getRecommendation = (averageDb: number): {
+      const getRecommendation = (
+        averageDb: number
+      ): {
         recommendation: string;
         riskLevel: "safe" | "moderate" | "high";
       } => {
@@ -112,7 +114,10 @@ const HistoryPage: React.FC = () => {
           }
         } catch (err) {
           // Jika backend gagal, fallback ke cache lokal
-          logger.warn("Gagal memuat dashboard harian dari backend, fallback ke cache lokal", err);
+          logger.warn(
+            "Gagal memuat dashboard harian dari backend, fallback ke cache lokal",
+            err
+          );
         }
       }
 
@@ -134,7 +139,9 @@ const HistoryPage: React.FC = () => {
           <div className="bg-orange-900 border border-orange-600 text-orange-200 px-4 py-3 rounded-lg mb-6 flex items-center gap-3">
             <AlertTriangle size={20} />
             <span>
-              Beberapa data histori dan dashboard kesehatan mungkin tidak lengkap karena backend dinonaktifkan. Data ditampilkan dari cache lokal.
+              Beberapa data histori dan dashboard kesehatan mungkin tidak
+              lengkap karena backend dinonaktifkan. Data ditampilkan dari cache
+              lokal.
             </span>
           </div>
         )}

@@ -257,3 +257,43 @@ const { data, error } = await supabase.from("table_name").select("*");
 ### Status Backend:
 
 Backend sekarang menggunakan Supabase sebagai BaaS (Backend as a Service) menggantikan custom backend server.
+
+---
+
+### ✅ Fase 5: Skema Tabel Noise Areas untuk Peta (SELESAI)
+
+Tanggal: 2025-01-23
+
+Yang Telah Diselesaikan:
+
+1. Tabel dan Kolom Utama
+
+- public.noise_areas: menyimpan area kebisingan yang dibagikan user ke peta
+  - Fields: id (uuid), user_id (uuid, fk auth.users), latitude (numeric(9,6)), longitude (numeric(9,6)), noise_level (numeric(6,2)), noise_source (text), health_impact (health_status_enum), description (text), address (text), radius (integer, meter), created_at (timestamptz), updated_at (timestamptz), expires_at (timestamptz)
+
+2. Keamanan (RLS)
+
+- Enable Row Level Security pada tabel noise_areas
+- Kebijakan akses:
+  - Select: semua pengguna authenticated dapat membaca area yang belum expired (expires_at is null atau > now())
+  - Insert/Update/Delete: hanya pemilik (user_id = auth.uid())
+
+3. Indeks dan Trigger
+
+- Indeks: (user_id, created_at desc), expires_at, (latitude, longitude)
+- Trigger set_timestamp untuk auto-update kolom updated_at (menggunakan fungsi public.tg_set_timestamp yang sudah ada)
+
+4. Integrasi dengan UI (Rencana Fase Berikutnya)
+
+- RealTimeNoiseTab: tombol "Bagikan ke Peta" akan membuat entri di noise_areas dengan posisi, noise_level, noise_source (klasifikasi teratas), health_impact, radius default
+- MapsPage: otomatis menampilkan area (hijau/kuning/merah) berdasarkan health_impact; klik area menampilkan detail dari tabel
+- nantinya user lain juga bisa melihat area yang kita buat
+#### File yang Dibuat/Dimodifikasi:
+
+**Database Migrations:**
+
+- `supabase/migrations/20250123000000_create_noise_areas_table.sql` (BARU)
+
+**Dokumentasi:**
+
+- `perkembangan.md` (UPDATE – penambahan Fase 5)

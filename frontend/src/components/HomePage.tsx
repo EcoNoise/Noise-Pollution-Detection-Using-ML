@@ -425,17 +425,45 @@ const HomePage: React.FC = () => {
     return { label: "Sangat Bising", color: "error" };
   };
 
-  const shareToMap = () => {
+  const shareToMap = async () => {
     if (!isAuthenticated) {
-      setShowLoginAlert(true); // Ubah dari alert() ke state
+      setShowLoginAlert(true);
       return;
     }
 
     if (!result) return;
-    mapService.shareNoiseData({
-      analysis: result.predictions,
-    });
-    navigate("/maps");
+
+    try {
+      // Dapatkan lokasi pengguna saat ini
+      const position = await mapService.getCurrentLocation();
+      if (!position) {
+        throw new Error("Gagal mendapatkan lokasi saat ini. Pastikan layanan lokasi aktif.");
+      }
+
+      const { predictions } = result;
+      const description = `Hasil analisis: ${predictions.noise_source} (${(
+        predictions.confidence_score * 100
+      ).toFixed(1)}% yakin). Dampak kesehatan: ${predictions.health_impact}.`;
+
+      // Simpan langsung ke database/storage melalui service
+      await mapService.addNoiseLocation({
+        coordinates: position,
+        noiseLevel: predictions.noise_level,
+        source: predictions.noise_source,
+        healthImpact: predictions.health_impact,
+        description,
+        address: "",
+        radius: 100,
+      });
+
+      navigate("/maps");
+    } catch (err: any) {
+      logger.error("Gagal membagikan ke peta:", err);
+      setError(
+        err?.message ||
+          "Gagal membagikan ke peta. Pastikan lokasi diizinkan dan coba lagi."
+      );
+    }
   };
 
   const handleLoginRedirect = () => {
