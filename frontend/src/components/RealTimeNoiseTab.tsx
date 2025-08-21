@@ -586,27 +586,12 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                     mb: 1,
                   }}
                 >
-                  {currentReading.db.toFixed(1)} dB
+                  {currentReading.dbA.toFixed(1)} dBA
                 </Typography>
                 
-                <Typography
-                  sx={{
-                    fontSize: "2.8rem",
-                    fontWeight: "bold",
-                    background: "linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    backgroundClip: "text",
-                    lineHeight: 1,
-                    mb: 2,
-                  }}
-                >
-                  {currentReading.dbA.toFixed(1)} dB(A)
-                </Typography>
                 
-                <Typography variant="body2" sx={{ opacity: 0.8, color: "#e3f2fd" }}>
-                  A-weighted untuk akurasi lebih tinggi
-                </Typography>
+                
+                
               </MetricCard>
             </Grid>
 
