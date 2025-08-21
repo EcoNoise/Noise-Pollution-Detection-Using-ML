@@ -114,6 +114,25 @@ export const endHealthSession = async (
     .single();
 
   if (error) throw error;
+
+  // Fallback: upsert ke health_daily_metrics via RPC jika trigger DB tidak berjalan
+  try {
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    if (userId && result?.started_at) {
+      const metricDate = new Date(result.started_at).toISOString().split('T')[0];
+      await supabase.rpc('upsert_health_daily_metrics', {
+        p_user_id: userId,
+        p_date: metricDate,
+        p_session_avg_db: result.avg_db ?? data.avg_db ?? 0,
+        p_session_avg_dba: result.avg_dba ?? data.avg_dba ?? 0,
+        p_session_duration_seconds: result.duration_seconds ?? data.duration_seconds ?? 0,
+      });
+    }
+  } catch (rpcErr) {
+    // Biarkan diam-diam: pada kondisi normal trigger DB sudah mengagregasi harian
+    console.warn('upsert_health_daily_metrics RPC fallback failed:', rpcErr);
+  }
+
   return result;
 };
 
