@@ -4,7 +4,7 @@ import CssBaseline from "@mui/material/CssBaseline";
 import { apiService } from "./services/api";
 import SessionManager from "./utils/tokenManager";
 import { Alert } from "@mui/material";
-import { appConfig, backendNotice, logger } from "./config/appConfig";
+import { appConfig, logger } from "./config/appConfig";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 import {
@@ -399,18 +399,6 @@ function App() {
             py: 1,
           }}
         >
-          <Alert
-            severity={backendNotice.type}
-            sx={{
-              borderRadius: 0,
-              bgcolor: "#1E293B",
-              color: "#E2E8F0",
-              border: "1px solid #334155",
-            }}
-            icon={<VolumeX size={18} />}
-          >
-            <strong>{backendNotice.title}:</strong> {backendNotice.message}
-          </Alert>
         </Box>
       )}
       <Router>
