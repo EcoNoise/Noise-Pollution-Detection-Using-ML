@@ -37,7 +37,7 @@ import { audioClassificationService } from "../services/audioClassificationServi
 import { mapService } from "../services/mapService";
 import { logger, appConfig } from "../config/appConfig";
 import { useNavigate } from "react-router-dom";
-import SessionManager from "../utils/tokenManager";
+// import SessionManager from "../utils/tokenManager"; // removed legacy
 import ModernPopup from "./ModernPopup";
 import {
   createHealthSession,
@@ -45,6 +45,7 @@ import {
   createExposureLog,
 } from "../services/healthService";
 import { DailyAudioService } from "../services/dailyAudioService";
+import { useAuth } from "../contexts/AuthContext";
 
 const StyledCard = styled(Card)(({ theme }) => ({
   background: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)",
@@ -197,20 +198,11 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLoginAlert, setShowLoginAlert] = useState(false);
 
-  // Check authentication status
+  // Check authentication status (via AuthContext)
+  const { isAuthenticated: isAuthCtx } = useAuth();
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const sm = SessionManager.getInstance();
-        const auth = await sm.isAuthenticated();
-        setIsAuthenticated(auth);
-      } catch (e) {
-        logger.warn("Auth check failed:", e);
-        setIsAuthenticated(false);
-      }
-    };
-    checkAuth();
-  }, []);
+    setIsAuthenticated(isAuthCtx);
+  }, [isAuthCtx]);
 
   const {
     isListening,

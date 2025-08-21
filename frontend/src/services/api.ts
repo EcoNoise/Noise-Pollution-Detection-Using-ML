@@ -1,4 +1,3 @@
-import SessionManager from "../utils/tokenManager";
 import { logger } from "../config/appConfig";
 
 // Types

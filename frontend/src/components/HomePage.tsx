@@ -30,7 +30,7 @@ import {
   getHealthImpactDescription,
   getNoiseSourceIcon,
 } from "../utils/translationUtils";
-import SessionManager from "../utils/tokenManager";
+import { useAuth } from "../contexts/AuthContext";
 import { appConfig } from "../config/appConfig";
 
 type ChipColor =
@@ -122,20 +122,11 @@ interface UploadResult {
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAuthenticated: isAuthCtx } = useAuth();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const sm = SessionManager.getInstance();
-        const auth = await sm.isAuthenticated();
-        setIsAuthenticated(auth);
-      } catch (e) {
-        logger.warn("Auth check failed:", e);
-        setIsAuthenticated(false);
-      }
-    };
-    checkAuth();
-  }, []);
+    setIsAuthenticated(isAuthCtx);
+  }, [isAuthCtx]);
   const [result, setResult] = useState<UploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);

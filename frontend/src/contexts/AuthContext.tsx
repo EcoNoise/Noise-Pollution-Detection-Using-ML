@@ -49,6 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           setUser(session?.user ?? null);
           logger.info("Initial session loaded:", session?.user?.email);
+          if (session?.user) {
+            // Persist for compatibility with legacy code paths
+            localStorage.setItem("userId", session.user.id);
+            localStorage.setItem("userEmail", session.user.email || "");
+          }
         }
       } catch (error) {
         logger.error("Error in getSession:", error);
@@ -71,6 +76,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       switch (event) {
         case "SIGNED_IN":
           logger.info("User signed in:", session?.user?.email);
+          if (session?.user) {
+            localStorage.setItem("userId", session.user.id);
+            localStorage.setItem("userEmail", session.user.email || "");
+          }
           break;
         case "SIGNED_OUT":
           logger.info("User signed out");
@@ -80,6 +89,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           break;
         case "TOKEN_REFRESHED":
           logger.info("Token refreshed for user:", session?.user?.email);
+          if (session?.user) {
+            localStorage.setItem("userId", session.user.id);
+            localStorage.setItem("userEmail", session.user.email || "");
+          }
           break;
         default:
           break;

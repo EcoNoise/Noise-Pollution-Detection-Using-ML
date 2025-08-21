@@ -20,7 +20,7 @@ import MapPopup from "./MapPopup";
 import AreaFilter, { AreaFilters } from "./AreaFilter";
 import MapTutorial from "./MapTutorial";
 import styles from "../styles/MapComponent.module.css";
-import SessionManager from "../utils/tokenManager";
+import { useAuth } from "../contexts/AuthContext";
 
 import "leaflet/dist/leaflet.css";
 import { appConfig, logger } from "../config/appConfig";
@@ -130,6 +130,7 @@ interface MapComponentProps {
 
 const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const navigate = useNavigate(); // NEW: Hook for navigation
+  const { isAuthenticated } = useAuth();
   const [noiseLocations, setNoiseLocations] = useState<NoiseLocation[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const {
@@ -334,9 +335,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       return;
     }
 
-    const sm = SessionManager.getInstance();
-    const isAuthenticated = await sm.isAuthenticated();
-
+    // Removed legacy SessionManager check, use AuthContext instead
     if (!isAuthenticated) {
       showLogin(
         "Login Diperlukan",
