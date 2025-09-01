@@ -190,6 +190,14 @@ interface RealTimeNoiseTabProps {
   className?: string;
 }
 
+// Cache untuk menyimpan data setelah monitor dihentikan
+interface CachedReading {
+  reading: any;
+  statistics: any;
+  timestamp: number;
+  location?: [number, number];
+}
+
 const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   const navigate = useNavigate();
   const [enableAWeighting, setEnableAWeighting] = useState(true);
@@ -197,6 +205,11 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   const [calibrationMode] = useState<"auto" | "manual">("auto");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLoginAlert, setShowLoginAlert] = useState(false);
+
+  // Cache untuk data setelah monitoring dihentikan
+  const [cachedReading, setCachedReading] = useState<CachedReading | null>(null);
+  const [cacheExpiry, setCacheExpiry] = useState<number | null>(null);
+  const cacheTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check authentication status (via AuthContext)
   const { isAuthenticated: isAuthCtx } = useAuth();
@@ -230,6 +243,38 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   const sumDbARef = useRef<number>(0);
   const countRef = useRef<number>(0);
 
+  // Cache cleanup ketika komponen unmount
+  useEffect(() => {
+    return () => {
+      if (cacheTimeoutRef.current) {
+        clearTimeout(cacheTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Update cache expiry timer
+  useEffect(() => {
+    if (cacheExpiry) {
+      const now = Date.now();
+      const timeLeft = cacheExpiry - now;
+      
+      if (timeLeft <= 0) {
+        setCachedReading(null);
+        setCacheExpiry(null);
+        return;
+      }
+
+      if (cacheTimeoutRef.current) {
+        clearTimeout(cacheTimeoutRef.current);
+      }
+
+      cacheTimeoutRef.current = setTimeout(() => {
+        setCachedReading(null);
+        setCacheExpiry(null);
+      }, timeLeft);
+    }
+  }, [cacheExpiry]);
+
   // Accumulate readings while listening to compute session averages
   useEffect(() => {
     if (isListening && currentReading) {
@@ -240,6 +285,13 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   }, [isListening, currentReading]);
 
   const handleStartListening = useCallback(async () => {
+    // Clear cache saat mulai monitoring baru
+    if (cacheTimeoutRef.current) {
+      clearTimeout(cacheTimeoutRef.current);
+    }
+    setCachedReading(null);
+    setCacheExpiry(null);
+
     await startListening();
     // Only create a backend session when backend enabled
     if (appConfig.backendEnabled) {
@@ -264,6 +316,32 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   }, [startListening]);
 
   const handleStopListening = useCallback(async () => {
+    // Simpan data ke cache sebelum menghentikan monitoring
+    if (currentReading && statistics) {
+      try {
+        const position = await mapService.getCurrentLocation();
+        const cache: CachedReading = {
+          reading: currentReading,
+          statistics: statistics,
+          timestamp: Date.now(),
+          location: position || undefined,
+        };
+        setCachedReading(cache);
+        setCacheExpiry(Date.now() + 5000); // 5 detik cache
+        logger.info("Data cached for 5 seconds after monitoring stopped");
+      } catch (error) {
+        logger.warn("Could not get location for cache:", error);
+        // Tetap cache tanpa lokasi
+        const cache: CachedReading = {
+          reading: currentReading,
+          statistics: statistics,
+          timestamp: Date.now(),
+        };
+        setCachedReading(cache);
+        setCacheExpiry(Date.now() + 5000);
+      }
+    }
+
     stopListening();
     const start = sessionStartRef.current;
     const count = countRef.current || 0;
@@ -330,7 +408,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       sumDbARef.current = 0;
       countRef.current = 0;
     }
-  }, [stopListening]);
+  }, [stopListening, currentReading, statistics]);
 
   const getHealthIcon = (healthImpact: string) => {
     switch (healthImpact) {
@@ -400,40 +478,71 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       return;
     }
 
-    if (!currentReading) return;
+    // Tentukan data mana yang akan digunakan: current reading atau cached reading
+    let dataToShare = currentReading;
+    let statsToShare = statistics;
+    let position: [number, number] | null = null;
+
+    if (!isListening && cachedReading && cacheExpiry && Date.now() < cacheExpiry) {
+      // Gunakan data dari cache
+      dataToShare = cachedReading.reading;
+      statsToShare = cachedReading.statistics;
+      position = cachedReading.location || null;
+      logger.info("Using cached data for sharing to map");
+    } else if (!isListening && (!cachedReading || !cacheExpiry || Date.now() >= cacheExpiry)) {
+      // Cache sudah habis dan tidak sedang monitoring
+      alert("Cache data sudah habis. Silakan mulai monitoring lagi untuk membagikan ke peta.");
+      return;
+    }
+
+    if (!dataToShare) {
+      alert("Tidak ada data untuk dibagikan. Silakan mulai monitoring terlebih dahulu.");
+      return;
+    }
 
     try {
-      const position = await mapService.getCurrentLocation();
+      // Jika tidak ada posisi dari cache, coba dapatkan posisi saat ini
       if (!position) {
-        throw new Error("Tidak dapat memperoleh lokasi saat ini");
+        position = await mapService.getCurrentLocation();
+        if (!position) {
+          throw new Error("Tidak dapat memperoleh lokasi saat ini");
+        }
       }
 
-      const source =
-        currentReading.classification?.topPrediction || "Unknown";
-      const confidence = currentReading.classification?.confidence;
-      const description = `Realtime: ${currentReading.dbA.toFixed(
+      const source = dataToShare.classification?.topPrediction || "Unknown";
+      const confidence = dataToShare.classification?.confidence;
+      const description = `Realtime: ${dataToShare.dbA.toFixed(
         1
-      )} dBA, sumber: ${source}$${"{"}${" "}${"}"}${
+      )} dBA, sumber: ${source}${
         confidence !== undefined
           ? ` (kepercayaan ${(confidence * 100).toFixed(0)}%)`
           : ""
-      } pada ${currentReading.timestamp.toLocaleString()}`;
+      } pada ${dataToShare.timestamp.toLocaleString()}`;
 
       const saved = await mapService.addNoiseLocation({
         coordinates: position,
-        noiseLevel: currentReading.dbA,
+        noiseLevel: dataToShare.dbA,
         source,
-        healthImpact: currentReading.healthImpact,
+        healthImpact: dataToShare.healthImpact,
         description,
         address: "Lokasi saat ini",
         radius: 100,
       });
 
       if (saved) {
+        // Clear cache setelah berhasil share
+        if (cachedReading) {
+          setCachedReading(null);
+          setCacheExpiry(null);
+          if (cacheTimeoutRef.current) {
+            clearTimeout(cacheTimeoutRef.current);
+          }
+        }
         navigate("/maps");
       }
     } catch (err) {
       logger.error("Gagal membagikan ke peta:", err);
+      alert("Gagal membagikan ke peta. Silakan coba lagi.");
     }
   };
 
@@ -444,6 +553,16 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
 
   const handleCloseAlert = () => {
     setShowLoginAlert(false);
+  };
+
+  // Tentukan apakah tombol share harus disabled
+  const isShareButtonDisabled = !isAuthenticated || 
+    (!currentReading && (!cachedReading || !cacheExpiry || Date.now() >= cacheExpiry));
+
+  // Hitung waktu cache tersisa untuk ditampilkan
+  const getCacheTimeLeft = () => {
+    if (!cacheExpiry) return 0;
+    return Math.max(0, Math.ceil((cacheExpiry - Date.now()) / 1000));
   };
 
   return (
@@ -495,6 +614,22 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
         </Alert>
       )}
 
+      {/* Cache Info Alert */}
+      {!isListening && cachedReading && cacheExpiry && Date.now() < cacheExpiry && (
+        <Alert
+          severity="info"
+          sx={{
+            mb: 3,
+            backgroundColor: "rgba(33, 150, 243, 0.1)",
+            color: "white",
+            border: "1px solid rgba(33, 150, 243, 0.3)",
+            borderRadius: 2,
+          }}
+        >
+          Data tersimpan untuk {getCacheTimeLeft()} detik lagi. Anda masih bisa membagikan ke peta.
+        </Alert>
+      )}
+
       {/* Control Panel */}
       <Box sx={{ mb: 4 }}>
         <Typography
@@ -541,16 +676,28 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
           <Button
             variant="contained"
             onClick={shareToMap}
+            disabled={isShareButtonDisabled}
             sx={{
-              bgcolor: "#3b82f6",
+              bgcolor: isShareButtonDisabled ? "#666" : "#3b82f6",
               color: "#fff",
               borderRadius: "50px",
-              "&:hover": { bgcolor: "#2563eb" },
+              "&:hover": { 
+                bgcolor: isShareButtonDisabled ? "#666" : "#2563eb" 
+              },
+              "&.Mui-disabled": {
+                bgcolor: "#666",
+                color: "#999",
+              },
             }}
           >
             <Box display="flex" alignItems="center" gap={1}>
               <Activity size={18} />
               Bagikan ke Peta
+              {!isListening && cachedReading && cacheExpiry && Date.now() < cacheExpiry && (
+                <Typography variant="caption" sx={{ ml: 1, fontSize: '0.7rem' }}>
+                  ({getCacheTimeLeft()}s)
+                </Typography>
+              )}
             </Box>
           </Button>
 
@@ -558,7 +705,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
             variant="outlined"
             startIcon={<Settings />}
             onClick={calibrate}
-            disabled={!currentReading}
+            disabled={!currentReading && !cachedReading}
           >
             Kalibrasi Manual
           </Button>
@@ -594,6 +741,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
           </Box>
         </Box>
       </Box>
+
       {/* Current Reading Display */}
       {currentReading && (
         <Box sx={{ mb: 4 }}>
