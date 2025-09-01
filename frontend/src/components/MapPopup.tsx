@@ -96,12 +96,7 @@ const MapPopup: React.FC<MapPopupProps> = ({
                 <br />
               </>
             )}
-            {location.description && (
-              <>
-                <strong>Deskripsi:</strong> {location.description}
-                <br />
-              </>
-            )}
+            {/* Deskripsi disembunyikan sesuai permintaan pengguna */}
           </div>
 
           <div className={styles.popupActions}>
