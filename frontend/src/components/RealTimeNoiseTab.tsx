@@ -207,7 +207,9 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   const [showLoginAlert, setShowLoginAlert] = useState(false);
 
   // Cache untuk data setelah monitoring dihentikan
-  const [cachedReading, setCachedReading] = useState<CachedReading | null>(null);
+  const [cachedReading, setCachedReading] = useState<CachedReading | null>(
+    null
+  );
   const [cacheExpiry, setCacheExpiry] = useState<number | null>(null);
   const cacheTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -257,7 +259,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     if (cacheExpiry) {
       const now = Date.now();
       const timeLeft = cacheExpiry - now;
-      
+
       if (timeLeft <= 0) {
         setCachedReading(null);
         setCacheExpiry(null);
@@ -483,20 +485,32 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     let statsToShare = statistics;
     let position: [number, number] | null = null;
 
-    if (!isListening && cachedReading && cacheExpiry && Date.now() < cacheExpiry) {
+    if (
+      !isListening &&
+      cachedReading &&
+      cacheExpiry &&
+      Date.now() < cacheExpiry
+    ) {
       // Gunakan data dari cache
       dataToShare = cachedReading.reading;
       statsToShare = cachedReading.statistics;
       position = cachedReading.location || null;
       logger.info("Using cached data for sharing to map");
-    } else if (!isListening && (!cachedReading || !cacheExpiry || Date.now() >= cacheExpiry)) {
+    } else if (
+      !isListening &&
+      (!cachedReading || !cacheExpiry || Date.now() >= cacheExpiry)
+    ) {
       // Cache sudah habis dan tidak sedang monitoring
-      alert("Cache data sudah habis. Silakan mulai monitoring lagi untuk membagikan ke peta.");
+      alert(
+        "Cache data sudah habis. Silakan mulai monitoring lagi untuk membagikan ke peta."
+      );
       return;
     }
 
     if (!dataToShare) {
-      alert("Tidak ada data untuk dibagikan. Silakan mulai monitoring terlebih dahulu.");
+      alert(
+        "Tidak ada data untuk dibagikan. Silakan mulai monitoring terlebih dahulu."
+      );
       return;
     }
 
@@ -556,8 +570,10 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   };
 
   // Tentukan apakah tombol share harus disabled
-  const isShareButtonDisabled = !isAuthenticated || 
-    (!currentReading && (!cachedReading || !cacheExpiry || Date.now() >= cacheExpiry));
+  const isShareButtonDisabled =
+    !isAuthenticated ||
+    (!currentReading &&
+      (!cachedReading || !cacheExpiry || Date.now() >= cacheExpiry));
 
   // Hitung waktu cache tersisa untuk ditampilkan
   const getCacheTimeLeft = () => {
@@ -615,20 +631,24 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       )}
 
       {/* Cache Info Alert */}
-      {!isListening && cachedReading && cacheExpiry && Date.now() < cacheExpiry && (
-        <Alert
-          severity="info"
-          sx={{
-            mb: 3,
-            backgroundColor: "rgba(33, 150, 243, 0.1)",
-            color: "white",
-            border: "1px solid rgba(33, 150, 243, 0.3)",
-            borderRadius: 2,
-          }}
-        >
-          Data tersimpan untuk {getCacheTimeLeft()} detik lagi. Anda masih bisa membagikan ke peta.
-        </Alert>
-      )}
+      {!isListening &&
+        cachedReading &&
+        cacheExpiry &&
+        Date.now() < cacheExpiry && (
+          <Alert
+            severity="info"
+            sx={{
+              mb: 3,
+              backgroundColor: "rgba(33, 150, 243, 0.1)",
+              color: "white",
+              border: "1px solid rgba(33, 150, 243, 0.3)",
+              borderRadius: 2,
+            }}
+          >
+            Data tersimpan untuk {getCacheTimeLeft()} detik lagi. Anda masih
+            bisa membagikan ke peta.
+          </Alert>
+        )}
 
       {/* Control Panel */}
       <Box sx={{ mb: 4 }}>
@@ -681,8 +701,8 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
               bgcolor: isShareButtonDisabled ? "#666" : "#3b82f6",
               color: "#fff",
               borderRadius: "50px",
-              "&:hover": { 
-                bgcolor: isShareButtonDisabled ? "#666" : "#2563eb" 
+              "&:hover": {
+                bgcolor: isShareButtonDisabled ? "#666" : "#2563eb",
               },
               "&.Mui-disabled": {
                 bgcolor: "#666",
@@ -693,11 +713,17 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
             <Box display="flex" alignItems="center" gap={1}>
               <Activity size={18} />
               Bagikan ke Peta
-              {!isListening && cachedReading && cacheExpiry && Date.now() < cacheExpiry && (
-                <Typography variant="caption" sx={{ ml: 1, fontSize: '0.7rem' }}>
-                  ({getCacheTimeLeft()}s)
-                </Typography>
-              )}
+              {!isListening &&
+                cachedReading &&
+                cacheExpiry &&
+                Date.now() < cacheExpiry && (
+                  <Typography
+                    variant="caption"
+                    sx={{ ml: 1, fontSize: "0.7rem" }}
+                  >
+                    ({getCacheTimeLeft()}s)
+                  </Typography>
+                )}
             </Box>
           </Button>
 

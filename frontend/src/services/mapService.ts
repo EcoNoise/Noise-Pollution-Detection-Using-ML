@@ -145,8 +145,21 @@ class MapService {
           throw new Error(error.message || "Gagal menyimpan area kebisingan");
         }
 
+        // Fetch username from profiles for nicer display (falls back if not available)
+        let userName: string | undefined = undefined;
+        try {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id, username")
+            .eq("id", userId)
+            .maybeSingle();
+          if (profile?.username) userName = profile.username;
+        } catch (e) {
+          logger.warn?.("Unable to fetch username after insert", e);
+        }
+
         const currentUserId = userId;
-        const locationObj = toNoiseLocation(data, currentUserId);
+        const locationObj = toNoiseLocation({ ...data, userName }, currentUserId);
         return locationObj;
       }
 
@@ -219,9 +232,30 @@ class MapService {
           logger.error("Failed to fetch noise areas:", error);
           return [];
         }
+
+        // Fetch usernames for involved user_ids from profiles (publicly readable when active)
+        const userIds = Array.from(new Set((data || []).map((a: any) => a.user_id).filter(Boolean)));
+        let usernameMap: Record<string, string> = {};
+        if (userIds.length > 0) {
+          const { data: profilesData, error: profilesErr } = await supabase
+            .from("profiles")
+            .select("id, username")
+            .in("id", userIds);
+          if (profilesErr) {
+            logger.error("Failed to fetch profiles for usernames:", profilesErr);
+          } else if (profilesData) {
+            usernameMap = Object.fromEntries(profilesData.map((p: any) => [p.id, p.username]));
+          }
+        }
+
         const { data: userData } = await supabase.auth.getUser();
         const currentUserId = userData?.user?.id;
-        return (data || []).map((area: any) => toNoiseLocation(area, currentUserId));
+        return (data || []).map((area: any) =>
+          toNoiseLocation(
+            { ...area, userName: usernameMap[area.user_id] },
+            currentUserId
+          )
+        );
       }
       const allAreas = loadAllNoiseAreas();
       const currentUserId = getCurrentUserId();
@@ -244,9 +278,21 @@ class MapService {
           logger.error("Failed to fetch noise area by id:", error);
           return null;
         }
+        // Enrich with username
+        let userName: string | undefined = undefined;
+        try {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id, username")
+            .eq("id", data.user_id)
+            .maybeSingle();
+          if (profile?.username) userName = profile.username;
+        } catch (e) {
+          logger.warn?.("Unable to fetch username for area", e);
+        }
         const { data: userData } = await supabase.auth.getUser();
         const currentUserId = userData?.user?.id;
-        return toNoiseLocation(data, currentUserId);
+        return toNoiseLocation({ ...data, userName }, currentUserId);
       }
 
       const userId = getCurrentUserId();
