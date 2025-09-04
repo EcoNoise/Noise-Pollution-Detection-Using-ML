@@ -6,7 +6,11 @@ import {
   getNoiseDescription,
   getTimeUntilExpiry,
 } from "../utils/mapUtils";
-import { translateNoiseSource, translateHealthImpact, getNoiseSourceIcon } from "../utils/translationUtils";
+import {
+  translateNoiseSource,
+  translateHealthImpact,
+  getNoiseSourceIcon,
+} from "../utils/translationUtils";
 import ModernPopup from "./ModernPopup";
 import styles from "../styles/MapComponent.module.css";
 // import { appConfig } from "../config/appConfig"; // removed unused import
@@ -65,13 +69,15 @@ const MapPopup: React.FC<MapPopupProps> = ({
             <br />
             {location.source && (
               <>
-                <strong>Sumber:</strong> {getNoiseSourceIcon(location.source)} {translateNoiseSource(location.source)}
+                <strong>Sumber:</strong> {getNoiseSourceIcon(location.source)}{" "}
+                {translateNoiseSource(location.source)}
                 <br />
               </>
             )}
             {location.healthImpact && (
               <>
-                <strong>Dampak Kesehatan:</strong> {translateHealthImpact(location.healthImpact)}
+                <strong>Dampak Kesehatan:</strong>{" "}
+                {translateHealthImpact(location.healthImpact)}
                 <br />
               </>
             )}
