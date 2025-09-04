@@ -16,6 +16,7 @@ export const toNoiseLocation = (area: any, currentUserId?: string): NoiseLocatio
   userName: area.userName || (currentUserId && area.user_id === currentUserId ? (localStorage.getItem('username') || 'You') : `User${String(area.user_id).slice(-4)}`),
   canDelete: currentUserId ? area.user_id === currentUserId : false,
   expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
+  final_category: area.final_category || undefined,
 });
 
 export const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9);

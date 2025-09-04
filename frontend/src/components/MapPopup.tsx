@@ -5,6 +5,7 @@ import {
   formatNoiseLevel,
   getNoiseDescription,
   getTimeUntilExpiry,
+  formatCoordinates,
 } from "../utils/mapUtils";
 import {
   translateNoiseSource,
@@ -55,6 +56,8 @@ const MapPopup: React.FC<MapPopupProps> = ({
     }
   };
 
+  const [lat, lon] = location.coordinates;
+
   return (
     <>
       <div className={styles.customPopup}>
@@ -67,6 +70,12 @@ const MapPopup: React.FC<MapPopupProps> = ({
             <br />
             <strong>Status:</strong> {getNoiseDescription(location.noiseLevel)}
             <br />
+            {location.final_category && (
+              <>
+                <strong>Kategori:</strong> {location.final_category}
+                <br />
+              </>
+            )}
             {location.source && (
               <>
                 <strong>Sumber:</strong> {getNoiseSourceIcon(location.source)}{" "}
@@ -81,6 +90,8 @@ const MapPopup: React.FC<MapPopupProps> = ({
                 <br />
               </>
             )}
+            <strong>Koordinat:</strong> ({formatCoordinates(lat, lon)})
+            <br />
             {location.address && (
               <>
                 <strong>Alamat:</strong> {location.address}

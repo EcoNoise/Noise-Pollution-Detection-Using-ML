@@ -14,6 +14,8 @@ export interface NoiseLocation {
   userName?: string; // Added user name field
   canDelete?: boolean; // Added permission field
   expires_at?: Date; // Added expiration time field
+  // Final category mapped from classifier or heuristics (e.g., Traffic, Construction, Event, etc.)
+  final_category?: string;
 }
 
 export interface MapMarkerData {

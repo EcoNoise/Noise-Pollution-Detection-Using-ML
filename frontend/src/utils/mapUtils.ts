@@ -92,3 +92,10 @@ export const getTimeUntilExpiry = (expiresAt: Date): string => {
     return `${diffMinutes} menit lagi`;
   }
 };
+
+// Format koordinat untuk tampilan ringkas di UI, mis: "-6.20880, 106.84560"
+export const formatCoordinates = (lat: number, lon: number): string => {
+  const latFixed = Number(lat).toFixed(5);
+  const lonFixed = Number(lon).toFixed(5);
+  return `${latFixed}, ${lonFixed}`;
+};

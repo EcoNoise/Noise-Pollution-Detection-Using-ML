@@ -15,70 +15,6 @@ const saveUserNoiseAreas = (userId: string, areas: any[]) => repository.saveUser
 const loadAllNoiseAreas = (): any[] => repository.loadAllNoiseAreas();
 const saveAllNoiseAreas = (areas: any[]) => repository.saveAllNoiseAreas(areas);
 
-// ==============================================
-// Skema #2: Penentuan Kategori & Expire (TTL)
-// - Menentukan final_category berdasarkan noise_source
-// - Menetapkan expires_at berdasarkan kategori (TTL default)
-// TTL mengacu pada d:\\Lomba\\ecoNoise\\noiseMapWeb\\map.md bagian 2
-//   Event -> +1 hari
-//   Construction -> +14 hari
-//   Traffic -> +3 hari
-//   Industry -> +90 hari
-//   Nature -> +7 hari
-//   Other -> +7 hari
-// Catatan: updated_at selalu di-set saat insert/update
-// ==============================================
-
-type NoiseCategory = "Event" | "Construction" | "Traffic" | "Industry" | "Nature" | "Other";
-
-/**
- * Menerjemahkan noise_source ke kategori utama (final_category) sesuai skema #2.
- * Mapping menggunakan heuristik sederhana berdasarkan kata kunci umum dan
- * label yang sudah ada di translationUtils (kompatibel ID/EN).
- */
-const mapSourceToCategory = (sourceRaw: string | undefined | null): NoiseCategory => {
-  const s = (sourceRaw || "").toLowerCase();
-  // Construction
-  if (/(konstruksi|jackhammer|drilling|pengeboran|alat_berat)/.test(s)) return "Construction";
-  // Traffic & kendaraan
-  if (/(traffic|kendaraan|vehicle|car|klakson|horn|engine|siren|ambulans|motor|mesin)/.test(s)) return "Traffic";
-  // Industry (peralatan permanen/AC/mesin statis)
-  if (/(industry|pabrik|factory|air_conditioner|ac_outdoor|generator|kompresor)/.test(s)) return "Industry";
-  // Event (musik, petasan, konser)
-  if (/(music|musik|street_music|concert|festival|event|petasan|kembang_api|firework)/.test(s)) return "Event";
-  // Nature/Other (hewan/aktivitas sekitar)
-  if (/(dog|anjing|children|anak|burung|hujan|nature)/.test(s)) return "Nature";
-  return "Other";
-};
-
-/**
- * Menghitung waktu kedaluwarsa default berdasarkan kategori sesuai skema #2.
- * @param category Kategori final
- * @param from Waktu acuan (default: sekarang)
- * @returns Date kedaluwarsa
- */
-const getDefaultExpiryForCategory = (category: NoiseCategory, from: Date = new Date()): Date => {
-  const msInDay = 24 * 60 * 60 * 1000;
-  const addDays = (days: number) => new Date(from.getTime() + days * msInDay);
-  switch (category) {
-    case "Event":
-      return addDays(1);
-    case "Construction":
-      return addDays(14);
-    case "Traffic":
-      return addDays(3);
-    case "Industry":
-      return addDays(90);
-    case "Nature":
-      return addDays(7);
-    case "Other":
-    default:
-      return addDays(7);
-  }
-};
-
-// ==============================================
-
 class MapService {
   private sharedData: {
     analysis: PredictionResponse;
@@ -171,10 +107,6 @@ class MapService {
         radius: location.radius || 100,
       };
 
-      // Skema #2: tentukan kategori & TTL
-      const finalCategory = mapSourceToCategory(requestData.noise_source);
-      const expiresAtISO = getDefaultExpiryForCategory(finalCategory).toISOString();
-
       // Backend path (Supabase)
       if (appConfig.backendEnabled) {
         const { data: userData, error: authError } = await supabase.auth.getUser();
@@ -203,9 +135,7 @@ class MapService {
           .insert({
             user_id: userId,
             ...requestData,
-            final_category: finalCategory,
-            expires_at: expiresAtISO,
-            updated_at: new Date().toISOString(),
+            expires_at: null,
           })
           .select("*")
           .single();
@@ -255,9 +185,7 @@ class MapService {
         ...requestData,
         user_id: userId,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        final_category: finalCategory,
-        expires_at: expiresAtISO,
+        expires_at: null
       };
 
       // Save to storage
@@ -320,30 +248,18 @@ class MapService {
           }
         }
 
-        return (data || []).map((area: any) => toNoiseLocation({ ...area, userName: usernameMap[area.user_id] })) as NoiseLocation[];
+        const { data: userData } = await supabase.auth.getUser();
+        const currentUserId = userData?.user?.id;
+        return (data || []).map((area: any) =>
+          toNoiseLocation(
+            { ...area, userName: usernameMap[area.user_id] },
+            currentUserId
+          )
+        );
       }
-
-      // Local fallback
-      const userId = getCurrentUserId();
-      if (!userId) return [];
-      const areas = loadUserNoiseAreas(userId);
-      return areas
-        .filter((a: any) => !a.expires_at || new Date(a.expires_at) > new Date())
-        .map((a: any) => ({
-          id: a.id,
-          coordinates: [a.latitude, a.longitude] as [number, number],
-          noiseLevel: a.noise_level,
-          source: a.noise_source,
-          healthImpact: a.health_impact,
-          description: a.description,
-          address: a.address,
-          radius: a.radius,
-          timestamp: new Date(a.created_at),
-          userId: a.user_id,
-          userName: localStorage.getItem('username') || 'Unknown',
-          canDelete: true,
-          expires_at: a.expires_at ? new Date(a.expires_at) : undefined,
-        })) as NoiseLocation[];
+      const allAreas = loadAllNoiseAreas();
+      const currentUserId = getCurrentUserId();
+      return allAreas.map((area: any) => toNoiseLocation(area, currentUserId || undefined));
     } catch (error) {
       logger.error("Error fetching noise locations:", error);
       return [];
@@ -358,32 +274,36 @@ class MapService {
           .select("*")
           .eq("id", id)
           .single();
-        if (error || !data) return null;
-        return toNoiseLocation(data);
+        if (error) {
+          logger.error("Failed to fetch noise area by id:", error);
+          return null;
+        }
+        // Enrich with username
+        let userName: string | undefined = undefined;
+        try {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id, username")
+            .eq("id", data.user_id)
+            .maybeSingle();
+          if (profile?.username) userName = profile.username;
+        } catch (e) {
+          logger.warn?.("Unable to fetch username for area", e);
+        }
+        const { data: userData } = await supabase.auth.getUser();
+        const currentUserId = userData?.user?.id;
+        return toNoiseLocation({ ...data, userName }, currentUserId);
       }
 
       const userId = getCurrentUserId();
-      if (!userId) return null;
-      const areas = loadUserNoiseAreas(userId);
-      const area = areas.find((a: any) => a.id === id);
+      if (!userId) throw new Error("User must be authenticated to fetch noise areas");
+
+      const allAreas = loadAllNoiseAreas();
+      const area = allAreas.find(a => a.id === id);
       if (!area) return null;
-      return {
-        id: area.id,
-        coordinates: [area.latitude, area.longitude] as [number, number],
-        noiseLevel: area.noise_level,
-        source: area.noise_source,
-        healthImpact: area.health_impact,
-        description: area.description,
-        address: area.address,
-        radius: area.radius,
-        timestamp: new Date(area.created_at),
-        userId: area.user_id,
-        userName: localStorage.getItem('username') || 'Unknown',
-        canDelete: true,
-        expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
-      } as NoiseLocation;
+      return toNoiseLocation(area, userId);
     } catch (error) {
-      logger.error("Error getting noise location by id:", error);
+      logger.error("Error fetching noise location by id:", error);
       return null;
     }
   }
@@ -445,14 +365,6 @@ class MapService {
         if (typeof updates.description === 'string') payload.description = updates.description;
         if (typeof updates.address === 'string') payload.address = updates.address;
         if (typeof updates.radius === 'number') payload.radius = updates.radius;
-
-        // Skema #2: jika sumber diubah, hitung ulang kategori & TTL
-        if (typeof payload.noise_source === 'string') {
-          const cat = mapSourceToCategory(payload.noise_source);
-          payload.final_category = cat;
-          payload.expires_at = getDefaultExpiryForCategory(cat).toISOString();
-        }
-        payload.updated_at = new Date().toISOString();
 
         const { data, error } = await supabase
           .from("noise_areas")
@@ -518,12 +430,6 @@ class MapService {
         longitude: updates.coordinates ? Number(updates.coordinates[1].toFixed(10)) : currentLocation.coordinates[1],
       };
 
-      // Skema #2: hitung kategori & TTL berdasarkan hasil analisis
-      const cat = mapSourceToCategory(updateData.noise_source);
-      updateData.final_category = cat;
-      updateData.expires_at = getDefaultExpiryForCategory(cat).toISOString();
-      updateData.updated_at = new Date().toISOString();
-
       if (appConfig.backendEnabled) {
         const { data: userData } = await supabase.auth.getUser();
         if (!userData?.user?.id) throw new Error('User not authenticated');
@@ -555,7 +461,6 @@ class MapService {
         userId: currentLocation.userId,
         userName: currentLocation.userName,
         canDelete: currentLocation.canDelete,
-        expires_at: new Date(updateData.expires_at),
       } as NoiseLocation;
     } catch (error) {
       logger.error("Error updating noise location with audio:", error);
