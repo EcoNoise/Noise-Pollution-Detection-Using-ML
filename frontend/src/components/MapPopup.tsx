@@ -6,6 +6,7 @@ import {
   getNoiseDescription,
   getTimeUntilExpiry,
   formatCoordinates,
+  formatRadius,
 } from "../utils/mapUtils";
 import {
   translateNoiseSource,
@@ -92,6 +93,12 @@ const MapPopup: React.FC<MapPopupProps> = ({
             )}
             <strong>Koordinat:</strong> ({formatCoordinates(lat, lon)})
             <br />
+            {typeof location.radius !== "undefined" && (
+              <>
+                <strong>Radius:</strong> {formatRadius(location.radius)}
+                <br />
+              </>
+            )}
             {location.address && (
               <>
                 <strong>Alamat:</strong> {location.address}

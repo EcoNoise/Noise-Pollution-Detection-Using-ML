@@ -99,3 +99,15 @@ export const formatCoordinates = (lat: number, lon: number): string => {
   const lonFixed = Number(lon).toFixed(5);
   return `${latFixed}, ${lonFixed}`;
 };
+
+/**
+ * Memformat radius untuk tampilan UI yang konsisten.
+ * - Input dalam meter.
+ * - Keluaran: "<nilai dibulatkan> m". Contoh: 100 -> "100 m".
+ * - Jika radius tidak valid/undefined, kembalikan "-" agar aman ditampilkan di UI.
+ */
+export const formatRadius = (radius?: number): string => {
+  if (typeof radius !== "number" || isNaN(radius)) return "-";
+  const rounded = Math.round(radius);
+  return `${rounded} m`;
+};

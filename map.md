@@ -58,7 +58,8 @@ Tambahan UI (sesuai permintaan):
 
 - Di popup peta, tampilkan `final_category` sebagai label "Kategori".
 - Tampilkan "Koordinat (latitude, longitude)" dalam format ringkas: `(<lat_five_decimals>, <lon_five_decimals>)`.
-- Utility `formatCoordinates(lat, lon)` ditambahkan pada frontend untuk memastikan clean code dan konsistensi tampilan.
+- Tampilkan `radius` sebagai label "Radius" dengan format konsisten (meter), contoh: `100 m`.
+- Utility `formatCoordinates(lat, lon)` dan `formatRadius(radius)` ditambahkan pada frontend untuk memastikan clean code dan konsistensi tampilan.
 
 ---
 
