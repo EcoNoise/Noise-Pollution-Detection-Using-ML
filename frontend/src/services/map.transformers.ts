@@ -46,6 +46,8 @@ export const toNoiseLocation = (area: any, currentUserId?: string): NoiseLocatio
       : `User${String(area.user_id).slice(-4)}`),
   canDelete: currentUserId ? area.user_id === currentUserId : false,
   expires_at: area.expires_at ? new Date(area.expires_at) : undefined,
+  // Persisted status from DB if present; UI will fallback to computed when absent
+  status: area.status ?? undefined,
   // Fallback: if DB doesn't yet store final_category, derive from noise_source for UI consistency
   final_category: area.final_category || deriveFinalCategory(area.noise_source),
 });

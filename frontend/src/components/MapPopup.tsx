@@ -7,6 +7,7 @@ import {
   formatCoordinates,
   formatRadius,
   formatExpiry,
+  computeNoiseAreaStatus,
 } from "../utils/mapUtils";
 import {
   translateNoiseSource,
@@ -59,6 +60,7 @@ const MapPopup: React.FC<MapPopupProps> = ({
   };
 
   const [lat, lon] = location.coordinates;
+  const dbOrComputedStatus = location.status || computeNoiseAreaStatus(location.timestamp, location.expires_at);
 
   return (
     <>
@@ -70,7 +72,9 @@ const MapPopup: React.FC<MapPopupProps> = ({
             <strong>Level Kebisingan:</strong>{" "}
             {formatNoiseLevel(location.noiseLevel)}
             <br />
-            <strong>Status:</strong> {getNoiseDescription(location.noiseLevel)}
+            <strong>Status:</strong> {dbOrComputedStatus}
+            <br />
+            <strong>Status area:</strong> {getNoiseDescription(location.noiseLevel)}
             <br />
             {(location.final_category || location.source) && (
               <>

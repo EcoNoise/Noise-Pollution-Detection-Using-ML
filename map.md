@@ -106,16 +106,16 @@ Opsional (untuk konsistensi):
 
 ---
 
-## 5) Tampilan di Peta (Frontend)
+## 5) Tampilan di Peta (Frontend) — Selesai ✅
 
 Gaya marker berdasarkan `status`:
 
 - Active → ikon/lingkaran berwarna penuh (opacity normal)
 - Expiring → ikon sedikit pudar + label kecil "akan kadaluarsa"
 - Expired → ikon abu-abu + tooltip "laporan lama, mungkin tidak relevan"
-- Permanent → ikon stabil tanpa indikator expire
+<!-- - Permanent → ikon stabil tanpa indikator expire -->
 
-Detail saat marker diklik (popup):
+<!-- Detail saat marker diklik (popup):
 
 - Lokasi (lat, lon) & radius area
 - Tingkat kebisingan (dB)
@@ -130,7 +130,7 @@ Catatan UI:
 - Username pelapor diambil dari tabel `profiles` berdasarkan `user_id` dan ditampilkan sebagai "Ditambahkan oleh".
 - Deskripsi pengguna dapat disembunyikan dari popup (sesuai keputusan produk saat ini).
 
----
+--- -->
 
 ## 6) Validasi & Refresh oleh Pengguna
 
