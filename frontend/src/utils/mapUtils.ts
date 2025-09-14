@@ -80,7 +80,7 @@ export const getTimeUntilExpiry = (expiresAt: Date): string => {
   const diffMs = expiry.getTime() - now.getTime();
 
   if (diffMs <= 0) {
-    return "Sudah expired";
+    return "Sudah kadaluarsa";
   }
 
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -91,6 +91,12 @@ export const getTimeUntilExpiry = (expiresAt: Date): string => {
   } else {
     return `${diffMinutes} menit lagi`;
   }
+};
+
+// Selalu kembalikan string untuk tampilan Kadaluarsa di UI.
+export const formatExpiry = (expiresAt?: Date): string => {
+  if (!expiresAt) return "—";
+  return getTimeUntilExpiry(expiresAt);
 };
 
 // Format koordinat untuk tampilan ringkas di UI, mis: "-6.20880, 106.84560"

@@ -4,9 +4,9 @@ import { NoiseLocation } from "../types/mapTypes";
 import {
   formatNoiseLevel,
   getNoiseDescription,
-  getTimeUntilExpiry,
   formatCoordinates,
   formatRadius,
+  formatExpiry,
 } from "../utils/mapUtils";
 import {
   translateNoiseSource,
@@ -74,7 +74,9 @@ const MapPopup: React.FC<MapPopupProps> = ({
             <br />
             {(location.final_category || location.source) && (
               <>
-                <strong>Kategori:</strong> {location.final_category || deriveFinalCategory(location.source)}
+                <strong>Kategori:</strong>{" "}
+                {location.final_category ||
+                  deriveFinalCategory(location.source)}
                 <br />
               </>
             )}
@@ -108,13 +110,8 @@ const MapPopup: React.FC<MapPopupProps> = ({
             )}
             <strong>Waktu:</strong> {location.timestamp.toLocaleString("id-ID")}
             <br />
-            {location.expires_at && (
-              <>
-                <strong>Expire:</strong>{" "}
-                {getTimeUntilExpiry(location.expires_at)}
-                <br />
-              </>
-            )}
+            <strong>Kadaluarsa:</strong> {formatExpiry(location.expires_at)}
+            <br />
             {location.userName && (
               <>
                 <strong>Ditambahkan oleh:</strong> {location.userName}

@@ -58,7 +58,8 @@ Tambahan UI (sesuai permintaan):
 
 - Tampilkan "Koordinat (latitude, longitude)" dalam format ringkas: `(<lat_five_decimals>, <lon_five_decimals>)`.
 - Tampilkan `radius` sebagai label "Radius" dengan format konsisten (meter), contoh: `100 m`.
-- Utility `formatCoordinates(lat, lon)` dan `formatRadius(radius)` ditambahkan pada frontend untuk memastikan clean code dan konsistensi tampilan.
+- Tampilkan `Kadaluarsa` (berdasarkan `expires_at`) menggunakan util `getTimeUntilExpiry(expires_at)` untuk menampilkan waktu relatif seperti "3 jam 12 menit lagi" atau "Sudah kadaluarsa".
+- Utility `formatCoordinates(lat, lon)`, `formatRadius(radius)`, dan `getTimeUntilExpiry(expires_at)` ditambahkan/ digunakan pada frontend untuk memastikan clean code dan konsistensi tampilan.
 
 ---
 

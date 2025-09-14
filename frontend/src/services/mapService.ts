@@ -2,7 +2,7 @@
 import { NoiseLocation, SearchResult } from "../types/mapTypes";
 import { PredictionResponse } from "./api";
 import { repository, getCurrentUserId as repoGetUserId } from "./map.repository";
-import { toNoiseLocation, generateId } from "./map.transformers";
+import { toNoiseLocation, generateId, deriveFinalCategory } from "./map.transformers";
 import { analyzeAudioFile } from "./map.analysis";
 import { exportUserNoiseData } from "./map.export";
 import { logger, appConfig } from "../config/appConfig";
@@ -107,6 +107,28 @@ class MapService {
         radius: location.radius || 100,
       };
 
+      // Tentukan final_category dan expires_at sesuai aturan di map.md (Bagian 2)
+      const finalCategory = deriveFinalCategory(requestData.noise_source);
+      const now = new Date();
+      const addDays = (d: number) => new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
+      const expiresAt: Date | null = (() => {
+        switch (finalCategory) {
+          case "Event":
+            return addDays(1);
+          case "Construction":
+            return addDays(14);
+          case "Traffic":
+            return addDays(3);
+          case "Industry":
+            return addDays(90);
+          case "Nature":
+            return addDays(7);
+          case "Other":
+          default:
+            return addDays(7);
+        }
+      })();
+
       // Backend path (Supabase)
       if (appConfig.backendEnabled) {
         const { data: userData, error: authError } = await supabase.auth.getUser();
@@ -135,7 +157,8 @@ class MapService {
           .insert({
             user_id: userId,
             ...requestData,
-            expires_at: null,
+            final_category: finalCategory,
+            expires_at: expiresAt ? expiresAt.toISOString() : null,
           })
           .select("*")
           .single();
@@ -185,7 +208,8 @@ class MapService {
         ...requestData,
         user_id: userId,
         created_at: new Date().toISOString(),
-        expires_at: null
+        final_category: finalCategory,
+        expires_at: expiresAt ? expiresAt.toISOString() : null,
       };
 
       // Save to storage
@@ -212,6 +236,7 @@ class MapService {
         userName: userName,
         canDelete: true,
         expires_at: newArea.expires_at ? new Date(newArea.expires_at) : undefined,
+        final_category: newArea.final_category,
       };
     } catch (error) {
       logger.error("Error adding noise location:", error);
