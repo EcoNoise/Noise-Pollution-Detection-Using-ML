@@ -13,6 +13,7 @@ import {
   translateHealthImpact,
   getNoiseSourceIcon,
 } from "../utils/translationUtils";
+import { deriveFinalCategory } from "../services/map.transformers";
 import ModernPopup from "./ModernPopup";
 import styles from "../styles/MapComponent.module.css";
 // import { appConfig } from "../config/appConfig"; // removed unused import
@@ -71,9 +72,9 @@ const MapPopup: React.FC<MapPopupProps> = ({
             <br />
             <strong>Status:</strong> {getNoiseDescription(location.noiseLevel)}
             <br />
-            {location.final_category && (
+            {(location.final_category || location.source) && (
               <>
-                <strong>Kategori:</strong> {location.final_category}
+                <strong>Kategori:</strong> {location.final_category || deriveFinalCategory(location.source)}
                 <br />
               </>
             )}
