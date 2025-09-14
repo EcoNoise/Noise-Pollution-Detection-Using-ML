@@ -139,19 +139,6 @@ class MapService {
         if (!userId) throw new Error("User must be authenticated to add noise areas");
 
         // Prevent duplicates at same exact lat/lng for same user (optional best-effort check)
-        const nowIso = new Date().toISOString();
-        const { data: dupCheck } = await supabase
-          .from("noise_areas")
-          .select("id")
-          .eq("user_id", userId)
-          .eq("latitude", requestData.latitude)
-          .eq("longitude", requestData.longitude)
-          .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
-          .limit(1);
-        if (dupCheck && dupCheck.length > 0) {
-          throw new Error("Koordinat sudah digunakan, pilih lokasi lain");
-        }
-
         const { data, error } = await supabase
           .from("noise_areas")
           .insert({
@@ -248,14 +235,31 @@ class MapService {
     try {
       if (appConfig.backendEnabled) {
         const nowIso = new Date().toISOString();
-        const { data, error } = await supabase
-          .from("noise_areas")
+        let data: any[] | null = null;
+        // Coba ambil dari VIEW terlebih dahulu
+        const viewRes = await supabase
+          .from("noise_areas_with_status")
           .select("*")
           .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
           .order("created_at", { ascending: false });
-        if (error) {
-          logger.error("Failed to fetch noise areas:", error);
-          return [];
+        if (viewRes.error) {
+          // Fallback ke tabel dasar jika VIEW belum ada
+          logger.warn?.(
+            "View noise_areas_with_status tidak tersedia, fallback ke tabel noise_areas",
+            viewRes.error
+          );
+          const tableRes = await supabase
+            .from("noise_areas")
+            .select("*")
+            .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+            .order("created_at", { ascending: false });
+          if (tableRes.error) {
+            logger.error("Failed to fetch noise areas:", tableRes.error);
+            return [];
+          }
+          data = tableRes.data as any[];
+        } else {
+          data = viewRes.data as any[];
         }
 
         // Fetch usernames for involved user_ids from profiles (publicly readable when active)
@@ -294,22 +298,39 @@ class MapService {
   async getNoiseLocationById(id: string): Promise<NoiseLocation | null> {
     try {
       if (appConfig.backendEnabled) {
-        const { data, error } = await supabase
-          .from("noise_areas")
+        // Coba dari VIEW terlebih dahulu, fallback ke tabel apabila VIEW belum tersedia
+        let areaRow: any | null = null;
+        const viewRes = await supabase
+          .from("noise_areas_with_status")
           .select("*")
           .eq("id", id)
-          .single();
-        if (error) {
-          logger.error("Failed to fetch noise area by id:", error);
-          return null;
+          .maybeSingle();
+        if (viewRes.error) {
+          logger.warn?.(
+            "View noise_areas_with_status tidak tersedia, fallback ke tabel noise_areas",
+            viewRes.error
+          );
+          const tableRes = await supabase
+            .from("noise_areas")
+            .select("*")
+            .eq("id", id)
+            .maybeSingle();
+          if (tableRes.error) {
+            logger.error("Failed to fetch noise area by id:", tableRes.error);
+            return null;
+          }
+          areaRow = tableRes.data;
+        } else {
+          areaRow = viewRes.data;
         }
+
         // Enrich with username
         let userName: string | undefined = undefined;
         try {
           const { data: profile } = await supabase
             .from("profiles")
             .select("id, username")
-            .eq("id", data.user_id)
+            .eq("id", areaRow?.user_id)
             .maybeSingle();
           if (profile?.username) userName = profile.username;
         } catch (e) {
@@ -317,7 +338,7 @@ class MapService {
         }
         const { data: userData } = await supabase.auth.getUser();
         const currentUserId = userData?.user?.id;
-        return toNoiseLocation({ ...data, userName }, currentUserId);
+        return areaRow ? toNoiseLocation({ ...areaRow, userName }, currentUserId) : null;
       }
 
       const userId = getCurrentUserId();
