@@ -48,13 +48,21 @@ import { DailyAudioService } from "../services/dailyAudioService";
 import { useAuth } from "../contexts/AuthContext";
 
 const StyledCard = styled(Card)(({ theme }) => ({
-  background: "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)",
-  color: "white",
-  marginBottom: theme.spacing(3),
-  borderRadius: 16,
-  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+  background: "rgba(30, 41, 59, 0.5)",
+  backdropFilter: "blur(10px)",
   border: "1px solid rgba(255, 255, 255, 0.1)",
+  borderRadius: "16px",
+  height: "100%",
+  textAlign: "left",
+  color: "#fff",
 }));
+
+const GradientText = styled(Typography)({
+  background: "linear-gradient(135deg, #a78bfa 0%, #e9d5ff 100%)",
+  WebkitBackgroundClip: "text",
+  WebkitTextFillColor: "transparent",
+  fontWeight: 800,
+});
 
 const GlassCard = styled(Card)(({ theme }) => ({
   background: "rgba(255, 255, 255, 0.05)",
@@ -200,9 +208,6 @@ interface CachedReading {
 
 const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   const navigate = useNavigate();
-  const [enableAWeighting, setEnableAWeighting] = useState(true);
-  const [enableFrequencyAnalysis, setEnableFrequencyAnalysis] = useState(true);
-  const [calibrationMode] = useState<"auto" | "manual">("auto");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLoginAlert, setShowLoginAlert] = useState(false);
 
@@ -229,9 +234,9 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     calibrate,
     isSupported,
   } = useRealTimeNoise({
-    enableAWeighting,
-    enableFrequencyAnalysis,
-    calibrationMode,
+    enableAWeighting: true,
+    enableFrequencyAnalysis: true,
+    calibrationMode: "auto",
     updateInterval: 100,
     historyLength: 50,
     enableRealTimeClassification: true,
@@ -329,8 +334,9 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
           location: position || undefined,
         };
         setCachedReading(cache);
-        setCacheExpiry(Date.now() + 5000); // 5 detik cache
-        logger.info("Data cached for 5 seconds after monitoring stopped");
+        // Tidak ada expiry time - cache bertahan sampai monitoring baru atau pindah tab
+        setCacheExpiry(null);
+        logger.info("Data cached until next monitoring session or tab change");
       } catch (error) {
         logger.warn("Could not get location for cache:", error);
         // Tetap cache tanpa lokasi
@@ -340,7 +346,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
           timestamp: Date.now(),
         };
         setCachedReading(cache);
-        setCacheExpiry(Date.now() + 5000);
+        setCacheExpiry(null);
       }
     }
 
@@ -487,9 +493,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
 
     if (
       !isListening &&
-      cachedReading &&
-      cacheExpiry &&
-      Date.now() < cacheExpiry
+      cachedReading
     ) {
       // Gunakan data dari cache
       dataToShare = cachedReading.reading;
@@ -498,11 +502,11 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       logger.info("Using cached data for sharing to map");
     } else if (
       !isListening &&
-      (!cachedReading || !cacheExpiry || Date.now() >= cacheExpiry)
+      !cachedReading
     ) {
-      // Cache sudah habis dan tidak sedang monitoring
+      // Tidak ada cache dan tidak sedang monitoring
       alert(
-        "Cache data sudah habis. Silakan mulai monitoring lagi untuk membagikan ke peta."
+        "Tidak ada data untuk dibagikan. Silakan mulai monitoring terlebih dahulu."
       );
       return;
     }
@@ -572,14 +576,37 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   // Tentukan apakah tombol share harus disabled
   const isShareButtonDisabled =
     !isAuthenticated ||
-    (!currentReading &&
-      (!cachedReading || !cacheExpiry || Date.now() >= cacheExpiry));
+    (!currentReading && !cachedReading);
 
-  // Hitung waktu cache tersisa untuk ditampilkan
-  const getCacheTimeLeft = () => {
-    if (!cacheExpiry) return 0;
-    return Math.max(0, Math.ceil((cacheExpiry - Date.now()) / 1000));
+  // Helper function untuk mendapatkan data yang akan ditampilkan
+  const getDisplayData = () => {
+    // Jika sedang listening, gunakan currentReading
+    if (isListening && currentReading) {
+      return {
+        reading: currentReading,
+        statistics: statistics,
+        isFromCache: false
+      };
+    }
+    
+    // Jika tidak listening tapi ada cache yang valid (tanpa expiry check)
+    if (!isListening && cachedReading) {
+      return {
+        reading: cachedReading.reading,
+        statistics: cachedReading.statistics,
+        isFromCache: true
+      };
+    }
+    
+    // Jika tidak ada data
+    return {
+      reading: null,
+      statistics: null,
+      isFromCache: false
+    };
   };
+
+  const displayData = getDisplayData();
 
   return (
     <Box className={className} sx={{ p: 3, maxWidth: 1200, mx: "auto" }}>
@@ -607,7 +634,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
               </Typography>
               <Typography variant="h6" sx={{ opacity: 0.9 }}>
                 Monitor tingkat kebisingan secara real-time dengan teknologi
-                A-weighting untuk akurasi yang lebih tinggi
+                A-weighting dan analisis frekuensi untuk akurasi maksimal
               </Typography>
             </Box>
           </Box>
@@ -631,10 +658,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       )}
 
       {/* Cache Info Alert */}
-      {!isListening &&
-        cachedReading &&
-        cacheExpiry &&
-        Date.now() < cacheExpiry && (
+      {!isListening && cachedReading && (
           <Alert
             severity="info"
             sx={{
@@ -645,8 +669,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
               borderRadius: 2,
             }}
           >
-            Data tersimpan untuk {getCacheTimeLeft()} detik lagi. Anda masih
-            bisa membagikan ke peta.
+            Data hasil monitoring terakhir tersimpan. Anda masih bisa membagikan ke peta.
           </Alert>
         )}
 
@@ -671,6 +694,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
             gap: 2,
             flexWrap: "wrap",
             alignItems: "center",
+            justifyContent: "center",
           }}
         >
           <ActionButton
@@ -679,6 +703,9 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
             sx={{
               borderColor: isListening ? "#f44336" : "#4caf50",
               color: isListening ? "#f44336" : "#4caf50",
+              borderRadius: "50px",
+              px: 3,
+              py: 1,
               "&:hover": {
                 borderColor: isListening ? "#d32f2f" : "#388e3c",
                 backgroundColor: isListening
@@ -693,167 +720,140 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
             {isListening ? "Stop Monitor" : "Mulai Monitor"}
           </ActionButton>
 
-          <Button
-            variant="contained"
-            onClick={shareToMap}
-            disabled={isShareButtonDisabled}
-            sx={{
-              bgcolor: isShareButtonDisabled ? "#666" : "#3b82f6",
-              color: "#fff",
-              borderRadius: "50px",
-              "&:hover": {
-                bgcolor: isShareButtonDisabled ? "#666" : "#2563eb",
-              },
-              "&.Mui-disabled": {
-                bgcolor: "#666",
-                color: "#999",
-              },
-            }}
-          >
-            <Box display="flex" alignItems="center" gap={1}>
-              <Activity size={18} />
-              Bagikan ke Peta
-              {!isListening &&
-                cachedReading &&
-                cacheExpiry &&
-                Date.now() < cacheExpiry && (
-                  <Typography
-                    variant="caption"
-                    sx={{ ml: 1, fontSize: "0.7rem" }}
-                  >
-                    ({getCacheTimeLeft()}s)
-                  </Typography>
-                )}
-            </Box>
-          </Button>
-
-          <Button
-            variant="outlined"
-            startIcon={<Settings />}
-            onClick={calibrate}
-            disabled={!currentReading && !cachedReading}
-          >
-            Kalibrasi Manual
-          </Button>
-
-          <Box
-            sx={{
-              display: "flex",
-              gap: 2,
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
-            <FormControlLabel
-              control={
-                <StyledSwitch
-                  checked={enableAWeighting}
-                  onChange={(e) => setEnableAWeighting(e.target.checked)}
-                  disabled={isListening}
-                />
-              }
-              label="A-Weighting"
-            />
-            <FormControlLabel
-              control={
-                <StyledSwitch
-                  checked={enableFrequencyAnalysis}
-                  onChange={(e) => setEnableFrequencyAnalysis(e.target.checked)}
-                  disabled={isListening}
-                />
-              }
-              label="Analisis Frekuensi"
-            />
-          </Box>
+          {!displayData.reading && (
+            <Button
+              variant="contained"
+              onClick={shareToMap}
+              disabled={isShareButtonDisabled}
+              sx={{
+                bgcolor: isShareButtonDisabled ? "#666" : "#3b82f6",
+                color: "#fff",
+                borderRadius: "50px",
+                px: 3,
+                py: 1,
+                "&:hover": {
+                  bgcolor: isShareButtonDisabled ? "#666" : "#2563eb",
+                },
+                "&.Mui-disabled": {
+                  bgcolor: "#666",
+                  color: "#999",
+                },
+              }}
+            >
+              <Box display="flex" alignItems="center" gap={1}>
+                <Activity size={18} />
+                Bagikan ke Peta
+              </Box>
+            </Button>
+          )}
         </Box>
       </Box>
 
       {/* Current Reading Display */}
-      {currentReading && (
+      {displayData.reading && (
         <Box sx={{ mb: 4 }}>
+          {/* Header dengan tombol seperti di Rekam & Analisis */}
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            flexWrap="wrap"
+            mb={4}
+          >
+            <GradientText variant="h4">
+              {displayData.isFromCache ? "Hasil Monitoring Terakhir" : "Monitor Real-time Aktif"}
+            </GradientText>
+            
+            {displayData.isFromCache && (
+              <Button
+                variant="outlined"
+                onClick={shareToMap}
+                disabled={isShareButtonDisabled}
+                sx={{
+                  color: "#fff",
+                  borderColor: "rgba(255,255,255,0.3)",
+                  borderRadius: "50px",
+                  px: 3,
+                  py: 1,
+                  "&:hover": { 
+                    borderColor: "#3b82f6",
+                    backgroundColor: "rgba(59, 130, 246, 0.1)",
+                    color: "#3b82f6",
+                  },
+                  "&.Mui-disabled": {
+                    borderColor: "rgba(255,255,255,0.2)",
+                    color: "rgba(255,255,255,0.5)",
+                  },
+                }}
+              >
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Activity size={18} />
+                  Bagikan ke Peta
+                </Box>
+              </Button>
+            )}
+          </Box>
+          
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
-              <MetricCard>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 1,
-                    mb: 2,
-                  }}
-                >
-                  <GraphicEq sx={{ fontSize: 28, color: "#2196F3" }} />
-                  <Typography
-                    variant="h6"
-                    sx={{ fontWeight: 600, color: "#e3f2fd" }}
-                  >
-                    Tingkat Kebisingan
+              <StyledCard
+                sx={{
+                  transition: "transform 0.3s ease, box-shadow 0.3s ease",
+                  "&:hover": {
+                    transform: "translateY(-5px)",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+                  },
+                }}
+              >
+                <CardContent>
+                  <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                    <GraphicEq sx={{ fontSize: 24, color: "#60a5fa" }} />
+                    <Typography color="rgba(255,255,255,0.8)">
+                      Tingkat Kebisingan (dB)
+                    </Typography>
+                  </Box>
+                  <Typography variant="h2" sx={{ fontWeight: "bold" }}>
+                    {displayData.reading.dbA.toFixed(1)} dBA
                   </Typography>
-                </Box>
-
-                <Typography
-                  sx={{
-                    fontSize: "3.5rem",
-                    fontWeight: "bold",
-                    background:
-                      "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    backgroundClip: "text",
-                    lineHeight: 1,
-                    mb: 1,
-                  }}
-                >
-                  {currentReading.dbA.toFixed(1)} dBA
-                </Typography>
-              </MetricCard>
+                  <Typography
+                    variant="body2"
+                    color="rgba(255,255,255,0.7)"
+                    sx={{ mt: 1 }}
+                  >
+                    <strong>RMS:</strong> {displayData.reading.rms.toFixed(6)}
+                  </Typography>
+                </CardContent>
+              </StyledCard>
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <StatusCard>
-                <Box
-                  sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}
-                >
-                  {getHealthIcon(currentReading.healthImpact)}
+              <StyledCard>
+                <CardContent>
+                  <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                    {getHealthIcon(displayData.reading.healthImpact)}
+                    <Typography color="rgba(255,255,255,0.8)">
+                      Potensi Dampak Kesehatan
+                    </Typography>
+                  </Box>
+                  <Typography variant="h3" sx={{ fontWeight: "bold" }}>
+                    {displayData.reading.healthImpact}
+                  </Typography>
                   <Typography
-                    variant="h6"
-                    sx={{ fontWeight: 600, color: "#e3f2fd" }}
+                    variant="body2"
+                    color="rgba(255,255,255,0.7)"
+                    sx={{ mt: 1, mb: 2 }}
                   >
-                    Status Kesehatan
+                    Kategori: {displayData.reading.category}
                   </Typography>
-                </Box>
-
-                <Box sx={{ mb: 3, display: "flex", justifyContent: "center" }}>
-                  <GradientChip
-                    label={currentReading.category}
-                    severity={currentReading.healthImpact}
-                  />
-                </Box>
-
-                <Box
-                  sx={{
-                    flexGrow: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Typography variant="body1" sx={{ mb: 2, color: "#e3f2fd" }}>
-                    <strong>Dampak Kesehatan:</strong>{" "}
-                    {currentReading.healthImpact}
-                  </Typography>
-
-                  <Typography variant="body2" sx={{ mb: 1, opacity: 0.8 }}>
-                    <strong>RMS:</strong> {currentReading.rms.toFixed(6)}
-                  </Typography>
-
-                  <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                  <Typography
+                    variant="body2"
+                    color="rgba(255,255,255,0.7)"
+                  >
                     <strong>Waktu:</strong>{" "}
-                    {currentReading.timestamp.toLocaleTimeString()}
+                    {displayData.reading.timestamp.toLocaleTimeString()}
                   </Typography>
-                </Box>
-              </StatusCard>
+                </CardContent>
+              </StyledCard>
             </Grid>
           </Grid>
         </Box>
@@ -863,126 +863,97 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       <Box sx={{ mb: 4 }}>
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
-            <StatusCard sx={{ textAlign: "center", minHeight: 320 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 2,
-                  mb: 3,
-                }}
-              >
-                <Psychology sx={{ fontSize: 28, color: "#2196F3" }} />
-                <Typography
-                  variant="h6"
-                  sx={{ fontWeight: 600, color: "#e3f2fd" }}
-                >
-                  Klasifikasi Audio
-                </Typography>
-              </Box>
+            <StyledCard sx={{ textAlign: "center", minHeight: 320 }}>
+              <CardContent>
+                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                  <Psychology sx={{ fontSize: 24, color: "#a78bfa" }} />
+                  <Typography color="rgba(255,255,255,0.8)">
+                    Klasifikasi Audio
+                  </Typography>
+                </Box>
 
-              <Box
-                sx={{
-                  flexGrow: 1,
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                }}
-              >
-                {currentReading?.classification ? (
-                  <>
-                    <Typography
-                      sx={{
-                        fontSize: "2.2rem",
-                        fontWeight: "bold",
-                        background:
-                          "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        backgroundClip: "text",
-                        mb: 2,
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      {currentReading.classification.topPrediction}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: "1.5rem",
-                        fontWeight: "bold",
-                        background:
-                          "linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        backgroundClip: "text",
-                        mb: 2,
-                      }}
-                    >
-                      {(currentReading.classification.confidence * 100).toFixed(
-                        1
-                      )}
-                      % Confidence
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{ opacity: 0.8, color: "#e3f2fd" }}
-                    >
-                      Klasifikasi real-time setiap 3 detik
-                    </Typography>
-                  </>
-                ) : isListening ? (
-                  <>
-                    <CircularProgress
-                      size={60}
-                      sx={{
-                        mb: 3,
-                        color: "#2196F3",
-                        "& .MuiCircularProgress-circle": {
-                          strokeLinecap: "round",
-                        },
-                      }}
-                    />
-                    <Typography variant="h6" sx={{ mb: 2, color: "#e3f2fd" }}>
-                      Menunggu Klasifikasi...
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                      Memproses audio untuk klasifikasi
-                    </Typography>
-                  </>
-                ) : (
-                  <>
-                    <Box sx={{ mb: 3, opacity: 0.5 }}>
-                      <Psychology sx={{ fontSize: 60, color: "#666" }} />
-                    </Box>
-                    <Typography variant="h6" sx={{ mb: 2, opacity: 0.7 }}>
-                      Tidak Ada Data
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.6 }}>
-                      Mulai monitoring untuk melihat klasifikasi
-                    </Typography>
-                  </>
-                )}
-              </Box>
-            </StatusCard>
+                <Box
+                  sx={{
+                    flexGrow: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    mt: 2,
+                  }}
+                >
+                  {displayData.reading?.classification ? (
+                    <>
+                      <Typography variant="h3" sx={{ fontWeight: "bold", mb: 1 }}>
+                        {displayData.reading.classification.topPrediction}
+                      </Typography>
+                      <Typography
+                        variant="h4"
+                        sx={{
+                          fontWeight: "bold",
+                          color: "#4CAF50",
+                          mb: 2,
+                        }}
+                      >
+                        {(displayData.reading.classification.confidence * 100).toFixed(1)}% Confidence
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="rgba(255,255,255,0.7)"
+                      >
+                        {displayData.isFromCache 
+                          ? "Hasil klasifikasi terakhir" 
+                          : "Klasifikasi real-time setiap 3 detik"}
+                      </Typography>
+                    </>
+                  ) : isListening ? (
+                    <>
+                      <CircularProgress
+                        size={60}
+                        sx={{
+                          mb: 3,
+                          color: "#2196F3",
+                          "& .MuiCircularProgress-circle": {
+                            strokeLinecap: "round",
+                          },
+                        }}
+                      />
+                      <Typography variant="h6" sx={{ mb: 2 }}>
+                        Menunggu Klasifikasi...
+                      </Typography>
+                      <Typography variant="body2" color="rgba(255,255,255,0.7)">
+                        Memproses audio untuk klasifikasi
+                      </Typography>
+                    </>
+                  ) : (
+                    <>
+                      <Box sx={{ mb: 3, opacity: 0.5 }}>
+                        <Psychology sx={{ fontSize: 60, color: "#666" }} />
+                      </Box>
+                      <Typography variant="h6" sx={{ mb: 2, opacity: 0.7 }}>
+                        Tidak Ada Data
+                      </Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.6 }}>
+                        Mulai monitoring untuk melihat klasifikasi
+                      </Typography>
+                    </>
+                  )}
+                </Box>
+              </CardContent>
+            </StyledCard>
           </Grid>
 
           <Grid item xs={12} md={6}>
-            <StatusCard sx={{ minHeight: 320 }}>
-              <Box
-                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}
-              >
-                <TrendingUp sx={{ fontSize: 28, color: "#2196F3" }} />
-                <Typography
-                  variant="h6"
-                  sx={{ fontWeight: 600, color: "#e3f2fd" }}
-                >
-                  Detail Prediksi
-                </Typography>
-              </Box>
+            <StyledCard sx={{ minHeight: 320 }}>
+              <CardContent>
+                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                  <TrendingUp sx={{ fontSize: 24, color: "#60a5fa" }} />
+                  <Typography color="rgba(255,255,255,0.8)">
+                    Detail Prediksi
+                  </Typography>
+                </Box>
 
               <Box sx={{ flexGrow: 1 }}>
-                {currentReading?.classification ? (
+                {displayData.reading?.classification ? (
                   <>
                     <Typography
                       variant="body2"
@@ -990,9 +961,9 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                     >
                       Top 3 Prediksi Audio:
                     </Typography>
-                    {currentReading.classification.predictions
+                    {displayData.reading.classification.predictions
                       .slice(0, 3)
-                      .map((prediction, index) => (
+                      .map((prediction: { label: string; confidence: number }, index: number) => (
                         <Box key={index} sx={{ mb: 3 }}>
                           <Box
                             sx={{
@@ -1045,7 +1016,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                     <Box sx={{ mt: "auto", pt: 2 }}>
                       <Typography variant="body2" sx={{ opacity: 0.8 }}>
                         <strong>Waktu Klasifikasi:</strong>{" "}
-                        {currentReading.timestamp.toLocaleTimeString()}
+                        {displayData.reading.timestamp.toLocaleTimeString()}
                       </Typography>
                     </Box>
                   </>
@@ -1068,13 +1039,14 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                   </Box>
                 )}
               </Box>
-            </StatusCard>
+              </CardContent>
+            </StyledCard>
           </Grid>
         </Grid>
       </Box>
 
       {/* Statistics */}
-      {statistics.readings.length > 0 && (
+      {displayData.statistics && displayData.statistics.readings.length > 0 && (
         <GlassCard sx={{ mb: 4 }}>
           <CardContent sx={{ p: 4 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 4 }}>
@@ -1084,6 +1056,18 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                 sx={{ fontWeight: 600, color: "#e3f2fd" }}
               >
                 Statistik (A-weighted)
+                {displayData.isFromCache && (
+                  <Chip
+                    label="Hasil Terakhir"
+                    size="small"
+                    sx={{
+                      ml: 2,
+                      backgroundColor: "rgba(33, 150, 243, 0.2)",
+                      color: "white",
+                      fontSize: "0.75rem",
+                    }}
+                  />
+                )}
               </Typography>
             </Box>
 
@@ -1108,7 +1092,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                       mb: 1,
                     }}
                   >
-                    {statistics.average.toFixed(1)}
+                    {displayData.statistics.average.toFixed(1)}
                   </Typography>
                   <Typography variant="body2" sx={{ color: "#e3f2fd" }}>
                     Rata-rata dB(A)
@@ -1136,7 +1120,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                       mb: 1,
                     }}
                   >
-                    {statistics.maximum.toFixed(1)}
+                    {displayData.statistics.maximum.toFixed(1)}
                   </Typography>
                   <Typography variant="body2" sx={{ color: "#e3f2fd" }}>
                     Maksimum dB(A)
@@ -1164,7 +1148,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                       mb: 1,
                     }}
                   >
-                    {statistics.minimum.toFixed(1)}
+                    {displayData.statistics.minimum.toFixed(1)}
                   </Typography>
                   <Typography variant="body2" sx={{ color: "#e3f2fd" }}>
                     Minimum dB(A)
@@ -1179,11 +1163,10 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
               variant="body2"
               sx={{ opacity: 0.8, textAlign: "center" }}
             >
-              <strong>Jumlah Sampel:</strong> {statistics.readings.length} |{" "}
-              <strong>Mode Kalibrasi:</strong>{" "}
-              {calibrationMode === "auto" ? "Otomatis" : "Manual"} |{" "}
-              <strong>A-Weighting:</strong>{" "}
-              {enableAWeighting ? "Aktif" : "Nonaktif"}
+              <strong>Jumlah Sampel:</strong> {displayData.statistics.readings.length} |{" "}
+              <strong>Mode Kalibrasi:</strong> Otomatis |{" "}
+              <strong>A-Weighting:</strong> Aktif |{" "}
+              <strong>Analisis Frekuensi:</strong> Aktif
             </Typography>
           </CardContent>
         </GlassCard>

@@ -85,10 +85,24 @@ const defaultOptions: Required<UseRealTimeNoiseOptions> = {
 export const useRealTimeNoise = (
   options: Partial<UseRealTimeNoiseOptions> = {}
 ): UseRealTimeNoiseReturn => {
-  // Wrap opts in useMemo to prevent dependency array warnings
+  // Use individual values as dependencies instead of the whole options object
   const opts = useMemo(
     () => ({ ...defaultOptions, ...options }),
-    [options]
+    [
+      options.sampleRate,
+      options.fftSize,
+      options.smoothingTimeConstant,
+      options.updateInterval,
+      options.historyLength,
+      options.enableEchoCancellation,
+      options.enableNoiseSuppression,
+      options.enableAutoGainControl,
+      options.enableAWeighting,
+      options.enableFrequencyAnalysis,
+      options.calibrationMode,
+      options.enableRealTimeClassification,
+      options.classificationInterval,
+    ]
   );
 
   const [isListening, setIsListening] = useState(false);
