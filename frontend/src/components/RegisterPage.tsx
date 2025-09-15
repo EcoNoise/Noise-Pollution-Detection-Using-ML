@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { logger } from "../config/appConfig";
@@ -27,9 +27,85 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
   const [photo, setPhoto] = useState<File | null>(null);
 
   const [error, setError] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [loading, setLoading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // Rehydrate error from localStorage in case of remount/reset
+  useEffect(() => {
+    try {
+      const storedErr = localStorage.getItem('registrationError');
+      if (storedErr) {
+        setError(storedErr);
+        localStorage.removeItem('registrationError');
+      }
+    } catch {}
+  }, []);
+
+  // Log when error changes to verify UI path
+  useEffect(() => {
+    if (error) {
+      try { logger.info("Display error value:", error); } catch {}
+    }
+  }, [error]);
+
+  // Ensure error block scrolls into view when it appears (no logic changes)
+  useEffect(() => {
+    if (!error) return;
+    let cancelled = false;
+    const tryScroll = (attemptsLeft = 6) => {
+      if (cancelled) return;
+      const el = document.querySelector('[data-error-message]') as HTMLElement | null;
+      if (el && el.offsetParent !== null) {
+        try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
+      } else if (attemptsLeft > 0) {
+        setTimeout(() => tryScroll(attemptsLeft - 1), 150);
+      }
+    };
+    tryScroll();
+    return () => { cancelled = true; };
+  }, [error]);
+
+
+  // No more redirect effect - we render LoginPage directly
+
+  // Email validation function
+  const validateEmail = (emailValue: string) => {
+    if (!emailValue) {
+      setEmailError("Email wajib diisi");
+      return false;
+    }
+    
+    // More comprehensive email regex
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    
+    if (!emailRegex.test(emailValue)) {
+      setEmailError("Format email tidak valid (contoh: nama@domain.com)");
+      return false;
+    }
+    
+    // Additional checks
+    const parts = emailValue.split('@');
+    if (parts.length !== 2) {
+      setEmailError("Email harus mengandung satu simbol @");
+      return false;
+    }
+    
+    const [localPart, domain] = parts;
+    if (localPart.length === 0 || domain.length === 0) {
+      setEmailError("Email tidak boleh kosong sebelum atau sesudah @");
+      return false;
+    }
+    
+    if (!domain.includes('.')) {
+      setEmailError("Domain email harus mengandung titik (contoh: gmail.com)");
+      return false;
+    }
+    
+    setEmailError("");
+    return true;
+  };
 
   // Auto-generate full name when first name or last name changes
   const handleFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,6 +118,22 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
     const value = e.target.value;
     setLastName(value);
     setFullName(`${firstName} ${value}`.trim());
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setEmail(value);
+    
+    // Clear previous errors immediately
+    setEmailError("");
+    setError(""); // Clear main error message too
+    
+    // Real-time validation with debounce effect
+    if (value.length > 0) {
+      setTimeout(() => {
+        validateEmail(value);
+      }, 500);
+    }
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,9 +158,10 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
         setError("Mohon lengkapi semua field yang wajib diisi");
         return;
       }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        setError("Format email tidak valid");
+      
+      // Validate email
+      if (!validateEmail(email)) {
+        setError("Mohon perbaiki kesalahan pada email");
         return;
       }
     }
@@ -90,25 +183,28 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
       const hasUpperCase = /[A-Z]/.test(password);
       const hasLowerCase = /[a-z]/.test(password);
       const hasNumbers = /[0-9]/.test(password);
+      const hasSpecial = /[^A-Za-z0-9]/.test(password);
 
-      if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+      if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecial) {
         setError(
-          "Password harus mengandung huruf besar, huruf kecil, dan angka"
+          "Password harus mengandung huruf besar, huruf kecil, angka, dan karakter spesial"
         );
         return;
       }
     }
 
     setError("");
+    setEmailError("");
     setStep(step + 1);
   };
 
   const prevStep = () => {
     setError("");
+    setEmailError("");
     setStep(step - 1);
   };
 
-  const { signUpWithEmail, signInWithGoogle, loading: authLoading } = useAuth();
+  const { signUpWithEmail, signInWithGoogle, signOut, loading: authLoading } = useAuth();
 
   // Handle Google registration
   const handleGoogleRegister = async () => {
@@ -127,6 +223,8 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
     setError("");
     setLoading(true);
 
+
+
     try {
       // Prepare user metadata
       const metadata = {
@@ -139,53 +237,109 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
       const result = await signUpWithEmail(email, password, metadata);
 
       if (result.success) {
-        logger.info("Registrasi berhasil dengan email:", email);
-
-        // Upload photo if provided (optional)
+        localStorage.setItem('registrationSuccess', `Selamat datang ${firstName}! Registrasi berhasil.`);
+        
         if (photo) {
-          try {
-            logger.info("Uploading profile photo...");
-            const photoUrl = await uploadProfilePhoto(photo);
+          setTimeout(() => {
+            uploadProfilePhoto(photo as File).then(async (photoUrl) => {
+              await updateUserProfile({ photo_url: photoUrl });
+            }).catch(() => {});
+          }, 100);
+        }
+        
+        // Logout user setelah registration agar harus login manual
+        await signOut();
+        
+        onRegisterSuccess?.();
+        navigate('/login?success=true');
+        return;
+        
+        // PREVENT LOADING STATE UPDATE - langsung redirect
+        // Jangan update setLoading(false) agar tidak re-render component
+        console.log("� IMMEDIATE redirect - no component update");
+        
+        // Call callback if provided
+        onRegisterSuccess?.();
+        
+        // EXIT - NO MORE REDIRECT
+        return;
+      } else {
 
-            // Update profile with photo URL
-            await updateUserProfile({ photo_url: photoUrl });
-            logger.info("Profile photo uploaded successfully");
-          } catch (photoError: any) {
-            // Don't fail registration if photo upload fails
-            logger.warn(
-              "Photo upload failed, but registration succeeded:",
-              photoError
-            );
+        
+        // Handle specific error cases
+        let errorMessage = "Registrasi gagal. Coba lagi.";
+        if (result.error) {
+          if (result.error.includes("User already registered") || result.error.includes("already registered")) {
+            errorMessage = "Email sudah terdaftar. Silakan login atau gunakan email lain.";
+          } else if (result.error.includes("Invalid email")) {
+            errorMessage = "Format email tidak valid. Silakan periksa email Anda.";
+          } else if (result.error.includes("Password")) {
+            errorMessage = "Password tidak memenuhi syarat. Minimal 8 karakter.";
+          } else {
+            errorMessage = result.error;
           }
         }
-
-        // Show success modal
-        setShowSuccessModal(true);
-
-        // Call onRegisterSuccess if provided
-        if (onRegisterSuccess) {
-          onRegisterSuccess();
-        }
-      } else {
-        setError(result.error || "Registrasi gagal. Coba lagi.");
+        
+        // Set error for UI with smooth scroll
+  console.error("Sign-up error:", result.error);
+  try { localStorage.setItem('registrationError', errorMessage); } catch {}
+  setError(errorMessage);
+  setLoading(false);
+        
+        // Scroll to error message after a short delay
+        setTimeout(() => {
+          const errorElement = document.querySelector('[data-error-message]') as HTMLElement | null;
+          if (errorElement && errorElement.offsetParent !== null) {
+            errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 120);
       }
     } catch (err: any) {
-      setError("Terjadi kesalahan saat registrasi. Silakan coba lagi.");
-      logger.error("Registration error:", err);
-    } finally {
-      setLoading(false);
+      
+      // Handle specific exception cases
+      let errorMessage = "Terjadi kesalahan saat registrasi. Silakan coba lagi.";
+        if (err?.message) {
+        if (err.message.includes("User already registered") || err.message.includes("already registered")) {
+          errorMessage = "Email sudah terdaftar. Silakan login atau gunakan email lain.";
+        } else if (err.message.includes("Invalid email")) {
+          errorMessage = "Format email tidak valid. Silakan periksa email Anda.";
+        } else if (err.message.includes("Password")) {
+          errorMessage = "Password tidak memenuhi syarat. Minimal 6 karakter.";
+        } else if (err.message.includes("Network") || err.message.includes("fetch")) {
+          errorMessage = "Masalah koneksi internet. Silakan coba lagi.";
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      // Set error for UI with smooth scroll
+  console.error("Sign-up error (exception):", err);
+  try { localStorage.setItem('registrationError', errorMessage); } catch {}
+  setError(errorMessage);
+  setLoading(false); // Only set loading false on error
+      
+      // Scroll to error message after a short delay
+      setTimeout(() => {
+        const errorElement = document.querySelector('[data-error-message]') as HTMLElement | null;
+        if (errorElement && errorElement.offsetParent !== null) {
+          errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 120);
     }
+    // NO FINALLY BLOCK - success case returns immediately
   };
 
   // Handle success modal close and navigation
   const handleSuccessClose = () => {
+
     setShowSuccessModal(false);
-    navigate("/login");
+    window.location.replace("/login");
   };
 
   // Direct login navigation
   const handleLoginClick = () => {
-    navigate("/login");
+
+    window.location.replace("/login");
   };
 
   // Prevent form submission pada step 1 dan 2
@@ -289,6 +443,8 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
     </div>
   );
 
+
+
   return (
     <>
       {/* Dark background with solid color */}
@@ -328,52 +484,29 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
             </p>
           </div>
 
-          {/* Google Register Button - Only show on step 1 */}
-          {step === 1 && isSupabaseConfigured() && (
-            <div className="mb-6">
-              <button
-                type="button"
-                onClick={handleGoogleRegister}
-                disabled={loading || authLoading}
-                className="w-full flex items-center justify-center px-4 py-3 border border-slate-600 rounded-lg bg-white hover:bg-gray-50 text-gray-700 font-medium transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  />
-                </svg>
-                {loading || authLoading
-                  ? "Memproses..."
-                  : "Daftar dengan Google"}
-              </button>
+          <StepIndicator />
 
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-600"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-slate-800 text-slate-400">
-                    atau daftar dengan email
-                  </span>
-                </div>
+          {/* Sticky Error (high visibility, single source) */}
+          {error && (
+            <div
+              data-error-message
+              aria-live="assertive"
+              className="sticky top-0 z-20 mb-4 p-4 rounded-md bg-red-600 text-white font-semibold shadow-lg border border-red-400"
+            >
+              <div className="flex items-start gap-3">
+                <div className="pt-0.5">⚠️</div>
+                <div className="flex-1">{error}</div>
+                <button
+                  type="button"
+                  aria-label="Tutup notifikasi"
+                  onClick={() => setError("")}
+                  className="ml-2 -mt-1 inline-flex h-6 w-6 items-center justify-center rounded hover:bg-red-700/40 focus:outline-none focus:ring-2 focus:ring-white/40"
+                >
+                  <span className="text-lg leading-none">×</span>
+                </button>
               </div>
             </div>
           )}
-
-          <StepIndicator />
 
           <form onSubmit={handleFormSubmit} className="space-y-6">
             {/* Step 1: Personal Info */}
@@ -443,11 +576,33 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-white placeholder-slate-400"
+                    onChange={handleEmailChange}
+                    className={`w-full px-4 py-3 bg-slate-700 border rounded-lg focus:ring-2 transition-all duration-200 outline-none text-white placeholder-slate-400 ${
+                      emailError 
+                        ? "border-red-500 focus:ring-red-500 focus:border-red-500" 
+                        : email && !emailError 
+                        ? "border-green-500 focus:ring-green-500 focus:border-green-500"
+                        : "border-slate-600 focus:ring-blue-500 focus:border-blue-500"
+                    }`}
                     placeholder="john@example.com"
                     required
                   />
+                  {emailError && (
+                    <p className="mt-2 text-sm text-red-400 flex items-center">
+                      <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {emailError}
+                    </p>
+                  )}
+                  {email && !emailError && (
+                    <p className="mt-2 text-sm text-green-400 flex items-center">
+                      <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      Email valid
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -524,6 +679,15 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                     >
                       ✓ Angka
                     </span>
+                    <span
+                      className={
+                        /[^A-Za-z0-9]/.test(password)
+                          ? "text-green-400"
+                          : "text-slate-500"
+                      }
+                    >
+                      ✓ Karakter spesial (!@#$%...)
+                    </span>
                   </div>
                 </div>
               </div>
@@ -599,28 +763,13 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                     </div>
                   </div>
                 </div>
+
               </div>
             )}
 
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-900 border border-red-600 rounded-lg p-4">
-                <div className="flex">
-                  <svg
-                    className="w-5 h-5 text-red-400 mt-0.5"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <p className="ml-3 text-sm text-red-300">{error}</p>
-                </div>
-              </div>
-            )}
+
+            
+            {/* Removed duplicate error near buttons to avoid repetition */}
 
             {/* Navigation Buttons */}
             <div className="flex space-x-3">
@@ -683,6 +832,53 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
               )}
             </div>
           </form>
+
+          {/* Removed lower fixed error banner to avoid duplicate messages */}
+
+          {/* Google Register Button - Only show on step 1 */}
+          {step === 1 && isSupabaseConfigured() && (
+            <div className="mt-6">
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-600"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-slate-800 text-slate-400">
+                    atau
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleRegister}
+                disabled={loading || authLoading}
+                className="w-full flex items-center justify-center px-4 py-3 border border-slate-600 rounded-lg bg-white hover:bg-gray-50 text-gray-700 font-medium transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  />
+                </svg>
+                {loading || authLoading
+                  ? "Memproses..."
+                  : "Daftar dengan Google"}
+              </button>
+            </div>
+          )}
 
           {/* Login Link */}
           <div className="mt-6 text-center">
