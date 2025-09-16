@@ -15,7 +15,6 @@ import {
   Paper,
   LinearProgress,
   Divider,
-  FormControlLabel,
 } from "@mui/material";
 import {
   Mic,
@@ -57,13 +56,6 @@ const StyledCard = styled(Card)(({ theme }) => ({
   color: "#fff",
 }));
 
-const GradientText = styled(Typography)({
-  background: "linear-gradient(135deg, #a78bfa 0%, #e9d5ff 100%)",
-  WebkitBackgroundClip: "text",
-  WebkitTextFillColor: "transparent",
-  fontWeight: 800,
-});
-
 const GlassCard = styled(Card)(({ theme }) => ({
   background: "rgba(255, 255, 255, 0.05)",
   backdropFilter: "blur(10px)",
@@ -100,23 +92,6 @@ const MetricCard = styled(Paper)(({ theme }) => ({
   },
 }));
 
-const StatusCard = styled(Paper)(({ theme }) => ({
-  background: "rgba(255, 255, 255, 0.08)",
-  backdropFilter: "blur(15px)",
-  border: "1px solid rgba(255, 255, 255, 0.15)",
-  borderRadius: 20,
-  padding: theme.spacing(3),
-  color: "white",
-  height: "100%",
-  display: "flex",
-  flexDirection: "column",
-  transition: "all 0.3s ease",
-  "&:hover": {
-    background: "rgba(255, 255, 255, 0.12)",
-    borderColor: "rgba(255, 255, 255, 0.25)",
-  },
-}));
-
 const ActionButton = styled(Button)(({ theme }) => ({
   borderRadius: 50,
   padding: "12px 24px",
@@ -144,37 +119,14 @@ const ActionButton = styled(Button)(({ theme }) => ({
   },
 }));
 
-const StyledSwitch = styled(Switch)(({ theme }) => ({
-  "& .MuiSwitch-switchBase.Mui-checked": {
-    color: "#2196F3",
-    "&:hover": {
-      backgroundColor: "rgba(33, 150, 243, 0.08)",
-    },
-  },
-  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-    backgroundColor: "#2196F3",
-  },
-  "& .MuiSwitch-track": {
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-  },
+const GradientText = styled(Typography)(({ theme }) => ({
+  fontWeight: 700,
+  background: "linear-gradient(45deg, #ffffff 30%, #e3f2fd 90%)",
+  WebkitBackgroundClip: "text",
+  WebkitTextFillColor: "transparent",
+  backgroundClip: "text",
+  marginBottom: theme.spacing(2),
 }));
-
-const GradientChip = styled(Chip)(
-  ({ theme, severity }: { theme?: any; severity: string }) => ({
-    background:
-      severity === "Aman"
-        ? "linear-gradient(45deg, #4CAF50 30%, #8BC34A 90%)"
-        : severity === "Perhatian"
-        ? "linear-gradient(45deg, #FF9800 30%, #FFC107 90%)"
-        : "linear-gradient(45deg, #f44336 30%, #E53935 90%)",
-    color: "white",
-    fontWeight: "bold",
-    fontSize: "1rem",
-    padding: "8px 16px",
-    borderRadius: 20,
-    boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
-  })
-);
 
 const PulsingIcon = styled(Box)(({ theme }) => ({
   animation: "pulse 2s infinite",
@@ -231,7 +183,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     error,
     startListening,
     stopListening,
-    calibrate,
     isSupported,
   } = useRealTimeNoise({
     enableAWeighting: true,
@@ -427,23 +378,10 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       case "Berbahaya":
       case "Sangat Berbahaya":
         return <ErrorIcon sx={{ color: "#f44336", fontSize: 28 }} />;
+      case "Tidak Terdeteksi":
+        return <MicOff sx={{ color: "#9E9E9E", fontSize: 28 }} />;
       default:
         return <Settings sx={{ color: "#9E9E9E", fontSize: 28 }} />;
-    }
-  };
-
-  const getColorForCategory = (category: string) => {
-    switch (category) {
-      case "Tenang":
-        return "#4CAF50";
-      case "Sedang":
-        return "#FF9800";
-      case "Bising":
-        return "#f44336";
-      case "Sangat Bising":
-        return "#d32f2f";
-      default:
-        return "#9E9E9E";
     }
   };
 
@@ -488,7 +426,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
 
     // Tentukan data mana yang akan digunakan: current reading atau cached reading
     let dataToShare = currentReading;
-    let statsToShare = statistics;
     let position: [number, number] | null = null;
 
     if (
@@ -497,7 +434,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     ) {
       // Gunakan data dari cache
       dataToShare = cachedReading.reading;
-      statsToShare = cachedReading.statistics;
       position = cachedReading.location || null;
       logger.info("Using cached data for sharing to map");
     } else if (
@@ -657,6 +593,27 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
         </Alert>
       )}
 
+      {/* Microphone Muted/No Signal Alert */}
+      {isListening && displayData.reading?.category === "Tidak Ada Sinyal" && (
+        <Alert
+          severity="warning"
+          sx={{
+            mb: 3,
+            backgroundColor: "rgba(255, 152, 0, 0.1)",
+            color: "white",
+            border: "1px solid rgba(255, 152, 0, 0.3)",
+            borderRadius: 2,
+          }}
+        >
+          <Box display="flex" alignItems="center" gap={1}>
+            <MicOff />
+            <Typography>
+              Mikrofon tidak mendeteksi sinyal audio. Pastikan mikrofon tidak dimatikan dan memiliki izin akses.
+            </Typography>
+          </Box>
+        </Alert>
+      )}
+
       {/* Cache Info Alert */}
       {!isListening && cachedReading && (
           <Alert
@@ -813,14 +770,22 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                     </Typography>
                   </Box>
                   <Typography variant="h2" sx={{ fontWeight: "bold" }}>
-                    {displayData.reading.dbA.toFixed(1)} dBA
+                    {displayData.reading.category === "Tidak Ada Sinyal" 
+                      ? "-- dBA" 
+                      : `${displayData.reading.dbA.toFixed(1)} dBA`
+                    }
                   </Typography>
                   <Typography
                     variant="body2"
                     color="rgba(255,255,255,0.7)"
                     sx={{ mt: 1 }}
                   >
-                    <strong>RMS:</strong> {displayData.reading.rms.toFixed(6)}
+                    {displayData.reading.category === "Tidak Ada Sinyal" 
+                      ? "Tidak ada sinyal audio yang terdeteksi"
+                      : <>
+                          <strong>RMS:</strong> {displayData.reading.rms.toFixed(6)}
+                        </>
+                    }
                   </Typography>
                 </CardContent>
               </StyledCard>
@@ -844,6 +809,9 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
                     sx={{ mt: 1, mb: 2 }}
                   >
                     Kategori: {displayData.reading.category}
+                    {displayData.reading.category === "Tidak Ada Sinyal" && 
+                      " - Periksa mikrofon Anda"
+                    }
                   </Typography>
                   <Typography
                     variant="body2"
