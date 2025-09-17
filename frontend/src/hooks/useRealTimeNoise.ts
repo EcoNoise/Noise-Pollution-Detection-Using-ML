@@ -336,6 +336,25 @@ export const useRealTimeNoise = (
     return now - lastClassificationTime.current >= opts.classificationInterval;
   }, [opts.enableRealTimeClassification, opts.classificationInterval]);
 
+  // Process frequency data for visualization
+  const processFrequencyDataForVisualization = useCallback((frequencyData: Float32Array): Float32Array => {
+    // Convert dB values to linear scale suitable for visualization
+    const visualizationData = new Float32Array(frequencyData.length);
+    
+    for (let i = 0; i < frequencyData.length; i++) {
+      // frequencyData contains values in dB (usually negative)
+      // Convert to linear scale (0-255) for visualization
+      const dbValue = frequencyData[i];
+      
+      // Normalize dB values: typical range is -100 to 0 dB
+      // Map to 0-255 range for visualization
+      const normalizedValue = Math.max(0, Math.min(255, (dbValue + 100) * 2.55));
+      visualizationData[i] = normalizedValue;
+    }
+    
+    return visualizationData;
+  }, []);
+
   // Auto-calibration function moved before use in dependencies to avoid hoisting issues
   function performAutoCalibration(rms: number, db: number) {
     // Collect background noise samples for the first 3 seconds
@@ -380,7 +399,7 @@ export const useRealTimeNoise = (
       // Get time domain data for RMS calculation
       analyser.getFloatTimeDomainData(timeDataArray);
 
-      // Get frequency domain data for A-weighting
+      // Get frequency domain data for A-weighting and visualization
       if (opts.enableFrequencyAnalysis) {
         analyser.getFloatFrequencyData(frequencyDataArray);
       }
@@ -447,7 +466,7 @@ export const useRealTimeNoise = (
         color: getNoiseColor(dbA),
         healthImpact: getHealthImpact(dbA, microphoneStateRef.current),
         frequencyData: opts.enableFrequencyAnalysis
-          ? frequencyDataArray.slice()
+          ? processFrequencyDataForVisualization(frequencyDataArray)
           : undefined,
       };
 
@@ -511,6 +530,7 @@ export const useRealTimeNoise = (
     categorizeNoise,
     getNoiseColor,
     getHealthImpact,
+    processFrequencyDataForVisualization,
     opts.historyLength,
     opts.enableFrequencyAnalysis,
     opts.calibrationMode,

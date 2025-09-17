@@ -28,12 +28,15 @@ const SimpleAudioVisualizer: React.FC<SimpleAudioVisualizerProps> = ({
         const baseHeight = 4;
         const maxHeight = height * 0.8;
         
-        // Use real frequency data like the canvas
+        // Use real frequency data - improved mapping
         const dataIndex = Math.floor((index / bars.length) * frequencyData.length);
         const magnitude = frequencyData[dataIndex] || 0;
         
-        // Convert magnitude to height (similar to canvas logic)
-        const barHeight = Math.max(baseHeight, (magnitude / 255) * maxHeight);
+        // Make spectrum more sensitive by amplifying smaller values
+        const normalizedMagnitude = magnitude / 255;
+        // Apply exponential scaling to make it more sensitive to small changes
+        const amplifiedMagnitude = Math.pow(normalizedMagnitude * 2, 0.7);
+        const barHeight = Math.max(baseHeight, amplifiedMagnitude * maxHeight);
         
         return barHeight;
       });
@@ -44,7 +47,7 @@ const SimpleAudioVisualizer: React.FC<SimpleAudioVisualizerProps> = ({
     const interval = setInterval(updateHeights, 50); // Update every 50ms for smooth animation
 
     return () => clearInterval(interval);
-  }, [isRecording, frequencyData, height, bars]);
+  }, [isRecording, frequencyData, height, bars.length]);
 
   return (
     <Box
