@@ -1,5 +1,5 @@
 // src/utils/mapUtils.ts
-import { NoiseLocation, NoiseArea } from "../types/mapTypes";
+import { NoiseLocation, NoiseArea, NoiseAreaStatus } from "../types/mapTypes";
 import { noiseColors, noiseThresholds } from "../config/mapConfig";
 
 export const getNoiseColor = (noiseLevel: number): string => {
@@ -74,13 +74,29 @@ export const generateNoiseArea = (location: NoiseLocation): NoiseArea => {
   };
 };
 
+// Hitung status berdasarkan aturan di map.md §4
+export const computeNoiseAreaStatus = (
+  createdAt: Date | string,
+  expiresAt?: Date | string
+): NoiseAreaStatus => {
+  if (!expiresAt) return "permanent";
+  const created = new Date(createdAt);
+  const expiry = new Date(expiresAt);
+  const now = new Date();
+  if (now >= expiry) return "expired";
+  const ttl = expiry.getTime() - created.getTime();
+  if (ttl <= 0) return "expired";
+  const remaining = expiry.getTime() - now.getTime();
+  return remaining <= 0.2 * ttl ? "expiring" : "active";
+};
+
 export const getTimeUntilExpiry = (expiresAt: Date): string => {
   const now = new Date();
   const expiry = new Date(expiresAt);
   const diffMs = expiry.getTime() - now.getTime();
 
   if (diffMs <= 0) {
-    return "Sudah expired";
+    return "Sudah kadaluarsa";
   }
 
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -93,11 +109,45 @@ export const getTimeUntilExpiry = (expiresAt: Date): string => {
   }
 };
 
+// Selalu kembalikan string untuk tampilan Kadaluarsa di UI.
+export const formatExpiry = (expiresAt?: Date): string => {
+  if (!expiresAt) return "—";
+  return getTimeUntilExpiry(expiresAt);
+};
+
 // Format koordinat untuk tampilan ringkas di UI, mis: "-6.20880, 106.84560"
 export const formatCoordinates = (lat: number, lon: number): string => {
   const latFixed = Number(lat).toFixed(5);
   const lonFixed = Number(lon).toFixed(5);
   return `${latFixed}, ${lonFixed}`;
+};
+
+// Tooltip singkat untuk status expiring/expired sesuai map.md §5
+export const getStatusTooltip = (status: NoiseAreaStatus): string | null => {
+  switch (status) {
+    case "expiring":
+      return "akan kadaluarsa";
+    case "expired":
+      return "laporan lama, mungkin tidak relevan";
+    default:
+      return null;
+  }
+};
+
+// Gaya circle berdasarkan status, dengan warna dasar dari level kebisingan
+export const getCircleStyleByStatus = (
+  status: NoiseAreaStatus,
+  baseColor: string,
+  baseOpacity: number
+): { color: string; fillColor: string; fillOpacity: number; weight: number } => {
+  if (status === "expired") {
+    return { color: "#9aa0a6", fillColor: "#9aa0a6", fillOpacity: 0.18, weight: 1 };
+  }
+  if (status === "expiring") {
+    return { color: baseColor, fillColor: baseColor, fillOpacity: Math.max(0.35, baseOpacity - 0.25), weight: 1 };
+  }
+  // active/permanent: gunakan style dasar
+  return { color: baseColor, fillColor: baseColor, fillOpacity: baseOpacity, weight: 1 };
 };
 
 /**

@@ -101,6 +101,18 @@ const ActionButton = styled(Button)(({ theme }) => ({
   marginRight: theme.spacing(2),
   marginBottom: theme.spacing(1),
   transition: "all 0.3s ease",
+  [theme.breakpoints.down('sm')]: {
+    padding: "10px 20px",
+    fontSize: "0.9rem",
+    marginRight: theme.spacing(1),
+    marginBottom: theme.spacing(0.8),
+  },
+  [theme.breakpoints.down('xs')]: {
+    padding: "8px 16px",
+    fontSize: "0.8rem",
+    marginRight: theme.spacing(0.8),
+    marginBottom: theme.spacing(0.6),
+  },
   "&.MuiButton-contained": {
     background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
     "&:hover": {
@@ -128,6 +140,14 @@ const DangerButton = styled(Button)(({ theme }) => ({
   background: "linear-gradient(45deg, #f44336 30%, #E53935 90%)",
   color: "white",
   transition: "all 0.3s ease",
+  [theme.breakpoints.down('sm')]: {
+    padding: "10px 20px",
+    fontSize: "0.9rem",
+  },
+  [theme.breakpoints.down('xs')]: {
+    padding: "8px 16px",
+    fontSize: "0.8rem",
+  },
   "&:hover": {
     background: "linear-gradient(45deg, #d32f2f 30%, #c62828 90%)",
     transform: "translateY(-2px)",
@@ -142,6 +162,16 @@ const ProfileAvatar = styled(Avatar)(({ theme }) => ({
   background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
   boxShadow: "0 8px 32px rgba(33, 150, 243, 0.3)",
   border: "4px solid rgba(255, 255, 255, 0.2)",
+  [theme.breakpoints.down('sm')]: {
+    width: 100,
+    height: 100,
+    fontSize: "2.5rem",
+  },
+  [theme.breakpoints.down('xs')]: {
+    width: 80,
+    height: 80,
+    fontSize: "2rem",
+  },
 }));
 
 const ProfilePage: React.FC = () => {

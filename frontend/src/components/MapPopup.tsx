@@ -4,15 +4,17 @@ import { NoiseLocation } from "../types/mapTypes";
 import {
   formatNoiseLevel,
   getNoiseDescription,
-  getTimeUntilExpiry,
   formatCoordinates,
   formatRadius,
+  formatExpiry,
+  computeNoiseAreaStatus,
 } from "../utils/mapUtils";
 import {
   translateNoiseSource,
   translateHealthImpact,
   getNoiseSourceIcon,
 } from "../utils/translationUtils";
+import { deriveFinalCategory } from "../services/map.transformers";
 import ModernPopup from "./ModernPopup";
 import styles from "../styles/MapComponent.module.css";
 // import { appConfig } from "../config/appConfig"; // removed unused import
@@ -58,6 +60,7 @@ const MapPopup: React.FC<MapPopupProps> = ({
   };
 
   const [lat, lon] = location.coordinates;
+  const dbOrComputedStatus = location.status || computeNoiseAreaStatus(location.timestamp, location.expires_at);
 
   return (
     <>
@@ -69,11 +72,15 @@ const MapPopup: React.FC<MapPopupProps> = ({
             <strong>Level Kebisingan:</strong>{" "}
             {formatNoiseLevel(location.noiseLevel)}
             <br />
-            <strong>Status:</strong> {getNoiseDescription(location.noiseLevel)}
+            <strong>Status:</strong> {dbOrComputedStatus}
             <br />
-            {location.final_category && (
+            <strong>Status area:</strong> {getNoiseDescription(location.noiseLevel)}
+            <br />
+            {(location.final_category || location.source) && (
               <>
-                <strong>Kategori:</strong> {location.final_category}
+                <strong>Kategori:</strong>{" "}
+                {location.final_category ||
+                  deriveFinalCategory(location.source)}
                 <br />
               </>
             )}
@@ -107,13 +114,8 @@ const MapPopup: React.FC<MapPopupProps> = ({
             )}
             <strong>Waktu:</strong> {location.timestamp.toLocaleString("id-ID")}
             <br />
-            {location.expires_at && (
-              <>
-                <strong>Expire:</strong>{" "}
-                {getTimeUntilExpiry(location.expires_at)}
-                <br />
-              </>
-            )}
+            <strong>Kadaluarsa:</strong> {formatExpiry(location.expires_at)}
+            <br />
             {location.userName && (
               <>
                 <strong>Ditambahkan oleh:</strong> {location.userName}

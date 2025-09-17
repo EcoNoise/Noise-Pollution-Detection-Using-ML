@@ -8,13 +8,14 @@ import {
   Popup,
   useMapEvents,
   Marker,
+  Tooltip,
 } from "react-leaflet";
 import L, { Map as LeafletMap } from "leaflet";
 import { useNavigate } from "react-router-dom"; // NEW: Import for navigation
 import { NoiseLocation, SearchResult } from "../types/mapTypes";
 import { mapConfig, tileLayerConfig, noiseColors } from "../config/mapConfig";
 import { mapService } from "../services/mapService";
-import { generateNoiseArea } from "../utils/mapUtils";
+import { generateNoiseArea, computeNoiseAreaStatus, getCircleStyleByStatus, getStatusTooltip } from "../utils/mapUtils";
 import MapControls from "./MapControls";
 import MapPopup from "./MapPopup";
 import AreaFilter, { AreaFilters } from "./AreaFilter";
@@ -1003,18 +1004,21 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         {/* Noise Areas as Circles */}
         {filteredNoiseLocations.map((location) => {
           const area = generateNoiseArea(location);
+          const status = location.status || computeNoiseAreaStatus(location.timestamp, location.expires_at);
+          const style = getCircleStyleByStatus(status, area.color, area.opacity);
+          const tooltipText = getStatusTooltip(status);
           return (
             <Circle
               key={location.id}
               center={area.center}
               radius={area.radius}
-              pathOptions={{
-                color: area.color,
-                fillColor: area.color,
-                fillOpacity: area.opacity,
-                weight: 1,
-              }}
+              pathOptions={style}
             >
+              {tooltipText && (
+                <Tooltip direction="top" offset={[0, -8]} opacity={1} permanent={false}>
+                  <span style={{ fontSize: 12 }}>{tooltipText}</span>
+                </Tooltip>
+              )}
               <Popup>
                 <MapPopup
                   location={location}

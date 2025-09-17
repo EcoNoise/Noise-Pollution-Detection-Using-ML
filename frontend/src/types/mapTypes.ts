@@ -16,6 +16,7 @@ export interface NoiseLocation {
   expires_at?: Date; // Added expiration time field
   // Final category mapped from classifier or heuristics (e.g., Traffic, Construction, Event, etc.)
   final_category?: string;
+  status?: NoiseAreaStatus; // Optional persisted status from backend (active|expiring|expired|permanent)
 }
 
 export interface MapMarkerData {
@@ -59,3 +60,5 @@ export interface MapConfig {
   attributionControl: boolean;
   zoomControl: boolean;
 }
+
+export type NoiseAreaStatus = "active" | "expiring" | "expired" | "permanent";
