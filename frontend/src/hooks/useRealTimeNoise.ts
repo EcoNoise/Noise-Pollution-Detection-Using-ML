@@ -13,14 +13,14 @@ export interface NoiseReading {
     | "Sedang"
     | "Bising"
     | "Sangat Bising"
-    | "Sedang dalam perbaikan";
+    | "Tidak Ada Sinyal";
   color: "success" | "warning" | "error" | "default";
   healthImpact:
     | "Aman"
     | "Perhatian"
     | "Berbahaya"
     | "Sangat Berbahaya"
-    | "Sedang dalam perbaikan";
+    | "Tidak Terdeteksi";
   frequencyData?: Float32Array;
   classification?: {
     predictions: Array<{
@@ -85,10 +85,24 @@ const defaultOptions: Required<UseRealTimeNoiseOptions> = {
 export const useRealTimeNoise = (
   options: Partial<UseRealTimeNoiseOptions> = {}
 ): UseRealTimeNoiseReturn => {
-  // Wrap opts in useMemo to prevent dependency array warnings
+  // Use individual values as dependencies instead of the whole options object
   const opts = useMemo(
     () => ({ ...defaultOptions, ...options }),
-    [options]
+    [
+      options.sampleRate,
+      options.fftSize,
+      options.smoothingTimeConstant,
+      options.updateInterval,
+      options.historyLength,
+      options.enableEchoCancellation,
+      options.enableNoiseSuppression,
+      options.enableAutoGainControl,
+      options.enableAWeighting,
+      options.enableFrequencyAnalysis,
+      options.calibrationMode,
+      options.enableRealTimeClassification,
+      options.classificationInterval,
+    ]
   );
 
   const [isListening, setIsListening] = useState(false);
@@ -109,6 +123,11 @@ export const useRealTimeNoise = (
   const microphoneRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Tracking refs untuk deteksi kondisi microphone
+  const silentSamplesCountRef = useRef<number>(0);
+  const lastNonZeroTimeRef = useRef<number>(Date.now());
+  const microphoneStateRef = useRef<'active' | 'muted' | 'error'>('active');
 
   // Calibration offset (can be adjusted based on microphone sensitivity)
   const calibrationOffsetRef = useRef<number>(0);
@@ -259,8 +278,10 @@ export const useRealTimeNoise = (
 
   // Categorize noise level using A-weighted dB for more accurate assessment
   const categorizeNoise = useCallback(
-    (dbA: number): NoiseReading["category"] => {
-      if (dbA === 0) return "Sedang dalam perbaikan";
+    (dbA: number, microphoneState: 'active' | 'muted' | 'error' = 'active'): NoiseReading["category"] => {
+      if (microphoneState === 'muted' || (dbA === 0 && microphoneState !== 'active')) {
+        return "Tidak Ada Sinyal";
+      }
       if (dbA < 40) return "Tenang"; // Very quiet (library, bedroom at night)
       if (dbA < 60) return "Sedang"; // Moderate (normal conversation, office)
       if (dbA < 80) return "Bising"; // Loud (traffic, busy restaurant)
@@ -280,8 +301,10 @@ export const useRealTimeNoise = (
 
   // Get health impact assessment based on WHO and EPA guidelines
   const getHealthImpact = useCallback(
-    (dbA: number): NoiseReading["healthImpact"] => {
-      if (dbA === 0) return "Sedang dalam perbaikan";
+    (dbA: number, microphoneState: 'active' | 'muted' | 'error' = 'active'): NoiseReading["healthImpact"] => {
+      if (microphoneState === 'muted' || (dbA === 0 && microphoneState !== 'active')) {
+        return "Tidak Terdeteksi";
+      }
       if (dbA < 35) return "Aman"; // WHO guideline for sleep
       if (dbA < 55) return "Aman"; // WHO guideline for day
       if (dbA < 70) return "Perhatian"; // Potential hearing damage with prolonged exposure
@@ -312,6 +335,25 @@ export const useRealTimeNoise = (
     const now = Date.now();
     return now - lastClassificationTime.current >= opts.classificationInterval;
   }, [opts.enableRealTimeClassification, opts.classificationInterval]);
+
+  // Process frequency data for visualization
+  const processFrequencyDataForVisualization = useCallback((frequencyData: Float32Array): Float32Array => {
+    // Convert dB values to linear scale suitable for visualization
+    const visualizationData = new Float32Array(frequencyData.length);
+    
+    for (let i = 0; i < frequencyData.length; i++) {
+      // frequencyData contains values in dB (usually negative)
+      // Convert to linear scale (0-255) for visualization
+      const dbValue = frequencyData[i];
+      
+      // Normalize dB values: typical range is -100 to 0 dB
+      // Map to 0-255 range for visualization
+      const normalizedValue = Math.max(0, Math.min(255, (dbValue + 100) * 2.55));
+      visualizationData[i] = normalizedValue;
+    }
+    
+    return visualizationData;
+  }, []);
 
   // Auto-calibration function moved before use in dependencies to avoid hoisting issues
   function performAutoCalibration(rms: number, db: number) {
@@ -357,7 +399,7 @@ export const useRealTimeNoise = (
       // Get time domain data for RMS calculation
       analyser.getFloatTimeDomainData(timeDataArray);
 
-      // Get frequency domain data for A-weighting
+      // Get frequency domain data for A-weighting and visualization
       if (opts.enableFrequencyAnalysis) {
         analyser.getFloatFrequencyData(frequencyDataArray);
       }
@@ -374,6 +416,20 @@ export const useRealTimeNoise = (
         rms,
         opts.enableFrequencyAnalysis ? frequencyDataArray : undefined
       );
+
+      // Deteksi kondisi microphone (muted/silent vs active)
+      const currentTime = Date.now();
+      if (rms < 0.001) { // threshold sangat rendah untuk silence
+        silentSamplesCountRef.current++;
+        // Jika sudah silent lebih dari 3 detik (30 samples @ 100ms interval)
+        if (silentSamplesCountRef.current > 30) {
+          microphoneStateRef.current = 'muted';
+        }
+      } else {
+        silentSamplesCountRef.current = 0;
+        lastNonZeroTimeRef.current = currentTime;
+        microphoneStateRef.current = 'active';
+      }
 
       // Auto-calibration during first few seconds
       if (
@@ -406,11 +462,11 @@ export const useRealTimeNoise = (
         dbA,
         rms,
         timestamp: new Date(),
-        category: categorizeNoise(dbA), // Use A-weighted for categorization
+        category: categorizeNoise(dbA, microphoneStateRef.current), // Use A-weighted for categorization
         color: getNoiseColor(dbA),
-        healthImpact: getHealthImpact(dbA),
+        healthImpact: getHealthImpact(dbA, microphoneStateRef.current),
         frequencyData: opts.enableFrequencyAnalysis
-          ? frequencyDataArray.slice()
+          ? processFrequencyDataForVisualization(frequencyDataArray)
           : undefined,
       };
 
@@ -462,9 +518,9 @@ export const useRealTimeNoise = (
         dbA: 0,
         rms: 0,
         timestamp: new Date(),
-        category: "Sedang dalam perbaikan",
+        category: "Tidak Ada Sinyal",
         color: "default",
-        healthImpact: "Sedang dalam perbaikan",
+        healthImpact: "Tidak Terdeteksi",
       };
 
       setCurrentReading(fallbackReading);
@@ -474,6 +530,7 @@ export const useRealTimeNoise = (
     categorizeNoise,
     getNoiseColor,
     getHealthImpact,
+    processFrequencyDataForVisualization,
     opts.historyLength,
     opts.enableFrequencyAnalysis,
     opts.calibrationMode,
@@ -542,17 +599,23 @@ export const useRealTimeNoise = (
         microphone.connect(analyser);
       }
 
-      // Reset calibration state
+      // Reset calibration state and microphone tracking
       isCalibrationCompleteRef.current = false;
       backgroundNoiseRef.current = 0;
       deviceCalibrationRef.current = 1.0;
+      silentSamplesCountRef.current = 0;
+      lastNonZeroTimeRef.current = Date.now();
+      microphoneStateRef.current = 'active';
 
       setIsListening(true);
+      setError(null); // Clear previous errors
 
       // Start processing at regular intervals
       intervalRef.current = setInterval(processAudioData, opts.updateInterval);
     } catch (err: any) {
       logger.error("Error accessing microphone:", err);
+      microphoneStateRef.current = 'error';
+      
       let errorMessage = "Tidak dapat mengakses mikrofon";
 
       if (err.name === "NotAllowedError") {
@@ -562,6 +625,12 @@ export const useRealTimeNoise = (
         errorMessage = "Mikrofon tidak ditemukan. Pastikan mikrofon terhubung.";
       } else if (err.name === "NotReadableError") {
         errorMessage = "Mikrofon sedang digunakan aplikasi lain.";
+      } else if (err.name === "AbortError") {
+        errorMessage = "Akses mikrofon dibatalkan.";
+      } else if (err.name === "NotSupportedError") {
+        errorMessage = "Browser tidak mendukung akses mikrofon.";
+      } else if (err.name === "OverconstrainedError") {
+        errorMessage = "Pengaturan mikrofon tidak dapat dipenuhi.";
       }
 
       setError(errorMessage);
@@ -601,6 +670,13 @@ export const useRealTimeNoise = (
 
     // Reset calibration state
     isCalibrationCompleteRef.current = false;
+    backgroundNoiseRef.current = 0;
+    deviceCalibrationRef.current = 1.0;
+
+    // Reset microphone state tracking
+    silentSamplesCountRef.current = 0;
+    lastNonZeroTimeRef.current = Date.now();
+    microphoneStateRef.current = 'active';
     backgroundNoiseRef.current = 0;
     deviceCalibrationRef.current = 1.0;
     calibrationOffsetRef.current = 0;
