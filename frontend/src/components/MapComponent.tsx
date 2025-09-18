@@ -12,10 +12,10 @@ import {
 } from "react-leaflet";
 import L, { Map as LeafletMap } from "leaflet";
 import { useNavigate } from "react-router-dom"; // NEW: Import for navigation
-import { NoiseLocation, SearchResult } from "../types/mapTypes";
+import { NoiseLocation, SearchResult, NoiseCluster } from "../types/mapTypes";
 import { mapConfig, tileLayerConfig, noiseColors } from "../config/mapConfig";
 import { mapService } from "../services/mapService";
-import { generateNoiseArea, computeNoiseAreaStatus, getCircleStyleByStatus, getStatusTooltip } from "../utils/mapUtils";
+import { generateNoiseArea, computeNoiseAreaStatus, getCircleStyleByStatus, getStatusTooltip, getNoiseColor, formatNoiseLevel } from "../utils/mapUtils";
 import MapControls from "./MapControls";
 import MapPopup from "./MapPopup";
 import AreaFilter, { AreaFilters } from "./AreaFilter";
@@ -162,6 +162,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(
     null
   );
+  // Cluster state
+  const [noiseClusters, setNoiseClusters] = useState<NoiseCluster[]>([]);
+  const [clustersLoading, setClustersLoading] = useState<boolean>(false);
+  const [clustersError, setClustersError] = useState<string>("");
   const [isTrackingUser, setIsTrackingUser] = useState<boolean>(false);
   const [searchLocationMarker, setSearchLocationMarker] = useState<{
     position: [number, number];
@@ -189,6 +193,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   useEffect(() => {
     loadNoiseLocations();
     handleLocateUser();
+    // Load clusters (backend only)
+    loadNoiseClusters();
 
     // Check if this is the first visit to show tutorial
     const hasSeenTutorial = localStorage.getItem("hasSeenMapTutorial");
@@ -317,6 +323,26 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       setError("Gagal memuat data area noise");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Loader untuk data cluster dari backend
+  const loadNoiseClusters = async () => {
+    if (!appConfig.backendEnabled) {
+      setNoiseClusters([]);
+      setClustersError("");
+      return;
+    }
+    try {
+      setClustersLoading(true);
+      const clusters = await mapService.getNoiseClusters();
+      setNoiseClusters(clusters);
+      setClustersError("");
+    } catch (err) {
+      logger.error("Error loading noise clusters:", err);
+      setClustersError("Gagal memuat cluster kebisingan");
+    } finally {
+      setClustersLoading(false);
     }
   };
 
@@ -693,7 +719,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     setShowTutorial(true);
   };
 
-  // PERBAIKAN: Fungsi untuk handle keyboard navigation pada search results
+  // PERBAIKAN: Fungsi untuk handle keyboard navigation pada search results (dipulihkan)
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       setSearchQuery("");
@@ -706,6 +732,68 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       // Future: implement keyboard navigation through results
       e.preventDefault();
     }
+  };
+
+  // Helpers for cluster styling and popup
+  const categoryColors: Record<string, string> = {
+    Traffic: "#ef4444", // merah
+    Construction: "#f59e0b", // oranye
+    Industry: "#8b5cf6", // ungu
+    Event: "#10b981", // hijau tosca
+    Nature: "#22c55e", // hijau
+    Other: "#3b82f6", // biru
+  };
+
+  const getClusterColor = (cluster: NoiseCluster): string => {
+    // Status expired = abu-abu
+    if ((cluster.areaStatus || "") === "expired") return "#9aa0a6";
+    // Gunakan kategori jika ada
+    if (cluster.finalCategory && categoryColors[cluster.finalCategory]) {
+      return categoryColors[cluster.finalCategory];
+    }
+    // Fallback ke warna berdasarkan rata-rata level kebisingan
+    if (typeof cluster.noiseLevelAvg === "number") {
+      return getNoiseColor(cluster.noiseLevelAvg);
+    }
+    return "#3b82f6"; // default biru
+  };
+
+  const formatDateTime = (d?: Date | null): string => {
+    if (!d) return "—";
+    try {
+      return new Date(d).toLocaleString();
+    } catch {
+      return "—";
+    }
+  };
+
+  const getClusterIcon = (cluster: NoiseCluster) => {
+    const color = getClusterColor(cluster);
+    const status = (cluster.areaStatus || "") as string;
+    const ringColor = status === "expiring" ? color : "rgba(0,0,0,0.15)";
+    const shadow = status === "expiring" ? `0 0 0 6px ${ringColor}55` : "0 2px 8px rgba(0,0,0,0.2)";
+
+    const size = 38; // diameter
+    const border = status === "expired" ? "2px dashed #9aa0a6" : `3px solid white`;
+
+    const html = `
+      <div style="
+        display:flex;align-items:center;justify-content:center;
+        width:${size}px;height:${size}px;border-radius:50%;
+        background:${color};color:#fff;font-weight:700;font-size:14px;
+        border:${border}; box-shadow:${shadow};
+      ">
+        ${Math.max(1, cluster.reportCount || 0)}
+      </div>
+    `;
+
+    return L.divIcon({
+      html,
+      className: "noise-cluster-marker",
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+      popupAnchor: [0, -size / 2],
+    });
   };
 
   // ENHANCED: Component for handling map events
@@ -1117,6 +1205,45 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
             })}
           />
         )}
+
+        {/* NEW: Cluster markers layer */}
+        {noiseClusters.map((cluster) => {
+          const status = (cluster.areaStatus as any) || computeNoiseAreaStatus(
+            cluster.firstCreatedAt || new Date(),
+            cluster.maxExpiresAt || undefined
+          );
+          const icon = getClusterIcon(cluster);
+          const [lat, lon] = cluster.center;
+          return (
+            <Marker key={`cluster-${cluster.id}`} position={[lat, lon]} icon={icon}>
+              <Popup>
+                <div style={{ minWidth: 220 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>📊 Cluster Kebisingan</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                    <div><strong>Status:</strong> {String(status)}</div>
+                    <div><strong>Jumlah Laporan:</strong> {cluster.reportCount}</div>
+                    {typeof cluster.noiseLevelAvg === 'number' && (
+                      <div><strong>Rata-rata:</strong> {formatNoiseLevel(cluster.noiseLevelAvg)}</div>
+                    )}
+                    {cluster.finalCategory && (
+                      <div><strong>Kategori Dominan:</strong> {cluster.finalCategory}</div>
+                    )}
+                    {Array.isArray(cluster.noiseSources) && cluster.noiseSources.length > 0 && (
+                      <div>
+                        <strong>Sumber:</strong> {cluster.noiseSources.slice(0, 3).join(", ")}
+                        {cluster.noiseSources.length > 3 ? ", ..." : ""}
+                      </div>
+                    )}
+                    <div><strong>Periode:</strong> {formatDateTime(cluster.firstCreatedAt)} → {formatDateTime(cluster.lastCreatedAt)}</div>
+                    {cluster.addedByUsernames?.length > 0 && (
+                      <div><strong>Kontributor:</strong> {cluster.addedByUsernames.slice(0,3).join(', ')}{cluster.addedByUsernames.length>3?", ...":""}</div>
+                    )}
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
       <PopupComponent />
 

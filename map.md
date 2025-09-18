@@ -200,27 +200,29 @@ Penggabungan/Clustering:
 
 ---
 
-## 11) Service RPC Cluster — get_noise_clusters() (Frontend)
+## 12) Integrasi Cluster di Frontend (MapComponent)
 
-- Fungsi service baru: `mapService.getNoiseClusters()` memanggil RPC `get_noise_clusters` di Supabase dan mengembalikan array `NoiseCluster`.
-- Tipe `NoiseCluster` ditambahkan di `frontend/src/types/mapTypes.ts`:
+Fitur: Menampilkan hasil clustering kebisingan (RPC `get_noise_clusters`) sebagai marker cluster di peta Leaflet.
 
-```ts
-export interface NoiseCluster {
-  id: string; // cluster_id (uuid)
-  center: [number, number]; // [latitude_avg, longitude_avg]
-  noiseLevelAvg: number | null; // rata-rata noise_level
-  areaStatus?: NoiseAreaStatus | string; // status cluster bila tersedia dari backend
-  finalCategory?: string | null; // kategori mayoritas (opsional)
-  noiseSources?: string[] | null; // daftar sumber unik (opsional)
-  firstCreatedAt?: Date | null;
-  lastCreatedAt?: Date | null;
-  maxExpiresAt?: Date | null;
-  addedByUsernames: string[];
-  reportCount: number;
-  avgConfidence?: number | null;
-}
-```
+- Lokasi perubahan utama: <mcfile name="MapComponent.tsx" path="frontend/src/components/MapComponent.tsx"></mcfile>
+- Service pemanggil RPC: <mcfile name="mapService.ts" path="frontend/src/services/mapService.ts"></mcfile> dengan method <mcsymbol name="getNoiseClusters" filename="mapService.ts" path="frontend/src/services/mapService.ts" startline="1" type="function"></mcsymbol>
+- Tipe data: <mcfile name="mapTypes.ts" path="frontend/src/types/mapTypes.ts"></mcfile> interface <mcsymbol name="NoiseCluster" filename="mapTypes.ts" path="frontend/src/types/mapTypes.ts" startline="1" type="class"></mcsymbol>
+
+Ringkasan implementasi:
+- Menambahkan state `noiseClusters`, `clustersLoading`, `clustersError` dan loader `loadNoiseClusters()` yang memanggil `mapService.getNoiseClusters()` saat mount.
+- Layer marker cluster divisualisasikan dengan `Marker` custom icon (divIcon) menggunakan warna berdasarkan kategori/status:
+  - Warna prioritas: status `expired` = abu-abu, status `expiring` memiliki ring animasi; jika ada `finalCategory` gunakan palet kategori; fallback ke `getNoiseColor(noiseLevelAvg)` dari <mcfile name="mapUtils.ts" path="frontend/src/utils/mapUtils.ts"></mcfile>.
+- Popup ringkas per cluster menampilkan: kategori final (atau dominan), level dB rata-rata & max, jumlah report, status area, serta rentang waktu pertama-terakhir.
+- Tidak mengubah logic lain (pencarian, tutorial, controls) kecuali pemulihan handler `handleSearchKeyDown` yang sempat terhapus saat merge.
+
+Catatan penggunaan:
+- Fitur cluster aktif hanya bila `appConfig.backendEnabled = true`.
+- Jika ada error RPC, UI akan menampilkan popup error (via logger) dan state `clustersError` diisi, namun render peta tetap berjalan tanpa cluster.
+
+Langkah lanjutan (opsional):
+- Tambah tombol refresh cluster manual dan auto-refresh berkala.
+- Toggle visibilitas layer cluster dan filter berdasarkan kategori/status.
+- Integrasi marker clustering plugin (mis. Leaflet.markercluster) jika jumlah cluster sangat besar.
 
 - Cara pakai (contoh React effect):
 
@@ -245,3 +247,20 @@ useEffect(() => {
   - Service ini membutuhkan `appConfig.backendEnabled === true` dan user dapat membaca RPC (RLS/GRANT sudah diatur di migrasi).
   - Struktur kolom mengikuti definisi fungsi SQL terbaru yang menggunakan `ST_DWithin` (≤30 m) dan selisih waktu ≤1 jam dengan connected components transitif.
   - Jika Anda ingin filter berdasarkan kategori, bounding box, radius, atau time window berbeda, fungsi RPC dapat diparameterisasi di sprint selanjutnya.
+
+```ts
+export interface NoiseCluster {
+  id: string; // cluster_id (uuid)
+  center: [number, number]; // [latitude_avg, longitude_avg]
+  noiseLevelAvg: number | null; // rata-rata noise_level
+  areaStatus?: NoiseAreaStatus | string; // status cluster bila tersedia dari backend
+  finalCategory?: string | null; // kategori mayoritas (opsional)
+  noiseSources?: string[] | null; // daftar sumber unik (opsional)
+  firstCreatedAt?: Date | null;
+  lastCreatedAt?: Date | null;
+  maxExpiresAt?: Date | null;
+  addedByUsernames: string[];
+  reportCount: number;
+  avgConfidence?: number | null;
+}
+```
