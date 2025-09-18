@@ -1,5 +1,5 @@
 // src/components/MapComponent.tsx
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { usePopup } from "../hooks/usePopup";
 import {
   MapContainer,
@@ -15,7 +15,7 @@ import { useNavigate } from "react-router-dom"; // NEW: Import for navigation
 import { NoiseLocation, SearchResult, NoiseCluster } from "../types/mapTypes";
 import { mapConfig, tileLayerConfig, noiseColors } from "../config/mapConfig";
 import { mapService } from "../services/mapService";
-import { generateNoiseArea, computeNoiseAreaStatus, getCircleStyleByStatus, getStatusTooltip, getNoiseColor, formatNoiseLevel } from "../utils/mapUtils";
+import { generateNoiseArea, computeNoiseAreaStatus, getCircleStyleByStatus, getStatusTooltip, getNoiseColor, formatNoiseLevel, calculateDistance } from "../utils/mapUtils";
 import MapControls from "./MapControls";
 import MapPopup from "./MapPopup";
 import AreaFilter, { AreaFilters } from "./AreaFilter";
@@ -167,9 +167,34 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [clustersLoading, setClustersLoading] = useState<boolean>(false);
   const [clustersError, setClustersError] = useState<string>("");
   
-  // Aktif bila backend aktif dan ada data cluster — digunakan untuk menyembunyikan popup single-report
-  const isClusterActive = useMemo(
-    () => appConfig.backendEnabled && noiseClusters.length > 0,
+  // Hanya sembunyikan popup single-report jika lokasinya tergabung pada cluster (>=2 laporan)
+  // Spatial threshold diselaraskan dengan fungsi SQL: ST_DWithin(..., 30m) + toleransi kecil
+  const CLUSTER_DISTANCE_THRESHOLD = 35; // meters
+  const isLocationCoveredByAnyCluster = useCallback(
+    (location: NoiseLocation) => {
+      if (!appConfig.backendEnabled || noiseClusters.length === 0) return false;
+      for (const c of noiseClusters) {
+        if ((c.reportCount ?? 0) <= 1) continue; // cluster artinya minimal 2 laporan
+        const d = calculateDistance(
+          location.coordinates[0],
+          location.coordinates[1],
+          c.center[0],
+          c.center[1]
+        );
+        if (d <= CLUSTER_DISTANCE_THRESHOLD) {
+          // Opsi: perketat dengan jendela waktu ±1 jam dari rentang cluster
+          if (c.firstCreatedAt && c.lastCreatedAt && location.timestamp) {
+            const t = new Date(location.timestamp).getTime();
+            const tStart = new Date(c.firstCreatedAt).getTime() - 3600 * 1000;
+            const tEnd = new Date(c.lastCreatedAt).getTime() + 3600 * 1000;
+            if (t >= tStart && t <= tEnd) return true;
+          } else {
+            return true;
+          }
+        }
+      }
+      return false;
+    },
     [noiseClusters]
   );
   const [isTrackingUser, setIsTrackingUser] = useState<boolean>(false);
@@ -1101,6 +1126,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           const status = location.status || computeNoiseAreaStatus(location.timestamp, location.expires_at);
           const style = getCircleStyleByStatus(status, area.color, area.opacity);
           const tooltipText = getStatusTooltip(status);
+          const isCovered = isLocationCoveredByAnyCluster(location);
           return (
             <Circle
               key={location.id}
@@ -1113,8 +1139,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                   <span style={{ fontSize: 12 }}>{tooltipText}</span>
                 </Tooltip>
               )}
-              {/* Ketika cluster aktif, sembunyikan popup single-report namun tetap tampilkan lingkaran berwarna */}
-              {!isClusterActive && (
+              {/* Ketika lokasi termasuk dalam cluster, sembunyikan popup single-report namun tetap tampilkan lingkaran berwarna */}
+              {!isCovered && (
                 <Popup>
                   <MapPopup
                     location={location}
