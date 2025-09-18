@@ -1242,7 +1242,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         )}
 
         {/* NEW: Cluster markers layer */}
-        {noiseClusters.map((cluster) => {
+        {noiseClusters
+        .filter((cluster) => (cluster.reportCount ?? 0) > 1)
+        .map((cluster) => {
           const status = (cluster.areaStatus as any) || computeNoiseAreaStatus(
             cluster.firstCreatedAt || new Date(),
             cluster.maxExpiresAt || undefined
