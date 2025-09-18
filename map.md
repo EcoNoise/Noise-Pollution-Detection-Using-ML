@@ -200,4 +200,48 @@ Penggabungan/Clustering:
 
 ---
 
-Dokumen ini dapat dikembangkan lebih lanjut (contoh: diagram state, spesifikasi RPC, dan contoh query analitik) sesuai kebutuhan sprint berikutnya.
+## 11) Service RPC Cluster — get_noise_clusters() (Frontend)
+
+- Fungsi service baru: `mapService.getNoiseClusters()` memanggil RPC `get_noise_clusters` di Supabase dan mengembalikan array `NoiseCluster`.
+- Tipe `NoiseCluster` ditambahkan di `frontend/src/types/mapTypes.ts`:
+
+```ts
+export interface NoiseCluster {
+  id: string; // cluster_id (uuid)
+  center: [number, number]; // [latitude_avg, longitude_avg]
+  noiseLevelAvg: number | null; // rata-rata noise_level
+  areaStatus?: NoiseAreaStatus | string; // status cluster bila tersedia dari backend
+  finalCategory?: string | null; // kategori mayoritas (opsional)
+  noiseSources?: string[] | null; // daftar sumber unik (opsional)
+  firstCreatedAt?: Date | null;
+  lastCreatedAt?: Date | null;
+  maxExpiresAt?: Date | null;
+  addedByUsernames: string[];
+  reportCount: number;
+  avgConfidence?: number | null;
+}
+```
+
+- Cara pakai (contoh React effect):
+
+```ts
+import { useEffect, useState } from "react";
+import { mapService } from "../services/mapService";
+import type { NoiseCluster } from "../types/mapTypes";
+
+const [clusters, setClusters] = useState<NoiseCluster[]>([]);
+
+useEffect(() => {
+  let mounted = true;
+  (async () => {
+    const rows = await mapService.getNoiseClusters();
+    if (mounted) setClusters(rows);
+  })();
+  return () => { mounted = false; };
+}, []);
+```
+
+- Catatan:
+  - Service ini membutuhkan `appConfig.backendEnabled === true` dan user dapat membaca RPC (RLS/GRANT sudah diatur di migrasi).
+  - Struktur kolom mengikuti definisi fungsi SQL terbaru yang menggunakan `ST_DWithin` (≤30 m) dan selisih waktu ≤1 jam dengan connected components transitif.
+  - Jika Anda ingin filter berdasarkan kategori, bounding box, radius, atau time window berbeda, fungsi RPC dapat diparameterisasi di sprint selanjutnya.

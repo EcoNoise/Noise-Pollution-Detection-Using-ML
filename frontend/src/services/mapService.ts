@@ -1,5 +1,5 @@
 // src/services/mapService.ts
-import { NoiseLocation, SearchResult } from "../types/mapTypes";
+import { NoiseLocation, SearchResult, NoiseCluster } from "../types/mapTypes";
 import { PredictionResponse } from "./api";
 import { repository, getCurrentUserId as repoGetUserId } from "./map.repository";
 import { toNoiseLocation, generateId, deriveFinalCategory } from "./map.transformers";
@@ -644,6 +644,44 @@ class MapService {
     }
     return `User${userId.slice(-4)}`;
   }
+
+  // Memanggil RPC get_noise_clusters() dari Supabase dan memetakan hasil ke tipe NoiseCluster
+  async getNoiseClusters(): Promise<NoiseCluster[]> {
+    try {
+      if (!appConfig.backendEnabled) {
+        // Ketika backend dimatikan, service cluster belum tersedia
+        return [];
+      }
+
+      const { data, error } = await supabase.rpc("get_noise_clusters");
+      if (error) {
+        logger.error("Failed to fetch noise clusters via RPC:", error);
+        return [];
+      }
+
+      const rows = (data as any[]) || [];
+      return rows.map((row) => ({
+        id: row.cluster_id,
+        center: [row.latitude_avg, row.longitude_avg] as [number, number],
+        noiseLevelAvg: row.noise_level_avg ?? null,
+        areaStatus: row.area_status ?? "Aman",
+        finalCategory: row.final_category ?? null,
+        noiseSources: row.noise_sources ?? null,
+        firstCreatedAt: row.first_created_at ? new Date(row.first_created_at) : null,
+        lastCreatedAt: row.last_created_at ? new Date(row.last_created_at) : null,
+        maxExpiresAt: row.max_expires_at ? new Date(row.max_expires_at) : null,
+        addedByUsernames: Array.isArray(row.added_by_usernames) ? row.added_by_usernames : [],
+        reportCount:
+          typeof row.report_count === "string" ? parseInt(row.report_count, 10) : (row.report_count ?? 0),
+        avgConfidence: row.avg_confidence ?? null,
+      }));
+    } catch (err) {
+      logger.error("Error while fetching noise clusters:", err);
+      return [];
+    }
+  }
 }
 
 export const mapService = new MapService();
+
+// HAPUS: implementasi getNoiseClusters yang berada di luar kelas (pindahkan ke dalam class MapService di atas)
