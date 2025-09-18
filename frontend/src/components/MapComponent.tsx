@@ -166,6 +166,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [noiseClusters, setNoiseClusters] = useState<NoiseCluster[]>([]);
   const [clustersLoading, setClustersLoading] = useState<boolean>(false);
   const [clustersError, setClustersError] = useState<string>("");
+  
+  // Aktif bila backend aktif dan ada data cluster — digunakan untuk menyembunyikan popup single-report
+  const isClusterActive = useMemo(
+    () => appConfig.backendEnabled && noiseClusters.length > 0,
+    [noiseClusters]
+  );
   const [isTrackingUser, setIsTrackingUser] = useState<boolean>(false);
   const [searchLocationMarker, setSearchLocationMarker] = useState<{
     position: [number, number];
@@ -1107,14 +1113,17 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                   <span style={{ fontSize: 12 }}>{tooltipText}</span>
                 </Tooltip>
               )}
-              <Popup>
-                <MapPopup
-                  location={location}
-                  onDelete={handleDeleteNoiseLocation}
-                  onReanalyze={handleStartReanalysis}
-                  currentUserId={localStorage.getItem("userId")}
-                />
-              </Popup>
+              {/* Ketika cluster aktif, sembunyikan popup single-report namun tetap tampilkan lingkaran berwarna */}
+              {!isClusterActive && (
+                <Popup>
+                  <MapPopup
+                    location={location}
+                    onDelete={handleDeleteNoiseLocation}
+                    onReanalyze={handleStartReanalysis}
+                    currentUserId={localStorage.getItem("userId")}
+                  />
+                </Popup>
+              )}
             </Circle>
           );
         })}
