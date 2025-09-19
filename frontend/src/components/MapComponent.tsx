@@ -1292,9 +1292,46 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                   radius={radius}
                   pathOptions={style}
                 >
-                  <Tooltip direction="top" offset={[0, -8]} opacity={1} permanent={false}>
-                    <span style={{ fontSize: 12 }}>Cakupan Cluster</span>
-                  </Tooltip>
+                  <Popup>
+                    <div style={{ minWidth: 220 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                        📊 Cluster Kebisingan
+                      </div>
+                      <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                        <div>
+                          <strong>Status:</strong> {String(status)}
+                        </div>
+                        <div>
+                          <strong>Jumlah Laporan:</strong> {cluster.reportCount}
+                        </div>
+                        {typeof cluster.noiseLevelAvg === "number" && (
+                          <div>
+                            <strong>Rata-rata:</strong> {formatNoiseLevel(cluster.noiseLevelAvg)}
+                          </div>
+                        )}
+                        {cluster.finalCategory && (
+                          <div>
+                            <strong>Kategori Dominan:</strong> {cluster.finalCategory}
+                          </div>
+                        )}
+                        {Array.isArray(cluster.noiseSources) && cluster.noiseSources.length > 0 && (
+                          <div>
+                            <strong>Sumber:</strong> {cluster.noiseSources.slice(0, 3).join(", ")}
+                            {cluster.noiseSources.length > 3 ? ", ..." : ""}
+                          </div>
+                        )}
+                        <div>
+                          <strong>Periode:</strong> {formatDateTime(cluster.firstCreatedAt)} → {formatDateTime(cluster.lastCreatedAt)}
+                        </div>
+                        {cluster.addedByUsernames?.length > 0 && (
+                          <div>
+                            <strong>Kontributor:</strong> {cluster.addedByUsernames.slice(0, 3).join(", ")}
+                            {cluster.addedByUsernames.length > 3 ? ", ..." : ""}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Popup>
                 </Circle>
                 <Marker
                   key={`cluster-${cluster.id}`}
