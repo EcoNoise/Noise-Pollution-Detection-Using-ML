@@ -1,5 +1,11 @@
 // src/components/MapComponent.tsx
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import { usePopup } from "../hooks/usePopup";
 import {
   MapContainer,
@@ -15,7 +21,17 @@ import { useNavigate } from "react-router-dom"; // NEW: Import for navigation
 import { NoiseLocation, SearchResult, NoiseCluster } from "../types/mapTypes";
 import { mapConfig, tileLayerConfig, noiseColors } from "../config/mapConfig";
 import { mapService } from "../services/mapService";
-import { generateNoiseArea, computeNoiseAreaStatus, getCircleStyleByStatus, getStatusTooltip, getNoiseColor, formatNoiseLevel, calculateDistance } from "../utils/mapUtils";
+import {
+  generateNoiseArea,
+  computeNoiseAreaStatus,
+  getCircleStyleByStatus,
+  getStatusTooltip,
+  getNoiseColor,
+  getNoiseRadius,
+  getNoiseOpacity,
+  formatNoiseLevel,
+  calculateDistance,
+} from "../utils/mapUtils";
 import MapControls from "./MapControls";
 import MapPopup from "./MapPopup";
 import AreaFilter, { AreaFilters } from "./AreaFilter";
@@ -166,7 +182,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [noiseClusters, setNoiseClusters] = useState<NoiseCluster[]>([]);
   const [clustersLoading, setClustersLoading] = useState<boolean>(false);
   const [clustersError, setClustersError] = useState<string>("");
-  
+
   // Hanya sembunyikan popup single-report jika lokasinya tergabung pada cluster (>=2 laporan)
   // Spatial threshold diselaraskan dengan fungsi SQL: ST_DWithin(..., 30m) + toleransi kecil
   const CLUSTER_DISTANCE_THRESHOLD = 35; // meters
@@ -181,16 +197,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           c.center[0],
           c.center[1]
         );
+        // PERUBAHAN: Abaikan jendela waktu; cukup gunakan kedekatan spasial
         if (d <= CLUSTER_DISTANCE_THRESHOLD) {
-          // Opsi: perketat dengan jendela waktu ±1 jam dari rentang cluster
-          if (c.firstCreatedAt && c.lastCreatedAt && location.timestamp) {
-            const t = new Date(location.timestamp).getTime();
-            const tStart = new Date(c.firstCreatedAt).getTime() - 3600 * 1000;
-            const tEnd = new Date(c.lastCreatedAt).getTime() + 3600 * 1000;
-            if (t >= tStart && t <= tEnd) return true;
-          } else {
-            return true;
-          }
+          return true;
         }
       }
       return false;
@@ -251,9 +260,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   }, []);
 
   // Utility: process shared noise data passed from other flows
-  const processSharedData = (
-    data: { analysis: any; position?: [number, number]; address?: string }
-  ) => {
+  const processSharedData = (data: {
+    analysis: any;
+    position?: [number, number];
+    address?: string;
+  }) => {
     try {
       if (data.position) {
         setSelectedPosition(data.position);
@@ -415,7 +426,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   // NEW: Handler for the "Analisis Suara" button
   const handleUploadAndAnalyze = async () => {
     if (!appConfig.backendEnabled) {
-      setError("Fitur analisis audio tidak tersedia saat backend dinonaktifkan");
+      setError(
+        "Fitur analisis audio tidak tersedia saat backend dinonaktifkan"
+      );
       return;
     }
 
@@ -462,12 +475,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
     try {
       logger.info("🎵 Memulai analisis audio:", {
-         fileName: audioFile.name,
-         fileSize: `${(audioFile.size / 1024 / 1024).toFixed(2)}MB`,
-         fileType: audioFile.type,
-         position: selectedPosition,
-         address: formAddress,
-       });
+        fileName: audioFile.name,
+        fileSize: `${(audioFile.size / 1024 / 1024).toFixed(2)}MB`,
+        fileType: audioFile.type,
+        position: selectedPosition,
+        address: formAddress,
+      });
 
       const newLocation = await mapService.analyzeAudioAndAddArea(
         audioFile,
@@ -481,6 +494,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
         // Reload data dan zoom ke lokasi baru
         await loadNoiseLocations();
+        await loadNoiseClusters();
         zoomToLocation(newLocation.coordinates, 17);
 
         // Reset form dan tutup panel
@@ -572,9 +586,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       }
 
       logger.info("📁 File dipilih:", {
-         name: file.name,
-         size: file.size,
-         type: file.type,
+        name: file.name,
+        size: file.size,
+        type: file.type,
       });
 
       setAudioFile(file);
@@ -582,7 +596,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   };
   const handleStartReanalysis = (location: NoiseLocation) => {
     if (!appConfig.backendEnabled) {
-      setError("Fitur analisis ulang tidak tersedia saat backend dinonaktifkan");
+      setError(
+        "Fitur analisis ulang tidak tersedia saat backend dinonaktifkan"
+      );
       return;
     }
     setLocationToReanalyze(location); // Simpan info lokasi mana yang akan dianalisis
@@ -594,7 +610,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     if (!appConfig.backendEnabled) {
-      setError("Fitur analisis ulang tidak tersedia saat backend dinonaktifkan");
+      setError(
+        "Fitur analisis ulang tidak tersedia saat backend dinonaktifkan"
+      );
       return;
     }
 
@@ -644,6 +662,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       const success = await mapService.removeNoiseLocation(id);
       if (success) {
         await loadNoiseLocations(); // Reload data after successful deletion
+        await loadNoiseClusters(); // Sinkronkan layer cluster
       } else {
         setError("Gagal menghapus area berisik");
       }
@@ -690,6 +709,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           const success = await mapService.clearAllNoiseLocations();
           if (success) {
             await loadNoiseLocations();
+            await loadNoiseClusters();
             showSuccess("Berhasil!", "Semua area berisik telah dihapus.");
           } else {
             showError("Gagal", "Gagal menghapus area berisik");
@@ -802,10 +822,14 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     const color = getClusterColor(cluster);
     const status = (cluster.areaStatus || "") as string;
     const ringColor = status === "expiring" ? color : "rgba(0,0,0,0.15)";
-    const shadow = status === "expiring" ? `0 0 0 6px ${ringColor}55` : "0 2px 8px rgba(0,0,0,0.2)";
+    const shadow =
+      status === "expiring"
+        ? `0 0 0 6px ${ringColor}55`
+        : "0 2px 8px rgba(0,0,0,0.2)";
 
     const size = 38; // diameter
-    const border = status === "expired" ? "2px dashed #9aa0a6" : `3px solid white`;
+    const border =
+      status === "expired" ? "2px dashed #9aa0a6" : `3px solid white`;
 
     const html = `
       <div style="
@@ -953,14 +977,16 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       {showNoiseForm && selectedPosition && (
         <div className={styles.noisePanel}>
           {!appConfig.backendEnabled && (
-            <div style={{ 
-              background: '#fbbf24', 
-              color: '#92400e', 
-              padding: '12px', 
-              borderRadius: '8px', 
-              marginBottom: '16px',
-              border: '1px solid #f59e0b'
-            }}>
+            <div
+              style={{
+                background: "#fbbf24",
+                color: "#92400e",
+                padding: "12px",
+                borderRadius: "8px",
+                marginBottom: "16px",
+                border: "1px solid #f59e0b",
+              }}
+            >
               ⚠️ Fitur analisis audio dinonaktifkan sementara
             </div>
           )}
@@ -1012,10 +1038,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
               className={styles.submitButton}
               disabled={isUploading || !audioFile || !appConfig.backendEnabled}
             >
-              {!appConfig.backendEnabled 
-                ? "Fitur Dinonaktifkan" 
-                : isUploading 
-                ? "Menganalisis..." 
+              {!appConfig.backendEnabled
+                ? "Fitur Dinonaktifkan"
+                : isUploading
+                ? "Menganalisis..."
                 : "Upload & Analisis"}
             </button>
           </div>
@@ -1127,6 +1153,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           const style = getCircleStyleByStatus(status, area.color, area.opacity);
           const tooltipText = getStatusTooltip(status);
           const isCovered = isLocationCoveredByAnyCluster(location);
+          // Jika lokasi sudah tergabung dalam cluster, jangan render lingkaran individual
+          if (isCovered) return null;
           return (
             <Circle
               key={location.id}
@@ -1139,17 +1167,15 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                   <span style={{ fontSize: 12 }}>{tooltipText}</span>
                 </Tooltip>
               )}
-              {/* Ketika lokasi termasuk dalam cluster, sembunyikan popup single-report namun tetap tampilkan lingkaran berwarna */}
-              {!isCovered && (
-                <Popup>
-                  <MapPopup
-                    location={location}
-                    onDelete={handleDeleteNoiseLocation}
-                    onReanalyze={handleStartReanalysis}
-                    currentUserId={localStorage.getItem("userId")}
-                  />
-                </Popup>
-              )}
+              {/* Popup single-report tetap untuk lokasi non-cluster */}
+              <Popup>
+                <MapPopup
+                  location={location}
+                  onDelete={handleDeleteNoiseLocation}
+                  onReanalyze={handleStartReanalysis}
+                  currentUserId={localStorage.getItem("userId")}
+                />
+              </Popup>
             </Circle>
           );
         })}
@@ -1243,44 +1269,82 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
         {/* NEW: Cluster markers layer */}
         {noiseClusters
-        .filter((cluster) => (cluster.reportCount ?? 0) > 1)
-        .map((cluster) => {
-          const status = (cluster.areaStatus as any) || computeNoiseAreaStatus(
-            cluster.firstCreatedAt || new Date(),
-            cluster.maxExpiresAt || undefined
-          );
-          const icon = getClusterIcon(cluster);
-          const [lat, lon] = cluster.center;
-          return (
-            <Marker key={`cluster-${cluster.id}`} position={[lat, lon]} icon={icon}>
-              <Popup>
-                <div style={{ minWidth: 220 }}>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>📊 Cluster Kebisingan</div>
-                  <div style={{ fontSize: 13, lineHeight: 1.4 }}>
-                    <div><strong>Status:</strong> {String(status)}</div>
-                    <div><strong>Jumlah Laporan:</strong> {cluster.reportCount}</div>
-                    {typeof cluster.noiseLevelAvg === 'number' && (
-                      <div><strong>Rata-rata:</strong> {formatNoiseLevel(cluster.noiseLevelAvg)}</div>
-                    )}
-                    {cluster.finalCategory && (
-                      <div><strong>Kategori Dominan:</strong> {cluster.finalCategory}</div>
-                    )}
-                    {Array.isArray(cluster.noiseSources) && cluster.noiseSources.length > 0 && (
-                      <div>
-                        <strong>Sumber:</strong> {cluster.noiseSources.slice(0, 3).join(", ")}
-                        {cluster.noiseSources.length > 3 ? ", ..." : ""}
+          .filter((cluster) => (cluster.reportCount ?? 0) > 1)
+          .map((cluster) => {
+            const status =
+              (cluster.areaStatus as any) ||
+              computeNoiseAreaStatus(
+                cluster.firstCreatedAt || new Date(),
+                cluster.maxExpiresAt || undefined
+              );
+            const avg = typeof cluster.noiseLevelAvg === "number" ? cluster.noiseLevelAvg : 50;
+            const radius = getNoiseRadius(avg);
+            const baseColor = getNoiseColor(avg);
+            const baseOpacity = getNoiseOpacity(avg);
+            const style = getCircleStyleByStatus(status, baseColor, baseOpacity);
+            const [lat, lon] = cluster.center;
+            const icon = getClusterIcon(cluster);
+            return (
+              <React.Fragment key={`cluster-wrap-${cluster.id}`}>
+                <Circle
+                  key={`cluster-area-${cluster.id}`}
+                  center={[lat, lon]}
+                  radius={radius}
+                  pathOptions={style}
+                >
+                  <Tooltip direction="top" offset={[0, -8]} opacity={1} permanent={false}>
+                    <span style={{ fontSize: 12 }}>Cakupan Cluster</span>
+                  </Tooltip>
+                </Circle>
+                <Marker
+                  key={`cluster-${cluster.id}`}
+                  position={[lat, lon]}
+                  icon={icon}
+                >
+                  <Popup>
+                    <div style={{ minWidth: 220 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                        📊 Cluster Kebisingan
                       </div>
-                    )}
-                    <div><strong>Periode:</strong> {formatDateTime(cluster.firstCreatedAt)} → {formatDateTime(cluster.lastCreatedAt)}</div>
-                    {cluster.addedByUsernames?.length > 0 && (
-                      <div><strong>Kontributor:</strong> {cluster.addedByUsernames.slice(0,3).join(', ')}{cluster.addedByUsernames.length>3?", ...":""}</div>
-                    )}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
+                      <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                        <div>
+                          <strong>Status:</strong> {String(status)}
+                        </div>
+                        <div>
+                          <strong>Jumlah Laporan:</strong> {cluster.reportCount}
+                        </div>
+                        {typeof cluster.noiseLevelAvg === "number" && (
+                          <div>
+                            <strong>Rata-rata:</strong> {formatNoiseLevel(cluster.noiseLevelAvg)}
+                          </div>
+                        )}
+                        {cluster.finalCategory && (
+                          <div>
+                            <strong>Kategori Dominan:</strong> {cluster.finalCategory}
+                          </div>
+                        )}
+                        {Array.isArray(cluster.noiseSources) && cluster.noiseSources.length > 0 && (
+                          <div>
+                            <strong>Sumber:</strong> {cluster.noiseSources.slice(0, 3).join(", ")}
+                            {cluster.noiseSources.length > 3 ? ", ..." : ""}
+                          </div>
+                        )}
+                        <div>
+                          <strong>Periode:</strong> {formatDateTime(cluster.firstCreatedAt)} → {formatDateTime(cluster.lastCreatedAt)}
+                        </div>
+                        {cluster.addedByUsernames?.length > 0 && (
+                          <div>
+                            <strong>Kontributor:</strong> {cluster.addedByUsernames.slice(0, 3).join(", ")}
+                            {cluster.addedByUsernames.length > 3 ? ", ..." : ""}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              </React.Fragment>
+            );
+          })}
       </MapContainer>
       <PopupComponent />
 
