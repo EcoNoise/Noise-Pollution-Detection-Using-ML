@@ -140,6 +140,9 @@ export const apiService = {
       // Import audio classification service
       const { audioClassificationService } = await import("./audioClassificationService");
 
+      // Pastikan model sudah termuat sebelum melakukan prediksi
+      await audioClassificationService.loadModels();
+
       // Convert file to blob and make prediction
       const audioBlob = new Blob([file], { type: file.type });
       const prediction = await audioClassificationService.predictFromAudio(audioBlob);
