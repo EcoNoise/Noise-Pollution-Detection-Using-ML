@@ -606,6 +606,81 @@ class MapService {
     }
   }
 
+  async removeUserReportsInCluster(cluster: NoiseCluster): Promise<number> {
+    try {
+      if (!appConfig.backendEnabled) {
+        // Fallback lokal tidak didukung untuk operasi cluster mass-delete
+        throw new Error('Backend dinonaktifkan, operasi hapus cluster tidak tersedia');
+      }
+
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData?.user?.id || null;
+      if (!currentUserId) throw new Error('User not authenticated');
+
+      // 1) Coba ambil laporan berdasarkan cluster_id (jika kolom ini dipopulasi)
+      const ids: string[] = [];
+      const { data: byClusterId, error: byClusterErr } = await supabase
+        .from('noise_areas')
+        .select('id')
+        .eq('user_id', currentUserId)
+        .eq('cluster_id', cluster.id);
+      if (!byClusterErr && Array.isArray(byClusterId)) {
+        for (const row of byClusterId) if (row?.id) ids.push(row.id);
+      }
+
+      // 2) Tambahan pendekatan heuristik dengan bounding box + rentang waktu
+      const centerLat = cluster.center?.[0];
+      const centerLon = cluster.center?.[1];
+      // ~30-50 meter dalam derajat (lat ~ 1 deg ~ 111km)
+      const deltaDeg = 0.0005; // ~55m
+      const minLat = centerLat - deltaDeg;
+      const maxLat = centerLat + deltaDeg;
+      const minLon = centerLon - deltaDeg;
+      const maxLon = centerLon + deltaDeg;
+      const startTime = cluster.firstCreatedAt
+        ? new Date(cluster.firstCreatedAt.getTime() - 60 * 60 * 1000)
+        : new Date(Date.now() - 6 * 60 * 60 * 1000);
+      const endTime = cluster.lastCreatedAt
+        ? new Date(cluster.lastCreatedAt.getTime() + 60 * 60 * 1000)
+        : new Date(Date.now() + 6 * 60 * 60 * 1000);
+
+      const { data: byBBox, error: byBBoxErr } = await supabase
+        .from('noise_areas')
+        .select('id')
+        .eq('user_id', currentUserId)
+        .gte('latitude', minLat)
+        .lte('latitude', maxLat)
+        .gte('longitude', minLon)
+        .lte('longitude', maxLon)
+        .gte('created_at', startTime.toISOString())
+        .lte('created_at', endTime.toISOString());
+
+      if (!byBBoxErr && Array.isArray(byBBox)) {
+        for (const row of byBBox) if (row?.id) ids.push(row.id);
+      }
+
+      // Hilangkan duplikat
+      const uniqueIds = Array.from(new Set(ids));
+      if (uniqueIds.length === 0) {
+        return 0;
+      }
+
+      const { error: delErr } = await supabase
+        .from('noise_areas')
+        .delete()
+        .in('id', uniqueIds);
+      if (delErr) {
+        logger.error('Failed to delete user reports in cluster:', delErr);
+        return 0;
+      }
+
+      return uniqueIds.length;
+    } catch (err) {
+      logger.error('Error removing user reports in cluster:', err);
+      return 0;
+    }
+  }
+
   async exportNoiseData(): Promise<string | null> {
     try {
       const userId = getCurrentUserId();

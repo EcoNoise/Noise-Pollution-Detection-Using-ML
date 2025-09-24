@@ -38,6 +38,7 @@ import AreaFilter, { AreaFilters } from "./AreaFilter";
 import MapTutorial from "./MapTutorial";
 import styles from "../styles/MapComponent.module.css";
 import { useAuth } from "../contexts/AuthContext";
+import { getUserProfile } from "../services/profileService";
 
 import "leaflet/dist/leaflet.css";
 import { appConfig, logger } from "../config/appConfig";
@@ -182,6 +183,42 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [noiseClusters, setNoiseClusters] = useState<NoiseCluster[]>([]);
   const [clustersLoading, setClustersLoading] = useState<boolean>(false);
   const [clustersError, setClustersError] = useState<string>("");
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+
+  // NEW: Cek apakah user saat ini berkontribusi pada cluster (berdasarkan username)
+  const hasCurrentUserContribution = useCallback(
+    (cluster: NoiseCluster) => {
+      const uname = currentUsername || localStorage.getItem("username");
+      if (!uname) return false;
+      return (
+        Array.isArray(cluster.addedByUsernames) &&
+        cluster.addedByUsernames.includes(uname)
+      );
+    },
+    [currentUsername]
+  );
+
+  // NEW: Muat username saat user login (fallback ke localStorage)
+  useEffect(() => {
+    const loadUsername = async () => {
+      try {
+        if (appConfig.backendEnabled && isAuthenticated) {
+          const profile = await getUserProfile();
+          if (profile?.username) {
+            setCurrentUsername(profile.username);
+            return;
+          }
+        }
+        const local = localStorage.getItem("username");
+        if (local) setCurrentUsername(local);
+      } catch (e) {
+        const local = localStorage.getItem("username");
+        if (local) setCurrentUsername(local);
+        logger.warn?.("Gagal memuat username", e);
+      }
+    };
+    loadUsername();
+  }, [isAuthenticated]);
 
   // Hanya sembunyikan popup single-report jika lokasinya tergabung pada cluster (>=2 laporan)
   // Spatial threshold diselaraskan dengan fungsi SQL: ST_DWithin(..., 30m) + toleransi kecil
@@ -727,6 +764,48 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     );
   };
 
+  // NEW: Hapus seluruh laporan milik saya di cluster ini saja
+  const handleDeleteClusterReports = async (cluster: NoiseCluster) => {
+    if (!appConfig.backendEnabled) {
+      showError("Backend nonaktif", "Fitur hapus laporan dalam cluster hanya tersedia saat backend aktif.");
+      return;
+    }
+    if (!isAuthenticated) {
+      showLogin(
+        "Login Diperlukan",
+        "Anda harus login untuk menghapus laporan Anda dalam cluster.",
+        () => navigate("/login")
+      );
+      return;
+    }
+
+    showConfirm(
+      "Hapus Laporan Saya di Cluster",
+      "Tindakan ini akan menghapus semua laporan yang Anda buat di cluster ini saja dan tidak menyentuh laporan pengguna lain. Lanjutkan?",
+      async () => {
+        try {
+          setLoading(true);
+          const deletedCount = await mapService.removeUserReportsInCluster(cluster);
+          if (deletedCount > 0) {
+            await loadNoiseLocations();
+            await loadNoiseClusters();
+            showSuccess("Berhasil", `Terhapus ${deletedCount} laporan milik Anda dari cluster.`);
+          } else {
+            showError("Tidak ada yang dihapus", "Tidak ditemukan laporan Anda di cluster ini atau terjadi kegagalan.");
+          }
+        } catch (error) {
+          logger.error("Error deleting user reports in cluster:", error);
+          showError("Gagal", "Gagal menghapus laporan Anda dalam cluster.");
+        } finally {
+          setLoading(false);
+        }
+      },
+      undefined,
+      "Ya, Hapus",
+      "Batal"
+    );
+  };
+
   // ENHANCED: Improved search result click handler
   const handleSearchResultClick = (result: SearchResult) => {
     // PERBAIKAN: Set marker untuk lokasi pencarian dengan null check untuk address
@@ -1149,8 +1228,14 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         {/* Noise Areas as Circles */}
         {filteredNoiseLocations.map((location) => {
           const area = generateNoiseArea(location);
-          const status = location.status || computeNoiseAreaStatus(location.timestamp, location.expires_at);
-          const style = getCircleStyleByStatus(status, area.color, area.opacity);
+          const status =
+            location.status ||
+            computeNoiseAreaStatus(location.timestamp, location.expires_at);
+          const style = getCircleStyleByStatus(
+            status,
+            area.color,
+            area.opacity
+          );
           const tooltipText = getStatusTooltip(status);
           const isCovered = isLocationCoveredByAnyCluster(location);
           // Jika lokasi sudah tergabung dalam cluster, jangan render lingkaran individual
@@ -1163,7 +1248,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
               pathOptions={style}
             >
               {tooltipText && (
-                <Tooltip direction="top" offset={[0, -8]} opacity={1} permanent={false}>
+                <Tooltip
+                  direction="top"
+                  offset={[0, -8]}
+                  opacity={1}
+                  permanent={false}
+                >
                   <span style={{ fontSize: 12 }}>{tooltipText}</span>
                 </Tooltip>
               )}
@@ -1277,11 +1367,18 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                 cluster.firstCreatedAt || new Date(),
                 cluster.maxExpiresAt || undefined
               );
-            const avg = typeof cluster.noiseLevelAvg === "number" ? cluster.noiseLevelAvg : 50;
+            const avg =
+              typeof cluster.noiseLevelAvg === "number"
+                ? cluster.noiseLevelAvg
+                : 50;
             const radius = getNoiseRadius(avg);
             const baseColor = getNoiseColor(avg);
             const baseOpacity = getNoiseOpacity(avg);
-            const style = getCircleStyleByStatus(status, baseColor, baseOpacity);
+            const style = getCircleStyleByStatus(
+              status,
+              baseColor,
+              baseOpacity
+            );
             const [lat, lon] = cluster.center;
             const icon = getClusterIcon(cluster);
             return (
@@ -1306,27 +1403,55 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                         </div>
                         {typeof cluster.noiseLevelAvg === "number" && (
                           <div>
-                            <strong>Rata-rata:</strong> {formatNoiseLevel(cluster.noiseLevelAvg)}
+                            <strong>Rata-rata:</strong>{" "}
+                            {formatNoiseLevel(cluster.noiseLevelAvg)}
                           </div>
                         )}
                         {cluster.finalCategory && (
                           <div>
-                            <strong>Kategori Dominan:</strong> {cluster.finalCategory}
+                            <strong>Kategori Dominan:</strong>{" "}
+                            {cluster.finalCategory}
                           </div>
                         )}
-                        {Array.isArray(cluster.noiseSources) && cluster.noiseSources.length > 0 && (
-                          <div>
-                            <strong>Sumber:</strong> {cluster.noiseSources.slice(0, 3).join(", ")}
-                            {cluster.noiseSources.length > 3 ? ", ..." : ""}
-                          </div>
-                        )}
+                        {Array.isArray(cluster.noiseSources) &&
+                          cluster.noiseSources.length > 0 && (
+                            <div>
+                              <strong>Sumber:</strong>{" "}
+                              {cluster.noiseSources.slice(0, 3).join(", ")}
+                              {cluster.noiseSources.length > 3 ? ", ..." : ""}
+                            </div>
+                          )}
                         <div>
-                          <strong>Periode:</strong> {formatDateTime(cluster.firstCreatedAt)} → {formatDateTime(cluster.lastCreatedAt)}
+                          <strong>Periode:</strong>{" "}
+                          {formatDateTime(cluster.firstCreatedAt)} →{" "}
+                          {formatDateTime(cluster.lastCreatedAt)}
                         </div>
                         {cluster.addedByUsernames?.length > 0 && (
                           <div>
-                            <strong>Kontributor:</strong> {cluster.addedByUsernames.slice(0, 3).join(", ")}
+                            <strong>Kontributor:</strong>{" "}
+                            {cluster.addedByUsernames.slice(0, 3).join(", ")}
                             {cluster.addedByUsernames.length > 3 ? ", ..." : ""}
+                          </div>
+                        )}
+                        {isAuthenticated && hasCurrentUserContribution(cluster) && (
+                          <div style={{ marginTop: 10 }}>
+                            <button
+                              onClick={() => handleDeleteClusterReports(cluster)}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                padding: "6px 10px",
+                                borderRadius: 6,
+                                border: "1px solid #e11d48",
+                                background: "#fee2e2",
+                                color: "#b91c1c",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                              }}
+                            >
+                              🗑️ Hapus Laporan Saya
+                            </button>
                           </div>
                         )}
                       </div>
@@ -1352,27 +1477,55 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                         </div>
                         {typeof cluster.noiseLevelAvg === "number" && (
                           <div>
-                            <strong>Rata-rata:</strong> {formatNoiseLevel(cluster.noiseLevelAvg)}
+                            <strong>Rata-rata:</strong>{" "}
+                            {formatNoiseLevel(cluster.noiseLevelAvg)}
                           </div>
                         )}
                         {cluster.finalCategory && (
                           <div>
-                            <strong>Kategori Dominan:</strong> {cluster.finalCategory}
+                            <strong>Kategori Dominan:</strong>{" "}
+                            {cluster.finalCategory}
                           </div>
                         )}
-                        {Array.isArray(cluster.noiseSources) && cluster.noiseSources.length > 0 && (
-                          <div>
-                            <strong>Sumber:</strong> {cluster.noiseSources.slice(0, 3).join(", ")}
-                            {cluster.noiseSources.length > 3 ? ", ..." : ""}
-                          </div>
-                        )}
+                        {Array.isArray(cluster.noiseSources) &&
+                          cluster.noiseSources.length > 0 && (
+                            <div>
+                              <strong>Sumber:</strong>{" "}
+                              {cluster.noiseSources.slice(0, 3).join(", ")}
+                              {cluster.noiseSources.length > 3 ? ", ..." : ""}
+                            </div>
+                          )}
                         <div>
-                          <strong>Periode:</strong> {formatDateTime(cluster.firstCreatedAt)} → {formatDateTime(cluster.lastCreatedAt)}
+                          <strong>Periode:</strong>{" "}
+                          {formatDateTime(cluster.firstCreatedAt)} →{" "}
+                          {formatDateTime(cluster.lastCreatedAt)}
                         </div>
                         {cluster.addedByUsernames?.length > 0 && (
                           <div>
-                            <strong>Kontributor:</strong> {cluster.addedByUsernames.slice(0, 3).join(", ")}
+                            <strong>Kontributor:</strong>{" "}
+                            {cluster.addedByUsernames.slice(0, 3).join(", ")}
                             {cluster.addedByUsernames.length > 3 ? ", ..." : ""}
+                          </div>
+                        )}
+                        {isAuthenticated && hasCurrentUserContribution(cluster) && (
+                          <div style={{ marginTop: 10 }}>
+                            <button
+                              onClick={() => handleDeleteClusterReports(cluster)}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                padding: "6px 10px",
+                                borderRadius: 6,
+                                border: "1px solid #e11d48",
+                                background: "#fee2e2",
+                                color: "#b91c1c",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                              }}
+                            >
+                              🗑️ Hapus Laporan Saya
+                            </button>
                           </div>
                         )}
                       </div>
