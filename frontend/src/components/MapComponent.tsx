@@ -42,6 +42,7 @@ import { getUserProfile } from "../services/profileService";
 
 import "leaflet/dist/leaflet.css";
 import { appConfig, logger } from "../config/appConfig";
+import { deriveFinalCategory } from "../services/map.transformers";
 
 // PERBAIKAN: Fix untuk ikon default Leaflet yang sering rusak di React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -943,9 +944,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     return null;
   };
   const filteredNoiseLocations = useMemo(() => {
-    const { noiseLevel, source, healthImpact } = activeFilters;
+    const { noiseLevel, category, healthImpact } = activeFilters;
 
-    if (!noiseLevel?.length && !source?.length && !healthImpact?.length) {
+    if (!noiseLevel?.length && !category?.length && !healthImpact?.length) {
       return noiseLocations;
     }
 
@@ -964,10 +965,16 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       );
       const noiseLevelMatch =
         !noiseLevel?.length || noiseLevel.includes(locationNoiseLevelCategory);
-      const sourceMatch = !source?.length || source.includes(location.source);
+
+      // Tentukan kategori final untuk lokasi
+      const locationCategory =
+        location.final_category || deriveFinalCategory(location.source);
+      const categoryMatch =
+        !category?.length || category.includes(locationCategory);
+
       const healthImpactMatch =
         !healthImpact?.length || healthImpact.includes(location.healthImpact);
-      return noiseLevelMatch && sourceMatch && healthImpactMatch;
+      return noiseLevelMatch && categoryMatch && healthImpactMatch;
     });
   }, [noiseLocations, activeFilters]);
 
