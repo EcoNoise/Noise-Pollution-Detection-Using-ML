@@ -943,7 +943,29 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     });
     return null;
   };
-  const filteredNoiseLocations = useMemo(() => {
+  const getClusterCategoryDisplay = (cluster: NoiseCluster): string => {
+  const rawFinal = (cluster.finalCategory || '').trim();
+  // Jika bukan Mixed atau kosong, tampilkan apa adanya
+  if (rawFinal && rawFinal.toLowerCase() !== 'mixed') return rawFinal;
+
+  // Derivasi kategori dari noiseSources (fallback ketika finalCategory = Mixed)
+  const sourceCats: string[] = Array.isArray(cluster.noiseSources)
+    ? Array.from(new Set(cluster.noiseSources.map((s) => deriveFinalCategory(s))))
+    : [];
+
+  // Terapkan filter kategori jika ada
+  const selectedCats = activeFilters.category?.length
+    ? sourceCats.filter((c) => activeFilters.category!.includes(c))
+    : sourceCats;
+
+  if (selectedCats.length === 1) return selectedCats[0];
+  if (selectedCats.length > 1) return 'Mixed';
+
+  // Fallback
+  return rawFinal || (sourceCats.length === 1 ? sourceCats[0] : 'Mixed');
+};
+
+const filteredNoiseLocations = useMemo(() => {
     const { noiseLevel, category, healthImpact } = activeFilters;
 
     if (!noiseLevel?.length && !category?.length && !healthImpact?.length) {
@@ -1417,7 +1439,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                         {cluster.finalCategory && (
                           <div>
                             <strong>Kategori Dominan:</strong>{" "}
-                            {cluster.finalCategory}
+                            {getClusterCategoryDisplay(cluster)}
                           </div>
                         )}
                         {Array.isArray(cluster.noiseSources) &&
@@ -1491,7 +1513,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                         {cluster.finalCategory && (
                           <div>
                             <strong>Kategori Dominan:</strong>{" "}
-                            {cluster.finalCategory}
+                            {getClusterCategoryDisplay(cluster)}
                           </div>
                         )}
                         {Array.isArray(cluster.noiseSources) &&
