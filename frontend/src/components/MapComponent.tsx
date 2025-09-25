@@ -43,6 +43,7 @@ import { getUserProfile } from "../services/profileService";
 import "leaflet/dist/leaflet.css";
 import { appConfig, logger } from "../config/appConfig";
 import { deriveFinalCategory } from "../services/map.transformers";
+import { translateNoiseSource } from "../utils/translationUtils";
 
 // PERBAIKAN: Fix untuk ikon default Leaflet yang sering rusak di React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -982,6 +983,28 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     return rawFinal || "Mixed";
   };
 
+  // BARU: Tampilkan label sumber yang menyesuaikan filter kategori aktif
+  const getClusterSourcesDisplay = (cluster: NoiseCluster): string => {
+    // Kumpulkan sumber unik dari cluster
+    const sources: string[] = Array.isArray(cluster.noiseSources)
+      ? Array.from(new Set(cluster.noiseSources))
+      : [];
+
+    if (sources.length === 0) return "—";
+
+    // Jika ada filter kategori aktif, saring sumber berdasarkan kategori yang diturunkan
+    const activeCats = activeFilters.category || [];
+    const filteredSources = activeCats.length
+      ? sources.filter((s) => activeCats.includes(deriveFinalCategory(s)))
+      : sources;
+
+    // Jika setelah filter tidak ada yang tersisa, tampilkan semua sumber agar user tahu asalnya
+    const displaySources = filteredSources.length ? filteredSources : sources;
+
+    // Tampilkan dengan terjemahan yang user-friendly
+    return displaySources.map((s) => translateNoiseSource(s)).join(", ");
+  };
+
 const filteredNoiseLocations = useMemo(() => {
     const { noiseLevel, category, healthImpact } = activeFilters;
 
@@ -1482,8 +1505,7 @@ const filteredNoiseLocations = useMemo(() => {
                             cluster.noiseSources.length > 0 && (
                               <div>
                                 <strong>Sumber:</strong>{" "}
-                                {cluster.noiseSources.slice(0, 3).join(", ")}
-                                {cluster.noiseSources.length > 3 ? ", ..." : ""}
+                                {getClusterSourcesDisplay(cluster)}
                               </div>
                             )}
                           <div>
