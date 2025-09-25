@@ -741,7 +741,10 @@ class MapService {
         noiseLevelAvg: row.noise_level_avg ?? null,
         areaStatus: row.area_status ?? "Aman",
         finalCategory: row.final_category ?? null,
-        noiseSources: row.noise_sources ?? null,
+        // Convert CSV/text noise_sources from RPC into string[] for frontend usage
+        noiseSources: typeof row.noise_sources === "string"
+          ? Array.from(new Set(row.noise_sources.split(",").map((s: string) => s.trim()).filter(Boolean)))
+          : (Array.isArray(row.noise_sources) ? row.noise_sources : null),
         firstCreatedAt: row.first_created_at ? new Date(row.first_created_at) : null,
         lastCreatedAt: row.last_created_at ? new Date(row.last_created_at) : null,
         maxExpiresAt: row.max_expires_at ? new Date(row.max_expires_at) : null,

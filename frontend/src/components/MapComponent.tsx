@@ -955,26 +955,32 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     return null;
   };
   const getClusterCategoryDisplay = (cluster: NoiseCluster): string => {
-  const rawFinal = (cluster.finalCategory || '').trim();
-  // Jika bukan Mixed atau kosong, tampilkan apa adanya
-  if (rawFinal && rawFinal.toLowerCase() !== 'mixed') return rawFinal;
-
-  // Derivasi kategori dari noiseSources (fallback ketika finalCategory = Mixed)
-  const sourceCats: string[] = Array.isArray(cluster.noiseSources)
-    ? Array.from(new Set(cluster.noiseSources.map((s) => deriveFinalCategory(s))))
-    : [];
-
-  // Terapkan filter kategori jika ada
-  const selectedCats = activeFilters.category?.length
-    ? sourceCats.filter((c) => activeFilters.category!.includes(c))
-    : sourceCats;
-
-  if (selectedCats.length === 1) return selectedCats[0];
-  if (selectedCats.length > 1) return 'Mixed';
-
-  // Fallback
-  return rawFinal || (sourceCats.length === 1 ? sourceCats[0] : 'Mixed');
-};
+    const rawFinal = (cluster.finalCategory || "").trim();
+    // Jika finalCategory bukan Mixed, tampilkan apa adanya
+    if (rawFinal && rawFinal.toLowerCase() !== "mixed") return rawFinal;
+  
+    // Ketika Mixed atau kosong: turunkan daftar kategori dari noiseSources
+    const sourceCats: string[] = Array.isArray(cluster.noiseSources)
+      ? Array.from(new Set(cluster.noiseSources.map((s) => deriveFinalCategory(s))))
+      : [];
+  
+    // Terapkan filter kategori (jika user memilih)
+    const selectedCats = activeFilters.category?.length
+      ? sourceCats.filter((c) => activeFilters.category!.includes(c))
+      : sourceCats;
+  
+    // Jika hasil filter mengerucut ke satu kategori, tampilkan kategori itu saja
+    if (selectedCats.length === 1) return selectedCats[0];
+  
+    // Jika hasil filter memuat beberapa kategori, tampilkan sebagai daftar (bukan sekadar "Mixed")
+    if (selectedCats.length > 1) return selectedCats.join(", ");
+  
+    // Jika filter menyingkirkan semua kategori, tampilkan semua kategori yang ada (jika ada)
+    if (sourceCats.length > 0) return sourceCats.join(", ");
+  
+    // Fallback terakhir
+    return rawFinal || "Mixed";
+  };
 
 const filteredNoiseLocations = useMemo(() => {
     const { noiseLevel, category, healthImpact } = activeFilters;
@@ -1467,10 +1473,9 @@ const filteredNoiseLocations = useMemo(() => {
                               {formatNoiseLevel(cluster.noiseLevelAvg)}
                             </div>
                           )}
-                          {cluster.finalCategory && (
+                          {(cluster.finalCategory || (Array.isArray(cluster.noiseSources) && cluster.noiseSources.length > 0)) && (
                             <div>
-                              <strong>Kategori Dominan:</strong>{" "}
-                              {getClusterCategoryDisplay(cluster)}
+                              <strong>Kategori Dominan:</strong> {getClusterCategoryDisplay(cluster)}
                             </div>
                           )}
                           {Array.isArray(cluster.noiseSources) &&
