@@ -297,6 +297,17 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Tutup popup ketika masuk mode tambah area untuk mencegah konflik klik
+  useEffect(() => {
+    if (isAddingNoise) {
+      try {
+        mapRef.current?.closePopup();
+      } catch (e) {
+        // no-op
+      }
+    }
+  }, [isAddingNoise]);
+
   // Utility: process shared noise data passed from other flows
   const processSharedData = (data: {
     analysis: any;
@@ -1275,8 +1286,9 @@ const filteredNoiseLocations = useMemo(() => {
               center={area.center}
               radius={area.radius}
               pathOptions={style}
+              interactive={!isAddingNoise}
             >
-              {tooltipText && (
+              {!isAddingNoise && tooltipText && (
                 <Tooltip
                   direction="top"
                   offset={[0, -8]}
@@ -1287,34 +1299,38 @@ const filteredNoiseLocations = useMemo(() => {
                 </Tooltip>
               )}
               {/* Popup single-report tetap untuk lokasi non-cluster */}
-              <Popup>
-                <MapPopup
-                  location={location}
-                  onDelete={handleDeleteNoiseLocation}
-                  onReanalyze={handleStartReanalysis}
-                  currentUserId={localStorage.getItem("userId")}
-                />
-              </Popup>
+              {!isAddingNoise && (
+                <Popup>
+                  <MapPopup
+                    location={location}
+                    onDelete={handleDeleteNoiseLocation}
+                    onReanalyze={handleStartReanalysis}
+                    currentUserId={localStorage.getItem("userId")}
+                  />
+                </Popup>
+              )}
             </Circle>
           );
         })}
 
         {/* BARU: User Location Marker */}
         {userLocation && (
-          <Marker position={userLocation} icon={userLocationIcon}>
-            <Popup>
-              <div style={{ textAlign: "center", padding: "8px" }}>
-                <strong>📍 Lokasi Anda</strong>
-                <br />
-                <small>
-                  {userLocation[0].toFixed(6)}, {userLocation[1].toFixed(6)}
-                </small>
-                <br />
-                <small style={{ color: "#666" }}>
-                  {isTrackingUser ? "🔄 Tracking aktif" : "📌 Lokasi tetap"}
-                </small>
-              </div>
-            </Popup>
+          <Marker position={userLocation} icon={userLocationIcon} interactive={!isAddingNoise}>
+            {!isAddingNoise && (
+              <Popup>
+                <div style={{ textAlign: "center", padding: "8px" }}>
+                  <strong>📍 Lokasi Anda</strong>
+                  <br />
+                  <small>
+                    {userLocation[0].toFixed(6)}, {userLocation[1].toFixed(6)}
+                  </small>
+                  <br />
+                  <small style={{ color: "#666" }}>
+                    {isTrackingUser ? "🔄 Tracking aktif" : "📌 Lokasi tetap"}
+                  </small>
+                </div>
+              </Popup>
+            )}
           </Marker>
         )}
 
@@ -1323,50 +1339,53 @@ const filteredNoiseLocations = useMemo(() => {
           <Marker
             position={searchLocationMarker.position}
             icon={searchLocationIcon}
+            interactive={!isAddingNoise}
           >
-            <Popup>
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "10px",
-                  minWidth: "200px",
-                }}
-              >
-                <strong style={{ fontSize: "16px", color: "#ff4444" }}>
-                  📍 {searchLocationMarker.name}
-                </strong>
-                <br />
-                <div
-                  style={{ margin: "8px 0", color: "#666", fontSize: "14px" }}
-                >
-                  {searchLocationMarker.address}
-                </div>
+            {!isAddingNoise && (
+              <Popup>
                 <div
                   style={{
-                    fontSize: "12px",
-                    color: "#999",
-                    marginBottom: "10px",
+                    textAlign: "center",
+                    padding: "10px",
+                    minWidth: "200px",
                   }}
                 >
-                  {searchLocationMarker.position[0].toFixed(6)},{" "}
-                  {searchLocationMarker.position[1].toFixed(6)}
+                  <strong style={{ fontSize: "16px", color: "#ff4444" }}>
+                    📍 {searchLocationMarker.name}
+                  </strong>
+                  <br />
+                  <div
+                    style={{ margin: "8px 0", color: "#666", fontSize: "14px" }}
+                  >
+                    {searchLocationMarker.address}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#999",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    {searchLocationMarker.position[0].toFixed(6)},{" "}
+                    {searchLocationMarker.position[1].toFixed(6)}
+                  </div>
+                  <button
+                    onClick={handleClearSearchMarker}
+                    style={{
+                      background: "#ff4444",
+                      color: "white",
+                      border: "none",
+                      padding: "6px 12px",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                    }}
+                  >
+                    Tutup Marker
+                  </button>
                 </div>
-                <button
-                  onClick={handleClearSearchMarker}
-                  style={{
-                    background: "#ff4444",
-                    color: "white",
-                    border: "none",
-                    padding: "6px 12px",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                  }}
-                >
-                  Tutup Marker
-                </button>
-              </div>
-            </Popup>
+              </Popup>
+            )}
           </Marker>
         )}
 
@@ -1379,10 +1398,12 @@ const filteredNoiseLocations = useMemo(() => {
             position={searchMarker}
             icon={L.divIcon({
               className: "search-marker",
-              html: '<div style="background: #ff4444; border: 2px solid white; border-radius: 50%; width: 20px; height: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+              html:
+                '<div style="background: #ff4444; border: 2px solid white; border-radius: 50%; width: 20px; height: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
               iconSize: [20, 20],
               iconAnchor: [10, 10],
             })}
+            interactive={!isAddingNoise}
           />
         )}
 
@@ -1417,149 +1438,134 @@ const filteredNoiseLocations = useMemo(() => {
                   center={[lat, lon]}
                   radius={radius}
                   pathOptions={style}
+                  interactive={!isAddingNoise}
                 >
-                  <Popup>
-                    <div style={{ minWidth: 220 }}>
-                      <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                        📊 Cluster Kebisingan
-                      </div>
-                      <div style={{ fontSize: 13, lineHeight: 1.4 }}>
-                        <div>
-                          <strong>Status:</strong> {String(status)}
+                  {!isAddingNoise && (
+                    <Popup>
+                      <div style={{ minWidth: 220 }}>
+                        <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                          📊 Cluster Kebisingan
                         </div>
-                        <div>
-                          <strong>Jumlah Laporan:</strong> {cluster.reportCount}
-                        </div>
-                        {typeof cluster.noiseLevelAvg === "number" && (
+                        <div style={{ fontSize: 13, lineHeight: 1.4 }}>
                           <div>
-                            <strong>Rata-rata:</strong>{" "}
-                            {formatNoiseLevel(cluster.noiseLevelAvg)}
+                            <strong>Status:</strong> {String(status)}
                           </div>
-                        )}
-                        {cluster.finalCategory && (
                           <div>
-                            <strong>Kategori Dominan:</strong>{" "}
-                            {getClusterCategoryDisplay(cluster)}
+                            <strong>Jumlah Laporan:</strong> {cluster.reportCount}
                           </div>
-                        )}
-                        {Array.isArray(cluster.noiseSources) &&
-                          cluster.noiseSources.length > 0 && (
+                          {typeof cluster.noiseLevelAvg === "number" && (
                             <div>
-                              <strong>Sumber:</strong>{" "}
-                              {cluster.noiseSources.slice(0, 3).join(", ")}
-                              {cluster.noiseSources.length > 3 ? ", ..." : ""}
+                              <strong>Rata-rata:</strong>{" "}
+                              {formatNoiseLevel(cluster.noiseLevelAvg)}
                             </div>
                           )}
-                        <div>
-                          <strong>Periode:</strong>{" "}
-                          {formatDateTime(cluster.firstCreatedAt)} →{" "}
-                          {formatDateTime(cluster.lastCreatedAt)}
-                        </div>
-                        {cluster.addedByUsernames?.length > 0 && (
+                          {cluster.finalCategory && (
+                            <div>
+                              <strong>Kategori Dominan:</strong>{" "}
+                              {getClusterCategoryDisplay(cluster)}
+                            </div>
+                          )}
+                          {Array.isArray(cluster.noiseSources) &&
+                            cluster.noiseSources.length > 0 && (
+                              <div>
+                                <strong>Sumber:</strong>{" "}
+                                {cluster.noiseSources.slice(0, 3).join(", ")}
+                                {cluster.noiseSources.length > 3 ? ", ..." : ""}
+                              </div>
+                            )}
                           <div>
-                            <strong>Kontributor:</strong>{" "}
-                            {cluster.addedByUsernames.slice(0, 3).join(", ")}
-                            {cluster.addedByUsernames.length > 3 ? ", ..." : ""}
+                            <strong>Periode:</strong>{" "}
+                            {formatDateTime(cluster.firstCreatedAt)} →{" "}
+                            {formatDateTime(cluster.lastCreatedAt)}
                           </div>
-                        )}
-                        {isAuthenticated && hasCurrentUserContribution(cluster) && (
-                          <div style={{ marginTop: 10 }}>
-                            <button
-                              onClick={() => handleDeleteClusterReports(cluster)}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                                padding: "6px 10px",
-                                borderRadius: 6,
-                                border: "1px solid #e11d48",
-                                background: "#fee2e2",
-                                color: "#b91c1c",
-                                cursor: "pointer",
-                                fontWeight: 600,
-                              }}
-                            >
-                              🗑️ Hapus Laporan Saya
-                            </button>
-                          </div>
-                        )}
+                          {cluster.addedByUsernames?.length > 0 && (
+                            <div>
+                              <strong>Kontributor:</strong>{" "}
+                              {cluster.addedByUsernames.slice(0, 3).join(", ")}
+                              {cluster.addedByUsernames.length > 3 ? ", ..." : ""}
+                            </div>
+                          )}
+                          {isAuthenticated && hasCurrentUserContribution(cluster) && (
+                            <div style={{ marginTop: 10 }}>
+                              <button
+                                onClick={() => handleDeleteClusterReports(cluster)}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  padding: "6px 10px",
+                                  borderRadius: 6,
+                                  border: "1px solid #e11d48",
+                                  background: "#fee2e2",
+                                  color: "#b91c1c",
+                                  cursor: "pointer",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                🗑️ Hapus Laporan Saya
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </Popup>
+                    </Popup>
+                  )}
                 </Circle>
                 <Marker
                   key={`cluster-${cluster.id}`}
                   position={[lat, lon]}
                   icon={icon}
+                  interactive={!isAddingNoise}
                 >
-                  <Popup>
-                    <div style={{ minWidth: 220 }}>
-                      <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                        📊 Cluster Kebisingan
-                      </div>
-                      <div style={{ fontSize: 13, lineHeight: 1.4 }}>
-                        <div>
-                          <strong>Status:</strong> {String(status)}
+                  {!isAddingNoise && (
+                    <Popup>
+                      <div style={{ minWidth: 220 }}>
+                        <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                          📊 Cluster Kebisingan
                         </div>
-                        <div>
-                          <strong>Jumlah Laporan:</strong> {cluster.reportCount}
-                        </div>
-                        {typeof cluster.noiseLevelAvg === "number" && (
+                        <div style={{ fontSize: 13, lineHeight: 1.4 }}>
                           <div>
-                            <strong>Rata-rata:</strong>{" "}
-                            {formatNoiseLevel(cluster.noiseLevelAvg)}
+                            <strong>Status:</strong> {String(status)}
                           </div>
-                        )}
-                        {cluster.finalCategory && (
                           <div>
-                            <strong>Kategori Dominan:</strong>{" "}
-                            {getClusterCategoryDisplay(cluster)}
+                            <strong>Jumlah Laporan:</strong> {cluster.reportCount}
                           </div>
-                        )}
-                        {Array.isArray(cluster.noiseSources) &&
-                          cluster.noiseSources.length > 0 && (
+                          {typeof cluster.noiseLevelAvg === "number" && (
                             <div>
-                              <strong>Sumber:</strong>{" "}
-                              {cluster.noiseSources.slice(0, 3).join(", ")}
-                              {cluster.noiseSources.length > 3 ? ", ..." : ""}
+                              <strong>Rata-rata:</strong>{" "}
+                              {formatNoiseLevel(cluster.noiseLevelAvg)}
                             </div>
                           )}
-                        <div>
-                          <strong>Periode:</strong>{" "}
-                          {formatDateTime(cluster.firstCreatedAt)} →{" "}
-                          {formatDateTime(cluster.lastCreatedAt)}
-                        </div>
-                        {cluster.addedByUsernames?.length > 0 && (
+                          {cluster.finalCategory && (
+                            <div>
+                              <strong>Kategori Dominan:</strong>{" "}
+                              {getClusterCategoryDisplay(cluster)}
+                            </div>
+                          )}
+                          {Array.isArray(cluster.noiseSources) &&
+                            cluster.noiseSources.length > 0 && (
+                              <div>
+                                <strong>Sumber:</strong>{" "}
+                                {cluster.noiseSources.slice(0, 3).join(", ")}
+                                {cluster.noiseSources.length > 3 ? ", ..." : ""}
+                              </div>
+                            )}
                           <div>
-                            <strong>Kontributor:</strong>{" "}
-                            {cluster.addedByUsernames.slice(0, 3).join(", ")}
-                            {cluster.addedByUsernames.length > 3 ? ", ..." : ""}
+                            <strong>Periode:</strong>{" "}
+                            {formatDateTime(cluster.firstCreatedAt)} →{" "}
+                            {formatDateTime(cluster.lastCreatedAt)}
                           </div>
-                        )}
-                        {isAuthenticated && hasCurrentUserContribution(cluster) && (
-                          <div style={{ marginTop: 10 }}>
-                            <button
-                              onClick={() => handleDeleteClusterReports(cluster)}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                                padding: "6px 10px",
-                                borderRadius: 6,
-                                border: "1px solid #e11d48",
-                                background: "#fee2e2",
-                                color: "#b91c1c",
-                                cursor: "pointer",
-                                fontWeight: 600,
-                              }}
-                            >
-                              🗑️ Hapus Laporan Saya
-                            </button>
-                          </div>
-                        )}
+                          {cluster.addedByUsernames?.length > 0 && (
+                            <div>
+                              <strong>Kontributor:</strong>{" "}
+                              {cluster.addedByUsernames.slice(0, 3).join(", ")}
+                              {cluster.addedByUsernames.length > 3 ? ", ..." : ""}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </Popup>
+                    </Popup>
+                  )}
                 </Marker>
               </React.Fragment>
             );
