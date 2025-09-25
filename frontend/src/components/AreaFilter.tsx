@@ -35,7 +35,6 @@ const AreaFilter: React.FC<AreaFilterProps> = ({
 
   // Default values untuk setiap kategori filter - SELALU DITAMPILKAN
   const defaultNoiseLevels = [
-    "Sedang dalam perbaikan",
     "Tenang",
     "Sedang",
     "Berisik",
@@ -49,7 +48,7 @@ const AreaFilter: React.FC<AreaFilterProps> = ({
     "Nature",
     "Other",
   ];
-  const defaultHealthImpacts = ["Ringan", "Sedang", "Tinggi", "Berbahaya"];
+  const defaultHealthImpacts = ["Aman", "Perhatian", "Berbahaya", "Sangat Berbahaya"];
 
   // Gabungkan default values dengan unique values dari data (jika ada)
   // Tetapi pastikan default values selalu ada

@@ -40,17 +40,22 @@ export const translateHealthImpact = (impact: string): string => {
     // Status maintenance
     "sedang dalam perbaikan": "Sedang dalam perbaikan",
 
-    // Label bahasa Indonesia dari backend
-    Ringan: "Ringan",
-    Sedang: "Sedang",
-    Tinggi: "Tinggi",
+    // Label dari Supabase
+    Aman: "Aman",
+    Perhatian: "Perhatian",
     Berbahaya: "Berbahaya",
+    "Sangat Berbahaya": "Sangat Berbahaya",
 
-    // Label bahasa Inggris lama (untuk backward compatibility)
-    Low: "Ringan",
-    Moderate: "Sedang",
-    High: "Tinggi",
-    Severe: "Berbahaya",
+    // Label bahasa Indonesia lama (untuk backward compatibility)
+    Ringan: "Aman", // peta lama: Ringan -> Aman
+    Sedang: "Perhatian", // peta lama: Sedang -> Perhatian
+    Tinggi: "Berbahaya", // peta lama: Tinggi -> Berbahaya
+
+    // Label bahasa Inggris lama
+    Low: "Aman",
+    Moderate: "Perhatian",
+    High: "Berbahaya",
+    Severe: "Sangat Berbahaya",
   };
 
   return translations[impact] || impact;
