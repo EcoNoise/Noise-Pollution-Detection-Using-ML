@@ -464,7 +464,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
         source,
         healthImpact: dataToShare.healthImpact,
         description,
-        address: "Lokasi saat ini",
+        address: await mapService.reverseGeocode(position[0], position[1]),
         radius: 100,
       });
 

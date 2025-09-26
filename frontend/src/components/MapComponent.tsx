@@ -310,7 +310,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   }, [isAddingNoise]);
 
   // Utility: process shared noise data passed from other flows
-  const processSharedData = (data: {
+  const processSharedData = async (data: {
     analysis: any;
     position?: [number, number];
     address?: string;
@@ -320,8 +320,28 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         setSelectedPosition(data.position);
         setShowNoiseForm(true);
       }
-      if (data.address) {
+      if (data.address && data.address.trim()) {
         setFormAddress(data.address);
+      } else if (data.position) {
+        // Jika alamat tidak tersedia, lakukan reverse geocoding menggunakan Nominatim
+        try {
+          const addr = await mapService.reverseGeocode(
+            data.position[0],
+            data.position[1]
+          );
+          if (addr) {
+            setFormAddress(addr);
+          } else {
+            // Fallback ke koordinat bila gagal
+            const lat = Number(data.position[0]).toFixed(6);
+            const lon = Number(data.position[1]).toFixed(6);
+            setFormAddress(`(${lat}, ${lon})`);
+          }
+        } catch (err) {
+          const lat = Number(data.position[0]).toFixed(6);
+          const lon = Number(data.position[1]).toFixed(6);
+          setFormAddress(`(${lat}, ${lon})`);
+        }
       }
       if (data.analysis) {
         logger.info("Received shared analysis data", data.analysis);
@@ -438,10 +458,23 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     }
   };
 
-  const handleMapClick = (e: any) => {
+  const handleMapClick = async (e: any) => {
     if (isAddingNoise) {
-      setSelectedPosition([e.latlng.lat, e.latlng.lng]);
+      const lat = e.latlng.lat;
+      const lon = e.latlng.lng;
+      setSelectedPosition([lat, lon]);
       setShowNoiseForm(true);
+      // Isikan alamat otomatis menggunakan Nominatim
+      try {
+        const addr = await mapService.reverseGeocode(lat, lon);
+        if (addr) {
+          setFormAddress(addr);
+        } else {
+          setFormAddress(`(${lat.toFixed(6)}, ${lon.toFixed(6)})`);
+        }
+      } catch (err) {
+        setFormAddress(`(${lat.toFixed(6)}, ${lon.toFixed(6)})`);
+      }
     }
     setSearchMarker(null);
     if (searchLocationMarker) {
@@ -780,7 +813,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   // NEW: Hapus seluruh laporan milik saya di cluster ini saja
   const handleDeleteClusterReports = async (cluster: NoiseCluster) => {
     if (!appConfig.backendEnabled) {
-      showError("Backend nonaktif", "Fitur hapus laporan dalam cluster hanya tersedia saat backend aktif.");
+      showError(
+        "Backend nonaktif",
+        "Fitur hapus laporan dalam cluster hanya tersedia saat backend aktif."
+      );
       return;
     }
     if (!isAuthenticated) {
@@ -798,13 +834,21 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       async () => {
         try {
           setLoading(true);
-          const deletedCount = await mapService.removeUserReportsInCluster(cluster);
+          const deletedCount = await mapService.removeUserReportsInCluster(
+            cluster
+          );
           if (deletedCount > 0) {
             await loadNoiseLocations();
             await loadNoiseClusters();
-            showSuccess("Berhasil", `Terhapus ${deletedCount} laporan milik Anda dari cluster.`);
+            showSuccess(
+              "Berhasil",
+              `Terhapus ${deletedCount} laporan milik Anda dari cluster.`
+            );
           } else {
-            showError("Tidak ada yang dihapus", "Tidak ditemukan laporan Anda di cluster ini atau terjadi kegagalan.");
+            showError(
+              "Tidak ada yang dihapus",
+              "Tidak ditemukan laporan Anda di cluster ini atau terjadi kegagalan."
+            );
           }
         } catch (error) {
           logger.error("Error deleting user reports in cluster:", error);
@@ -959,26 +1003,28 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     const rawFinal = (cluster.finalCategory || "").trim();
     // Jika finalCategory bukan Mixed, tampilkan apa adanya
     if (rawFinal && rawFinal.toLowerCase() !== "mixed") return rawFinal;
-  
+
     // Ketika Mixed atau kosong: turunkan daftar kategori dari noiseSources
     const sourceCats: string[] = Array.isArray(cluster.noiseSources)
-      ? Array.from(new Set(cluster.noiseSources.map((s) => deriveFinalCategory(s))))
+      ? Array.from(
+          new Set(cluster.noiseSources.map((s) => deriveFinalCategory(s)))
+        )
       : [];
-  
+
     // Terapkan filter kategori (jika user memilih)
     const selectedCats = activeFilters.category?.length
       ? sourceCats.filter((c) => activeFilters.category!.includes(c))
       : sourceCats;
-  
+
     // Jika hasil filter mengerucut ke satu kategori, tampilkan kategori itu saja
     if (selectedCats.length === 1) return selectedCats[0];
-  
+
     // Jika hasil filter memuat beberapa kategori, tampilkan sebagai daftar (bukan sekadar "Mixed")
     if (selectedCats.length > 1) return selectedCats.join(", ");
-  
+
     // Jika filter menyingkirkan semua kategori, tampilkan semua kategori yang ada (jika ada)
     if (sourceCats.length > 0) return sourceCats.join(", ");
-  
+
     // Fallback terakhir
     return rawFinal || "Mixed";
   };
@@ -1005,7 +1051,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     return displaySources.map((s) => translateNoiseSource(s)).join(", ");
   };
 
-const filteredNoiseLocations = useMemo(() => {
+  const filteredNoiseLocations = useMemo(() => {
     const { noiseLevel, category, healthImpact } = activeFilters;
 
     if (!noiseLevel?.length && !category?.length && !healthImpact?.length) {
@@ -1344,7 +1390,11 @@ const filteredNoiseLocations = useMemo(() => {
 
         {/* BARU: User Location Marker */}
         {userLocation && (
-          <Marker position={userLocation} icon={userLocationIcon} interactive={!isAddingNoise}>
+          <Marker
+            position={userLocation}
+            icon={userLocationIcon}
+            interactive={!isAddingNoise}
+          >
             {!isAddingNoise && (
               <Popup>
                 <div style={{ textAlign: "center", padding: "8px" }}>
@@ -1427,8 +1477,7 @@ const filteredNoiseLocations = useMemo(() => {
             position={searchMarker}
             icon={L.divIcon({
               className: "search-marker",
-              html:
-                '<div style="background: #ff4444; border: 2px solid white; border-radius: 50%; width: 20px; height: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+              html: '<div style="background: #ff4444; border: 2px solid white; border-radius: 50%; width: 20px; height: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
               iconSize: [20, 20],
               iconAnchor: [10, 10],
             })}
@@ -1481,14 +1530,15 @@ const filteredNoiseLocations = useMemo(() => {
                     <Popup>
                       <div style={{ minWidth: 220 }}>
                         <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                          📊 Cluster Kebisingan
+                          LAPORAN KEBISINGAN
                         </div>
                         <div style={{ fontSize: 13, lineHeight: 1.4 }}>
                           <div>
                             <strong>Status:</strong> {String(status)}
                           </div>
                           <div>
-                            <strong>Jumlah Laporan:</strong> {cluster.reportCount}
+                            <strong>Jumlah Laporan:</strong>{" "}
+                            {cluster.reportCount}
                           </div>
                           {typeof cluster.noiseLevelAvg === "number" && (
                             <div>
@@ -1496,9 +1546,12 @@ const filteredNoiseLocations = useMemo(() => {
                               {formatNoiseLevel(cluster.noiseLevelAvg)}
                             </div>
                           )}
-                          {(cluster.finalCategory || (Array.isArray(cluster.noiseSources) && cluster.noiseSources.length > 0)) && (
+                          {(cluster.finalCategory ||
+                            (Array.isArray(cluster.noiseSources) &&
+                              cluster.noiseSources.length > 0)) && (
                             <div>
-                              <strong>Kategori Dominan:</strong> {getClusterCategoryDisplay(cluster)}
+                              <strong>Kategori Dominan:</strong>{" "}
+                              {getClusterCategoryDisplay(cluster)}
                             </div>
                           )}
                           {Array.isArray(cluster.noiseSources) &&
@@ -1517,30 +1570,35 @@ const filteredNoiseLocations = useMemo(() => {
                             <div>
                               <strong>Kontributor:</strong>{" "}
                               {cluster.addedByUsernames.slice(0, 3).join(", ")}
-                              {cluster.addedByUsernames.length > 3 ? ", ..." : ""}
+                              {cluster.addedByUsernames.length > 3
+                                ? ", ..."
+                                : ""}
                             </div>
                           )}
-                          {isAuthenticated && hasCurrentUserContribution(cluster) && (
-                            <div style={{ marginTop: 10 }}>
-                              <button
-                                onClick={() => handleDeleteClusterReports(cluster)}
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 6,
-                                  padding: "6px 10px",
-                                  borderRadius: 6,
-                                  border: "1px solid #e11d48",
-                                  background: "#fee2e2",
-                                  color: "#b91c1c",
-                                  cursor: "pointer",
-                                  fontWeight: 600,
-                                }}
-                              >
-                                🗑️ Hapus Laporan Saya
-                              </button>
-                            </div>
-                          )}
+                          {isAuthenticated &&
+                            hasCurrentUserContribution(cluster) && (
+                              <div style={{ marginTop: 10 }}>
+                                <button
+                                  onClick={() =>
+                                    handleDeleteClusterReports(cluster)
+                                  }
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    padding: "6px 10px",
+                                    borderRadius: 6,
+                                    border: "1px solid #e11d48",
+                                    background: "#fee2e2",
+                                    color: "#b91c1c",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  🗑️ Hapus Laporan Saya
+                                </button>
+                              </div>
+                            )}
                         </div>
                       </div>
                     </Popup>

@@ -535,6 +535,72 @@ class MapService {
     }
   }
 
+  // Cache untuk mengurangi request berulang ke Nominatim
+  private reverseGeocodeCache = new Map<string, string>();
+
+  async reverseGeocode(lat: number, lon: number): Promise<string> {
+    // Bulatkan koordinat untuk efisiensi cache (presisi ~100m)
+    const roundedLat = Math.round(lat * 1000) / 1000;
+    const roundedLon = Math.round(lon * 1000) / 1000;
+    const cacheKey = `${roundedLat},${roundedLon}`;
+
+    // Cek cache terlebih dahulu
+    if (this.reverseGeocodeCache.has(cacheKey)) {
+      return this.reverseGeocodeCache.get(cacheKey)!;
+    }
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1&accept-language=id,en`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result && result.display_name) {
+        // Format alamat menjadi lebih ringkas dan sesuai Indonesia
+        let formattedAddress = result.display_name;
+        
+        if (result.address) {
+          const addr = result.address;
+          const parts = [];
+          
+          // Prioritas: road/suburb -> village/town -> city -> state
+          if (addr.road) parts.push(addr.road);
+          else if (addr.suburb) parts.push(addr.suburb);
+          
+          if (addr.village) parts.push(addr.village);
+          else if (addr.town) parts.push(addr.town);
+          else if (addr.city) parts.push(addr.city);
+          
+          if (addr.state) parts.push(addr.state);
+          
+          if (parts.length > 0) {
+            formattedAddress = parts.join(", ");
+          }
+        }
+        
+        // Cache hasil untuk mengurangi request
+        this.reverseGeocodeCache.set(cacheKey, formattedAddress);
+        return formattedAddress;
+      }
+      
+      // Fallback jika tidak ada hasil
+      const fallback = `Koordinat: (${lat.toFixed(6)}, ${lon.toFixed(6)})`;
+      this.reverseGeocodeCache.set(cacheKey, fallback);
+      return fallback;
+      
+    } catch (error) {
+      logger.warn("Reverse geocoding failed:", error);
+      const fallback = `Koordinat: (${lat.toFixed(6)}, ${lon.toFixed(6)})`;
+      this.reverseGeocodeCache.set(cacheKey, fallback);
+      return fallback;
+    }
+  }
+
   async getCurrentLocation(): Promise<[number, number] | null> {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
