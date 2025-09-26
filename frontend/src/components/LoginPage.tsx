@@ -443,44 +443,44 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-800 flex items-center justify-center p-4">
-      {/* Back Button */}
+    <div className="min-h-screen bg-slate-800 flex items-center justify-center px-3 py-4 sm:px-4 sm:py-8">
+      {/* Back Button - Responsive positioning */}
       <Link
         to="/"
-        className="absolute top-6 left-6 inline-flex items-center px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-all duration-200 group"
+        className="absolute top-4 left-3 sm:top-6 sm:left-6 inline-flex items-center px-2 py-1.5 sm:px-4 sm:py-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-all duration-200 group z-10"
       >
-        <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-        Kembali
+        <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 group-hover:-translate-x-1 transition-transform" />
+        <span className="text-xs sm:text-sm">Kembali</span>
       </Link>
 
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-            <User className="w-8 h-8 text-white" />
+      <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-2 sm:mx-4">
+        {/* Header - Responsive sizing */}
+        <div className="text-center mb-4 sm:mb-6 md:mb-8">
+          <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-blue-600 rounded-full mb-3 sm:mb-4">
+            <User className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
           </div>
-          <h2 className="text-3xl font-bold text-white mb-2">Masuk Akun</h2>
-          <p className="text-slate-400">Masuk ke akun Anda untuk melanjutkan</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1 sm:mb-2">Masuk Akun</h2>
+          <p className="text-slate-400 text-sm sm:text-base">Masuk ke akun Anda untuk melanjutkan</p>
         </div>
 
-        {/* Login Form */}
-        <div className="bg-slate-700 rounded-2xl shadow-xl p-8 border border-slate-600">
-          <form onSubmit={handleEmailLogin} className="space-y-6">
-            {/* Identifier Field (Email or Username) */}
+        {/* Login Form - Responsive container */}
+        <div className="bg-slate-700 rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 border border-slate-600">
+          <form onSubmit={handleEmailLogin} className="space-y-4 sm:space-y-6">
+            {/* Identifier Field (Email or Username) - Responsive */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1.5 sm:mb-2">
                 Email atau Username *
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-slate-400" />
+                <div className="absolute inset-y-0 left-0 pl-2.5 sm:pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400" />
                 </div>
                 <input
                   type="text"
                   ref={identifierRef}
                   value={loginField}
                   onChange={handleEmailChange}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 transition-all duration-200 bg-slate-600 text-white placeholder-slate-400 ${
+                  className={`w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-2.5 sm:py-3 border rounded-lg focus:ring-2 transition-all duration-200 bg-slate-600 text-white placeholder-slate-400 text-sm sm:text-base ${
                     emailError 
                       ? "border-red-500 focus:ring-red-500 focus:border-red-500" 
                       : loginField && !emailError 
@@ -510,21 +510,21 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               )}
             </div>
 
-            {/* Password Field */}
+            {/* Password Field - Responsive */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-1.5 sm:mb-2">
                 Password *
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-400" />
+                <div className="absolute inset-y-0 left-0 pl-2.5 sm:pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400" />
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
                   ref={passwordRef}
                   value={password}
                   onChange={handlePasswordChange}
-                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 transition-all duration-200 bg-slate-600 text-white placeholder-slate-400 ${
+                  className={`w-full pl-8 sm:pl-10 pr-10 sm:pr-12 py-2.5 sm:py-3 border rounded-lg focus:ring-2 transition-all duration-200 bg-slate-600 text-white placeholder-slate-400 text-sm sm:text-base ${
                     passwordError 
                       ? "border-red-500 focus:ring-red-500 focus:border-red-500" 
                       : password && !passwordError 
@@ -537,12 +537,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-300 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-2.5 sm:pr-3 flex items-center text-slate-400 hover:text-slate-300 transition-colors"
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
+                    <EyeOff className="h-4 w-4 sm:h-5 sm:w-5" />
                   ) : (
-                    <Eye className="h-5 w-5" />
+                    <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
                   )}
                 </button>
               </div>
@@ -628,11 +628,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
 
 
-            {/* Submit Button */}
+            {/* Submit Button - Responsive sizing */}
             <button
               type="submit"
               disabled={loading || authLoading}
-              className={`w-full py-3 px-4 rounded-lg font-medium text-white transition-all duration-200 ${
+              className={`w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-medium text-white transition-all duration-200 text-sm sm:text-base ${
                 loading || authLoading
                   ? "bg-blue-500 cursor-not-allowed opacity-70"
                   : "bg-blue-600 hover:bg-blue-700 hover:shadow-lg transform hover:-translate-y-0.5"
@@ -668,14 +668,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </button>
           </form>
 
-          {/* Google Login Button */}
+          {/* Google Login Button - Responsive */}
           {isSupabaseConfigured() && (
-            <div className="mt-6">
-              <div className="relative my-4">
+            <div className="mt-4 sm:mt-6">
+              <div className="relative my-3 sm:my-4">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-slate-600"></div>
                 </div>
-                <div className="relative flex justify-center text-sm">
+                <div className="relative flex justify-center text-xs sm:text-sm">
                   <span className="px-2 bg-slate-700 text-slate-400">atau</span>
                 </div>
               </div>
@@ -684,9 +684,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={loading || authLoading}
-                className="w-full flex items-center justify-center px-4 py-3 border border-slate-600 rounded-lg bg-white hover:bg-gray-50 text-gray-700 font-medium transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className="w-full flex items-center justify-center px-3 sm:px-4 py-2.5 sm:py-3 border border-slate-600 rounded-lg bg-white hover:bg-gray-50 text-gray-700 font-medium transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-sm sm:text-base"
               >
-                <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -711,9 +711,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </div>
           )}
 
-          {/* Register Link */}
-          <div className="mt-6 pt-6 border-t border-slate-600 text-center">
-            <p className="text-slate-400">
+          {/* Register Link - Responsive text */}
+          <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-slate-600 text-center">
+            <p className="text-slate-400 text-xs sm:text-sm">
               Belum punya akun?{" "}
               <Link
                 to="/register"

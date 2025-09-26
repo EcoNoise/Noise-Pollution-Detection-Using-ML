@@ -348,12 +348,12 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
   };
 
   const StepIndicator = () => (
-    <div className="flex justify-center mb-8">
-      <div className="flex items-center space-x-4">
+    <div className="flex justify-center mb-4 sm:mb-6 md:mb-8">
+      <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
         {[1, 2, 3].map((stepNumber) => (
           <React.Fragment key={stepNumber}>
             <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
+              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold transition-all ${
                 stepNumber <= step
                   ? "bg-blue-600 text-white shadow-lg"
                   : "bg-slate-700 text-slate-400 border border-slate-600"
@@ -363,7 +363,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
             </div>
             {stepNumber < 3 && (
               <div
-                className={`w-8 h-1 rounded transition-all ${
+                className={`w-4 sm:w-6 md:w-8 h-0.5 sm:h-1 rounded transition-all ${
                   stepNumber < step ? "bg-blue-600" : "bg-slate-700"
                 }`}
               />
@@ -374,14 +374,14 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
     </div>
   );
 
-  // Success Modal Component
+  // Success Modal Component - Responsive design
   const SuccessModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-8 transform transition-all duration-300 scale-100 opacity-100 border border-slate-700">
-        {/* Success Icon */}
-        <div className="mx-auto w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mb-6 shadow-lg">
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-3 sm:p-4 backdrop-blur-sm">
+      <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm sm:max-w-md w-full p-4 sm:p-6 md:p-8 transform transition-all duration-300 scale-100 opacity-100 border border-slate-700 mx-2">
+        {/* Success Icon - Responsive sizing */}
+        <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-green-600 rounded-full flex items-center justify-center mb-4 sm:mb-6 shadow-lg">
           <svg
-            className="w-8 h-8 text-white"
+            className="w-6 h-6 sm:w-8 sm:h-8 text-white"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -395,47 +395,47 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
           </svg>
         </div>
 
-        {/* Success Message */}
-        <div className="text-center mb-6">
-          <h3 className="text-2xl font-bold text-white mb-2">
+        {/* Success Message - Responsive text */}
+        <div className="text-center mb-4 sm:mb-6">
+          <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
             Registrasi Berhasil!
           </h3>
-          <p className="text-slate-300">
+          <p className="text-slate-300 text-sm sm:text-base">
             Selamat! Akun Anda telah berhasil dibuat. Silakan login untuk
             melanjutkan.
           </p>
         </div>
 
-        {/* User Info Preview */}
-        <div className="bg-slate-700 rounded-xl p-4 mb-6 border border-slate-600">
-          <div className="flex items-center space-x-3">
+        {/* User Info Preview - Responsive layout */}
+        <div className="bg-slate-700 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-slate-600">
+          <div className="flex items-center space-x-2 sm:space-x-3">
             {photoPreview ? (
               <img
                 src={photoPreview}
                 alt="Profile"
-                className="w-12 h-12 rounded-full object-cover border-2 border-blue-400 shadow-md"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-blue-400 shadow-md"
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center shadow-lg">
-                <span className="text-white font-semibold text-lg">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-600 flex items-center justify-center shadow-lg">
+                <span className="text-white font-semibold text-sm sm:text-lg">
                   {firstName.charAt(0)}
                   {lastName.charAt(0)}
                 </span>
               </div>
             )}
-            <div>
-              <p className="font-semibold text-white">
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-white text-sm sm:text-base truncate">
                 {firstName} {lastName}
               </p>
-              <p className="text-sm text-blue-300">@{username}</p>
+              <p className="text-xs sm:text-sm text-blue-300 truncate">@{username}</p>
             </div>
           </div>
         </div>
 
-        {/* Action Button */}
+        {/* Action Button - Responsive sizing */}
         <button
           onClick={handleSuccessClose}
-          className="w-full py-3 px-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transform hover:scale-[1.02] transition-all duration-200 shadow-lg"
+          className="w-full py-2.5 sm:py-3 px-3 sm:px-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transform hover:scale-[1.02] transition-all duration-200 shadow-lg text-sm sm:text-base"
         >
           Lanjut ke Login
         </button>
@@ -448,22 +448,27 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
   return (
     <>
       {/* Dark background with solid color */}
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4 py-8">
-        {/* Back Button */}
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center px-3 py-4 sm:px-4 sm:py-8">
+        {/* Back Button - Responsive positioning */}
         <Link
           to="/"
-          className="absolute top-6 left-6 inline-flex items-center px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-all duration-200 group"
+          className="absolute top-4 left-3 sm:top-6 sm:left-6 inline-flex items-center px-2 py-1.5 sm:px-4 sm:py-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-all duration-200 group z-10"
         >
-          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-          Kembali
+          <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-xs sm:text-sm">Kembali</span>
         </Link>
 
-        <div className="max-w-md w-full bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-700">
-          {/* Header */}
-          <div className="text-center mb-6">
-            <div className="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
+        {/* Main Container - Responsive sizing and padding */}
+        <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl bg-slate-800 rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 border border-slate-700 mx-2 sm:mx-4"
+             style={{
+               maxHeight: 'calc(100vh - 2rem)',
+               overflowY: 'auto'
+             }}>
+          {/* Header - Responsive sizing */}
+          <div className="text-center mb-4 sm:mb-6">
+            <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-blue-600 rounded-full flex items-center justify-center mb-3 sm:mb-4 shadow-lg">
               <svg
-                className="w-8 h-8 text-white"
+                className="w-6 h-6 sm:w-8 sm:h-8 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -476,8 +481,8 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                 />
               </svg>
             </div>
-            <h2 className="text-3xl font-bold text-blue-400 mb-2">Buat Akun</h2>
-            <p className="text-slate-300 text-sm">
+            <h2 className="text-2xl sm:text-3xl font-bold text-blue-400 mb-1 sm:mb-2">Buat Akun</h2>
+            <p className="text-slate-300 text-xs sm:text-sm">
               {step === 1
                 ? "Daftar untuk memulai perjalanan Anda"
                 : `Step ${step} dari 3`}
@@ -508,33 +513,34 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
             </div>
           )}
 
-          <form onSubmit={handleFormSubmit} className="space-y-6">
+          <form onSubmit={handleFormSubmit} className="space-y-4 sm:space-y-6">
             {/* Step 1: Personal Info */}
             {step === 1 && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-3 sm:space-y-4">
+                {/* Responsive grid - stack on mobile, side-by-side on larger screens */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-200 mb-2">
+                    <label className="block text-xs sm:text-sm font-medium text-slate-200 mb-1.5 sm:mb-2">
                       Nama Depan *
                     </label>
                     <input
                       type="text"
                       value={firstName}
                       onChange={handleFirstNameChange}
-                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-white placeholder-slate-400"
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-white placeholder-slate-400 text-sm sm:text-base"
                       placeholder="John"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-200 mb-2">
+                    <label className="block text-xs sm:text-sm font-medium text-slate-200 mb-1.5 sm:mb-2">
                       Nama Belakang *
                     </label>
                     <input
                       type="text"
                       value={lastName}
                       onChange={handleLastNameChange}
-                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-white placeholder-slate-400"
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-white placeholder-slate-400 text-sm sm:text-base"
                       placeholder="Doe"
                       required
                     />
@@ -542,42 +548,42 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-slate-200 mb-1.5 sm:mb-2">
                     Nama Lengkap
                   </label>
                   <input
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-600 border border-slate-600 rounded-lg text-slate-300 transition-all duration-200 outline-none cursor-not-allowed"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-600 border border-slate-600 rounded-lg text-slate-300 transition-all duration-200 outline-none cursor-not-allowed text-sm sm:text-base"
                     placeholder="Otomatis terisi dari nama depan dan belakang"
                     readOnly
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-slate-200 mb-1.5 sm:mb-2">
                     Username *
                   </label>
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-white placeholder-slate-400"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-white placeholder-slate-400 text-sm sm:text-base"
                     placeholder="johndoe"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-slate-200 mb-1.5 sm:mb-2">
                     Email *
                   </label>
                   <input
                     type="email"
                     value={email}
                     onChange={handleEmailChange}
-                    className={`w-full px-4 py-3 bg-slate-700 border rounded-lg focus:ring-2 transition-all duration-200 outline-none text-white placeholder-slate-400 ${
+                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-700 border rounded-lg focus:ring-2 transition-all duration-200 outline-none text-white placeholder-slate-400 text-sm sm:text-base ${
                       emailError 
                         ? "border-red-500 focus:ring-red-500 focus:border-red-500" 
                         : email && !emailError 
@@ -609,9 +615,9 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
 
             {/* Step 2: Password */}
             {step === 2 && (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-slate-200 mb-1.5 sm:mb-2">
                     Password *
                   </label>
                   <input
@@ -619,13 +625,13 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     minLength={8}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-white placeholder-slate-400"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-white placeholder-slate-400 text-sm sm:text-base"
                     placeholder="Minimal 8 karakter"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-slate-200 mb-1.5 sm:mb-2">
                     Konfirmasi Password *
                   </label>
                   <input
@@ -633,16 +639,16 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     minLength={8}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-white placeholder-slate-400"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-white placeholder-slate-400 text-sm sm:text-base"
                     placeholder="Ulangi password"
                     required
                   />
                 </div>
 
-                {/* Password strength indicator */}
+                {/* Password strength indicator - Responsive grid */}
                 <div className="text-xs text-slate-400 space-y-1">
-                  <p className="font-medium">Password harus mengandung:</p>
-                  <div className="grid grid-cols-2 gap-1">
+                  <p className="font-medium text-xs sm:text-sm">Password harus mengandung:</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs">
                     <span
                       className={
                         password.length >= 8
@@ -695,24 +701,24 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
 
             {/* Step 3: Photo & Review */}
             {step === 3 && (
-              <div className="space-y-4">
-                {/* Photo Upload */}
+              <div className="space-y-3 sm:space-y-4">
+                {/* Photo Upload - Responsive layout */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-slate-200 mb-1.5 sm:mb-2">
                     Foto Profil (Opsional)
                   </label>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-shrink-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                    <div className="flex-shrink-0 mx-auto sm:mx-0">
                       {photoPreview ? (
                         <img
                           src={photoPreview}
                           alt="Preview"
-                          className="w-16 h-16 rounded-full object-cover border-4 border-blue-400 shadow-lg"
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-4 border-blue-400 shadow-lg"
                         />
                       ) : (
-                        <div className="w-16 h-16 rounded-full bg-slate-700 border-2 border-slate-600 flex items-center justify-center">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-700 border-2 border-slate-600 flex items-center justify-center">
                           <svg
-                            className="w-8 h-8 text-slate-400"
+                            className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -732,7 +738,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                         type="file"
                         accept="image/*"
                         onChange={handlePhotoChange}
-                        className="w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 transition-all duration-200"
+                        className="w-full text-xs sm:text-sm text-slate-300 file:mr-2 sm:file:mr-4 file:py-1.5 sm:file:py-2 file:px-3 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 transition-all duration-200"
                       />
                       <p className="text-xs text-slate-400 mt-1">
                         PNG, JPG hingga 5MB
@@ -741,25 +747,25 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                   </div>
                 </div>
 
-                {/* Review */}
-                <div className="bg-slate-700 rounded-lg p-4 border border-slate-600">
-                  <h4 className="font-medium text-white mb-3">
+                {/* Review - Responsive layout */}
+                <div className="bg-slate-700 rounded-lg p-3 sm:p-4 border border-slate-600">
+                  <h4 className="font-medium text-white mb-2 sm:mb-3 text-sm sm:text-base">
                     Review Data Anda:
                   </h4>
-                  <div className="text-sm text-slate-300 space-y-2">
-                    <div className="flex justify-between">
+                  <div className="text-xs sm:text-sm text-slate-300 space-y-1.5 sm:space-y-2">
+                    <div className="flex justify-between items-start gap-2">
                       <span className="font-medium">Nama:</span>
-                      <span>
+                      <span className="text-right">
                         {firstName} {lastName}
                       </span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-start gap-2">
                       <span className="font-medium">Username:</span>
-                      <span className="text-blue-300">@{username}</span>
+                      <span className="text-blue-300 text-right">@{username}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-start gap-2">
                       <span className="font-medium">Email:</span>
-                      <span>{email}</span>
+                      <span className="text-right break-all">{email}</span>
                     </div>
                   </div>
                 </div>
@@ -771,13 +777,13 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
             
             {/* Removed duplicate error near buttons to avoid repetition */}
 
-            {/* Navigation Buttons */}
-            <div className="flex space-x-3">
+            {/* Navigation Buttons - Responsive layout */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               {step > 1 && (
                 <button
                   type="button"
                   onClick={prevStep}
-                  className="flex-1 py-3 px-4 border border-slate-600 rounded-lg font-medium text-slate-300 hover:bg-slate-700 hover:border-slate-500 transition-all duration-200"
+                  className="sm:flex-1 py-2.5 sm:py-3 px-3 sm:px-4 border border-slate-600 rounded-lg font-medium text-slate-300 hover:bg-slate-700 hover:border-slate-500 transition-all duration-200 text-sm sm:text-base"
                 >
                   Sebelumnya
                 </button>
@@ -787,7 +793,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg"
+                  className="sm:flex-1 py-2.5 sm:py-3 px-3 sm:px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg text-sm sm:text-base"
                 >
                   Lanjutkan
                 </button>
@@ -796,7 +802,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                   type="button"
                   onClick={handleRegister}
                   disabled={loading || authLoading}
-                  className={`flex-1 py-3 px-4 rounded-lg font-semibold text-white transition-all duration-200 ${
+                  className={`sm:flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-semibold text-white transition-all duration-200 text-sm sm:text-base ${
                     loading || authLoading
                       ? "bg-slate-600 cursor-not-allowed"
                       : "bg-green-600 hover:bg-green-700 transform hover:scale-105 shadow-lg"
@@ -837,12 +843,12 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
 
           {/* Google Register Button - Only show on step 1 */}
           {step === 1 && isSupabaseConfigured() && (
-            <div className="mt-6">
-              <div className="relative my-4">
+            <div className="mt-4 sm:mt-6">
+              <div className="relative my-3 sm:my-4">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-slate-600"></div>
                 </div>
-                <div className="relative flex justify-center text-sm">
+                <div className="relative flex justify-center text-xs sm:text-sm">
                   <span className="px-2 bg-slate-800 text-slate-400">
                     atau
                   </span>
@@ -853,9 +859,9 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
                 type="button"
                 onClick={handleGoogleRegister}
                 disabled={loading || authLoading}
-                className="w-full flex items-center justify-center px-4 py-3 border border-slate-600 rounded-lg bg-white hover:bg-gray-50 text-gray-700 font-medium transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className="w-full flex items-center justify-center px-3 sm:px-4 py-2.5 sm:py-3 border border-slate-600 rounded-lg bg-white hover:bg-gray-50 text-gray-700 font-medium transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-sm sm:text-base"
               >
-                <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -880,9 +886,9 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
             </div>
           )}
 
-          {/* Login Link */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-slate-400">
+          {/* Login Link - Responsive text */}
+          <div className="mt-4 sm:mt-6 text-center">
+            <p className="text-xs sm:text-sm text-slate-400">
               Sudah punya akun?{" "}
               <button
                 onClick={handleLoginClick}

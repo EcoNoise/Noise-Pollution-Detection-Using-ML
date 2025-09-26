@@ -303,6 +303,8 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
           display: flex;
           justify-content: space-between;
           align-items: center;
+          width: 100%;
+          position: relative;
         }
         
         .logo {
@@ -441,24 +443,27 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
           width: 100%;
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 3rem;
+          gap: 4rem;
           align-items: center;
           margin: 0 auto;
+          padding: 0 1rem;
         }
         
         .hero-content {
           text-align: left;
           z-index: 20;
+          max-width: 100%;
         }
         
         .hero-visual {
           position: relative;
           display: flex;
-          transform: translateX(8rem);
+          transform: translateX(6rem);
           align-items: center;
           justify-content: center;
           min-height: 500px;
           z-index: 15;
+          width: 100%;
         }
         
         .spline-container {
@@ -677,55 +682,93 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
           position: relative;
         }
         
-        /* Responsive Design */
+        /* Responsive Design - Mobile First Approach */
+        @media (max-width: 1200px) {
+          .hero-visual {
+            transform: translateX(4rem);
+          }
+          
+          .spline-container {
+            height: 450px;
+          }
+        }
+        
         @media (max-width: 968px) {
           .hero-wrapper {
             grid-template-columns: 1fr;
-            gap: 2rem;
+            gap: 3rem;
             text-align: center;
+            padding: 0 1rem;
           }
           
           .hero-content {
             text-align: center;
+            order: 2;
           }
           
           .hero-visual {
-            order: -1;
+            order: 1;
+            transform: none;
+            margin: 0 auto;
+            max-width: 500px;
           }
           
           .spline-container {
             height: 400px;
+            margin: 0 auto;
           }
           
           .stats-grid {
             grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+          }
+          
+          .hero-title {
+            font-size: clamp(2.2rem, 5vw, 3rem);
+          }
+          
+          .hero-subtitle {
+            font-size: clamp(0.95rem, 2vw, 1.15rem);
+            margin-bottom: 2rem;
+          }
+          
+          .cta-buttons {
+            justify-content: center;
+            gap: 1rem;
           }
         }
         
         @media (max-width: 768px) {
+          .nav-container {
+            padding: 0 1.5rem;
+          }
+          
           .logo {
-            font-size: 1.4rem; /* Sedikit lebih kecil di mobile */
-            gap: 0.5rem;
+            font-size: 1.3rem;
+            gap: 0.4rem;
+            transform: translateX(-10px);
           }
           
           .logo-icon {
-            width: 50px; /* Sesuaikan ukuran untuk mobile */
-            height: 50px;
+            width: 45px;
+            height: 45px;
           }
+          
           .nav-links {
             position: fixed;
             top: 100%;
             left: 0;
             width: 100%;
-            background: rgba(10, 10, 15, 0.95);
-            backdrop-filter: blur(20px);
+            background: rgba(10, 10, 15, 0.98);
+            backdrop-filter: blur(30px);
             flex-direction: column;
             gap: 0;
-            padding: 2rem;
+            padding: 2rem 1.5rem;
             margin: 0;
             transform: translateY(-100%);
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             border-top: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 999;
           }
           
           .nav-links.active {
@@ -733,40 +776,82 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
           }
           
           .nav-link {
-            padding: 1rem 0;
+            padding: 1.2rem 0;
             margin: 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 1.1rem;
+            text-align: center;
+          }
+          
+          .nav-link:last-child {
+            border-bottom: none;
           }
           
           .mobile-menu-btn {
             display: block;
+            font-size: 1.6rem;
           }
           
           .nav-menu {
             gap: 1rem;
           }
           
+          .signin-btn {
+            padding: 0.8rem 1.2rem;
+            font-size: 0.85rem;
+          }
+          
           .hero-section {
-            padding: 6rem 1rem 2rem;
+            padding: 7rem 1.5rem 3rem;
+            min-height: 100vh;
+          }
+          
+          .hero-wrapper {
+            gap: 2.5rem;
+          }
+          
+          .hero-badge {
+            font-size: 0.8rem;
+            padding: 0.4rem 0.8rem;
           }
           
           .cta-buttons {
             flex-direction: column;
             align-items: center;
+            gap: 1rem;
+            width: 100%;
           }
           
           .btn-primary,
           .btn-secondary {
             width: 100%;
-            max-width: 280px;
+            max-width: 300px;
+            padding: 1.1rem 2rem;
+            font-size: 1rem;
           }
           
           .spline-container {
-            height: 350px;
+            height: 320px;
+            width: 100%;
+            max-width: 400px;
           }
           
           .stats-grid {
             grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-top: 2rem;
+          }
+          
+          .stat-item {
+            padding: 1.2rem;
+          }
+          
+          .stat-number {
+            font-size: 1.3rem;
+          }
+          
+          .stat-label {
+            font-size: 0.8rem;
           }
         }
         
@@ -775,12 +860,70 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
             padding: 0 1rem;
           }
           
+          .logo {
+            font-size: 1.2rem;
+            transform: translateX(-5px);
+          }
+          
+          .logo-icon {
+            width: 40px;
+            height: 40px;
+          }
+          
           .hero-section {
-            padding: 5rem 1rem 2rem;
+            padding: 6rem 1rem 2rem;
+          }
+          
+          .hero-wrapper {
+            gap: 2rem;
+          }
+          
+          .hero-title {
+            font-size: clamp(2rem, 4.5vw, 2.5rem);
+            margin-bottom: 1rem;
+          }
+          
+          .hero-subtitle {
+            font-size: clamp(0.9rem, 1.8vw, 1rem);
+            margin-bottom: 2rem;
+          }
+          
+          .btn-primary,
+          .btn-secondary {
+            max-width: 280px;
+            padding: 1rem 1.5rem;
+            font-size: 0.95rem;
           }
           
           .spline-container {
-            height: 300px;
+            height: 280px;
+            max-width: 350px;
+          }
+          
+          .signin-btn {
+            padding: 0.7rem 1rem;
+            font-size: 0.8rem;
+          }
+        }
+        
+        @media (max-width: 375px) {
+          .hero-section {
+            padding: 5.5rem 0.8rem 2rem;
+          }
+          
+          .hero-title {
+            font-size: clamp(1.8rem, 4vw, 2.2rem);
+          }
+          
+          .spline-container {
+            height: 250px;
+            max-width: 320px;
+          }
+          
+          .btn-primary,
+          .btn-secondary {
+            max-width: 260px;
+            padding: 0.9rem 1.2rem;
           }
         }
 
@@ -1114,26 +1257,108 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
           font-weight: 400;
         }
 
-        /* Responsive Design */
+        /* Tech Section Responsive Design */
+        @media (max-width: 1200px) {
+          .tech-showcase {
+            grid-template-columns: 1fr;
+            gap: 3rem;
+          }
+          
+          .tech-item {
+            max-width: 600px;
+            margin: 0 auto;
+          }
+        }
+        
+        @media (max-width: 968px) {
+          .minimal-tech-section {
+            padding: 5rem 1.5rem;
+          }
+          
+          .tech-title {
+            font-size: clamp(2rem, 5vw, 3rem);
+          }
+          
+          .tech-showcase {
+            grid-template-columns: 1fr;
+            gap: 2.5rem;
+            margin-top: 3rem;
+          }
+          
+          .tech-item {
+            gap: 2.5rem;
+            padding: 2rem 1.5rem;
+          }
+        }
+
         @media (max-width: 768px) {
+          .minimal-tech-section {
+            padding: 4rem 1rem;
+          }
+          
+          .tech-title {
+            font-size: clamp(1.8rem, 4.5vw, 2.5rem);
+            margin-bottom: 1.5rem;
+          }
+          
+          .section-header-minimal {
+            margin-bottom: 3rem;
+          }
+          
           .tech-showcase {
             grid-template-columns: 1fr;
             gap: 2rem;
+            margin-top: 2rem;
           }
 
           .tech-item {
             flex-direction: column;
             text-align: center;
-            gap: 2rem;
+            gap: 1.5rem;
+            padding: 1.5rem;
           }
 
           .tech-visual {
             width: 100px;
             height: 100px;
+            margin: 0 auto;
           }
-
+          
+          .tech-content h3 {
+            font-size: 1.3rem;
+          }
+          
+          .tech-content p {
+            font-size: 0.9rem;
+          }
+        }
+        
+        @media (max-width: 480px) {
           .minimal-tech-section {
-            padding: 4rem 1rem;
+            padding: 3rem 0.8rem;
+          }
+          
+          .tech-title {
+            font-size: clamp(1.6rem, 4vw, 2rem);
+          }
+          
+          .tech-item {
+            padding: 1.2rem;
+            gap: 1rem;
+          }
+          
+          .tech-visual {
+            width: 80px;
+            height: 80px;
+          }
+          
+          .tech-content h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+          }
+          
+          .tech-content p {
+            font-size: 0.85rem;
           }
         }
 

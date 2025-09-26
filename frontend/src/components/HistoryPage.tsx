@@ -133,12 +133,12 @@ const HistoryPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Backend Disabled Warning */}
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+        {/* Backend Disabled Warning - Responsive */}
         {!appConfig.backendEnabled && (
-          <div className="bg-orange-900 border border-orange-600 text-orange-200 px-4 py-3 rounded-lg mb-6 flex items-center gap-3">
-            <AlertTriangle size={20} />
-            <span>
+          <div className="bg-orange-900 border border-orange-600 text-orange-200 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg mb-4 sm:mb-6 flex items-start sm:items-center gap-2 sm:gap-3">
+            <AlertTriangle className="flex-shrink-0 mt-0.5 sm:mt-0" size={18} />
+            <span className="text-sm sm:text-base">
               Beberapa data histori dan dashboard kesehatan mungkin tidak
               lengkap karena backend dinonaktifkan. Data ditampilkan dari cache
               lokal.
@@ -146,90 +146,90 @@ const HistoryPage: React.FC = () => {
           </div>
         )}
 
-        {/* Daily Audio Summary Section */}
-        <div className="bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-700 mb-8">
-          <div className="flex items-center gap-3 mb-6">
-            <Volume2 className="text-blue-400" size={24} />
-            <h2 className="text-2xl font-bold text-white">Laporan Hari Ini</h2>
-            <Calendar className="text-slate-400" size={20} />
+        {/* Daily Audio Summary Section - Responsive */}
+        <div className="bg-slate-800 rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 border border-slate-700 mb-6 sm:mb-8">
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+            <Volume2 className="text-blue-400 flex-shrink-0" size={20} />
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Laporan Hari Ini</h2>
+            <Calendar className="text-slate-400 flex-shrink-0" size={18} />
           </div>
 
           {summaryLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <Loader className="animate-spin text-blue-500" size={32} />
-              <span className="ml-3 text-slate-300">
+            <div className="flex justify-center items-center py-6 sm:py-8">
+              <Loader className="animate-spin text-blue-500" size={28} />
+              <span className="ml-2 sm:ml-3 text-slate-300 text-sm sm:text-base">
                 Memuat data analisis...
               </span>
             </div>
           ) : dailySummary ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Total Analisis */}
-              <div className="bg-slate-700 rounded-xl p-6 border border-slate-600">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-slate-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {/* Total Analisis - Responsive */}
+              <div className="bg-slate-700 rounded-xl p-4 sm:p-6 border border-slate-600">
+                <div className="flex items-center justify-between mb-2 sm:mb-3">
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-200">
                     Total Analisis
                   </h3>
-                  <TrendingUp className="text-blue-400" size={20} />
+                  <TrendingUp className="text-blue-400 flex-shrink-0" size={18} />
                 </div>
-                <p className="text-3xl font-bold text-white">
+                <p className="text-2xl sm:text-3xl font-bold text-white">
                   {dailySummary.totalAnalysis}
                 </p>
-                <p className="text-sm text-slate-400 mt-1">
+                <p className="text-xs sm:text-sm text-slate-400 mt-1">
                   kali penggunaan mic
                 </p>
               </div>
 
-              {/* Rata-rata dB */}
-              <div className="bg-slate-700 rounded-xl p-6 border border-slate-600">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-slate-200">
+              {/* Rata-rata dB - Responsive */}
+              <div className="bg-slate-700 rounded-xl p-4 sm:p-6 border border-slate-600">
+                <div className="flex items-center justify-between mb-2 sm:mb-3">
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-200">
                     Rata-rata Suara
                   </h3>
                   <Volume2
-                    className={`${
+                    className={`flex-shrink-0 ${
                       dailySummary.riskLevel === "safe"
                         ? "text-green-400"
                         : dailySummary.riskLevel === "moderate"
                         ? "text-yellow-400"
                         : "text-red-400"
                     }`}
-                    size={20}
+                    size={18}
                   />
                 </div>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-3xl font-bold text-white">
+                <div className="flex items-baseline gap-1 sm:gap-2">
+                  <p className="text-2xl sm:text-3xl font-bold text-white">
                     {dailySummary.averageNoiseLevel}
                   </p>
-                  <span className="text-lg text-slate-300">dB</span>
+                  <span className="text-base sm:text-lg text-slate-300">dB</span>
                 </div>
                 {dailySummary.noiseReadings.length > 0 && (
-                  <p className="text-sm text-slate-400 mt-1">
+                  <p className="text-xs sm:text-sm text-slate-400 mt-1">
                     dari {dailySummary.noiseReadings.join(", ")} dB
                   </p>
                 )}
               </div>
 
-              {/* Rekomendasi */}
-              <div className="bg-slate-700 rounded-xl p-6 border border-slate-600 md:col-span-2 lg:col-span-1">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-slate-200">
+              {/* Rekomendasi - Responsive */}
+              <div className="bg-slate-700 rounded-xl p-4 sm:p-6 border border-slate-600 sm:col-span-2 lg:col-span-1">
+                <div className="flex items-center justify-between mb-2 sm:mb-3">
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-200">
                     Status
                   </h3>
                   {dailySummary.riskLevel === "safe" ? (
-                    <CheckCircle className="text-green-400" size={20} />
+                    <CheckCircle className="text-green-400 flex-shrink-0" size={18} />
                   ) : (
                     <AlertTriangle
-                      className={`${
+                      className={`flex-shrink-0 ${
                         dailySummary.riskLevel === "moderate"
                           ? "text-yellow-400"
                           : "text-red-400"
                       }`}
-                      size={20}
+                      size={18}
                     />
                   )}
                 </div>
                 <div
-                  className={`inline-flex px-3 py-1 rounded-full text-sm font-medium mb-3 ${
+                  className={`inline-flex px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium mb-2 sm:mb-3 ${
                     dailySummary.riskLevel === "safe"
                       ? "bg-green-900 text-green-300"
                       : dailySummary.riskLevel === "moderate"
@@ -243,15 +243,15 @@ const HistoryPage: React.FC = () => {
                     ? "Perhatian"
                     : "Bahaya"}
                 </div>
-                <p className="text-sm text-slate-300 leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                   {dailySummary.recommendation}
                 </p>
               </div>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <Volume2 className="mx-auto text-slate-500 mb-4" size={48} />
-              <p className="text-slate-400 text-lg">
+            <div className="text-center py-6 sm:py-8">
+              <Volume2 className="mx-auto text-slate-500 mb-3 sm:mb-4" size={40} />
+              <p className="text-slate-400 text-base sm:text-lg">
                 Belum ada data analisis hari ini
               </p>
               <p className="text-slate-500 text-sm mt-2">
@@ -261,8 +261,8 @@ const HistoryPage: React.FC = () => {
           )}
         </div>
 
-        {/* Health Dashboard Section */}
-        <div className="mt-8">
+        {/* Health Dashboard Section - Responsive spacing */}
+        <div className="mt-6 sm:mt-8">
           <HealthDashboard />
         </div>
       </div>
