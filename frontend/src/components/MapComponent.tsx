@@ -31,6 +31,7 @@ import {
   getNoiseOpacity,
   formatNoiseLevel,
   calculateDistance,
+  formatCoordinates,
 } from "../utils/mapUtils";
 import MapControls from "./MapControls";
 import MapPopup from "./MapPopup";
@@ -1561,6 +1562,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                                 {getClusterSourcesDisplay(cluster)}
                               </div>
                             )}
+                          <div>
+                            <strong>Koordinat:</strong> ({formatCoordinates(lat, lon)})
+                          </div>
                           <div>
                             <strong>Periode:</strong>{" "}
                             {formatDateTime(cluster.firstCreatedAt)} →{" "}
