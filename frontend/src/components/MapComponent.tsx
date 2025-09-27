@@ -187,6 +187,39 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [clustersLoading, setClustersLoading] = useState<boolean>(false);
   const [clustersError, setClustersError] = useState<string>("");
   const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+  const [clusterAddresses, setClusterAddresses] = useState<Record<string, string>>({});
+
+  // Auto-fill address for clusters based on their centroid
+  useEffect(() => {
+    const fetchMissingAddresses = async () => {
+      try {
+        const tasks = noiseClusters
+          .filter((c) => !(c.id in clusterAddresses))
+          .map(async (c) => {
+            const [clat, clon] = c.center;
+            try {
+              const addr = await mapService.reverseGeocode(clat, clon);
+              return { id: c.id, address: addr || `(${clat.toFixed(6)}, ${clon.toFixed(6)})` };
+            } catch {
+              return { id: c.id, address: `(${clat.toFixed(6)}, ${clon.toFixed(6)})` };
+            }
+          });
+        if (tasks.length > 0) {
+          const results = await Promise.all(tasks);
+          setClusterAddresses((prev) => {
+            const updated: Record<string, string> = { ...prev };
+            for (const r of results) {
+              updated[r.id] = r.address;
+            }
+            return updated;
+          });
+        }
+      } catch (e) {
+        logger.warn?.("Gagal memuat alamat cluster", e);
+      }
+    };
+    fetchMissingAddresses();
+  }, [noiseClusters]);
 
   // NEW: Cek apakah user saat ini berkontribusi pada cluster (berdasarkan username)
   const hasCurrentUserContribution = useCallback(
@@ -1565,6 +1598,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                           <div>
                             <strong>Koordinat:</strong> ({formatCoordinates(lat, lon)})
                           </div>
+                          {clusterAddresses[cluster.id] && (
+                            <div>
+                              <strong>Alamat:</strong> {clusterAddresses[cluster.id]}
+                            </div>
+                          )}
                           <div>
                             <strong>Periode:</strong>{" "}
                             {formatDateTime(cluster.firstCreatedAt)} →{" "}
