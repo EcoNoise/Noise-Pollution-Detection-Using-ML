@@ -22,17 +22,18 @@ import { NoiseLocation, SearchResult, NoiseCluster } from "../types/mapTypes";
 import { mapConfig, tileLayerConfig, noiseColors } from "../config/mapConfig";
 import { mapService } from "../services/mapService";
 import {
-  generateNoiseArea,
-  computeNoiseAreaStatus,
-  getCircleStyleByStatus,
-  getStatusTooltip,
-  getNoiseColor,
-  getNoiseRadius,
-  getNoiseOpacity,
-  formatNoiseLevel,
-  calculateDistance,
-  formatCoordinates,
-} from "../utils/mapUtils";
+    generateNoiseArea,
+    computeNoiseAreaStatus,
+    getCircleStyleByStatus,
+    getStatusTooltip,
+    getNoiseColor,
+    getNoiseRadius,
+    getNoiseOpacity,
+    formatNoiseLevel,
+    calculateDistance,
+    formatCoordinates,
+    formatRadius,
+  } from "../utils/mapUtils";
 import MapControls from "./MapControls";
 import MapPopup from "./MapPopup";
 import AreaFilter, { AreaFilters } from "./AreaFilter";
@@ -1568,7 +1569,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                         </div>
                         <div style={{ fontSize: 13, lineHeight: 1.4 }}>
                           <div>
-                            <strong>Status:</strong> {String(status)}
+                            <strong>Status Area:</strong> {String(status)}
                           </div>
                           <div>
                             <strong>Jumlah Laporan:</strong>{" "}
@@ -1597,6 +1598,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                             )}
                           <div>
                             <strong>Koordinat:</strong> ({formatCoordinates(lat, lon)})
+                          </div>
+                          <div>
+                            <strong>Radius:</strong> {formatRadius(radius)}
                           </div>
                           {clusterAddresses[cluster.id] && (
                             <div>
