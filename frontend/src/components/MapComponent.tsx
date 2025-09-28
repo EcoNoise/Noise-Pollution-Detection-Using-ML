@@ -45,7 +45,7 @@ import { getUserProfile } from "../services/profileService";
 import "leaflet/dist/leaflet.css";
 import { appConfig, logger } from "../config/appConfig";
 import { deriveFinalCategory } from "../services/map.transformers";
-import { translateNoiseSource } from "../utils/translationUtils";
+import { translateNoiseSource, translateHealthImpact } from "../utils/translationUtils";
 
 // PERBAIKAN: Fix untuk ikon default Leaflet yang sering rusak di React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -1596,6 +1596,20 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                                 {getClusterSourcesDisplay(cluster)}
                               </div>
                             )}
+                          {typeof cluster.noiseLevelAvg === "number" && (
+                            <div>
+                              <strong>Dampak Kesehatan:</strong>{" "}
+                              {translateHealthImpact(
+                                cluster.noiseLevelAvg < 55
+                                  ? "Aman"
+                                  : cluster.noiseLevelAvg < 70
+                                  ? "Perhatian"
+                                  : cluster.noiseLevelAvg < 85
+                                  ? "Berbahaya"
+                                  : "Sangat Berbahaya"
+                              )}
+                            </div>
+                          )}
                           <div>
                             <strong>Koordinat:</strong> ({formatCoordinates(lat, lon)})
                           </div>
