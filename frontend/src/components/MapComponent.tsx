@@ -18,22 +18,23 @@ import {
 } from "react-leaflet";
 import L, { Map as LeafletMap } from "leaflet";
 import { useNavigate } from "react-router-dom"; // NEW: Import for navigation
-import { NoiseLocation, SearchResult, NoiseCluster } from "../types/mapTypes";
+import { NoiseLocation, SearchResult, NoiseCluster, NoiseAreaStatus } from "../types/mapTypes";
 import { mapConfig, tileLayerConfig, noiseColors } from "../config/mapConfig";
 import { mapService } from "../services/mapService";
 import {
-    generateNoiseArea,
-    computeNoiseAreaStatus,
-    getCircleStyleByStatus,
-    getStatusTooltip,
-    getNoiseColor,
-    getNoiseRadius,
-    getNoiseOpacity,
-    formatNoiseLevel,
-    calculateDistance,
-    formatCoordinates,
-    formatRadius,
-  } from "../utils/mapUtils";
+  generateNoiseArea,
+  computeNoiseAreaStatus,
+  getCircleStyleByStatus,
+  getStatusTooltip,
+  getNoiseColor,
+  getNoiseRadius,
+  getNoiseOpacity,
+  formatNoiseLevel,
+  calculateDistance,
+  formatCoordinates,
+  formatRadius,
+  getNoiseDescription,
+} from "../utils/mapUtils";
 import MapControls from "./MapControls";
 import MapPopup from "./MapPopup";
 import AreaFilter, { AreaFilters } from "./AreaFilter";
@@ -45,7 +46,10 @@ import { getUserProfile } from "../services/profileService";
 import "leaflet/dist/leaflet.css";
 import { appConfig, logger } from "../config/appConfig";
 import { deriveFinalCategory } from "../services/map.transformers";
-import { translateNoiseSource, translateHealthImpact } from "../utils/translationUtils";
+import {
+  translateNoiseSource,
+  translateHealthImpact,
+} from "../utils/translationUtils";
 
 // PERBAIKAN: Fix untuk ikon default Leaflet yang sering rusak di React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -188,7 +192,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [clustersLoading, setClustersLoading] = useState<boolean>(false);
   const [clustersError, setClustersError] = useState<string>("");
   const [currentUsername, setCurrentUsername] = useState<string | null>(null);
-  const [clusterAddresses, setClusterAddresses] = useState<Record<string, string>>({});
+  const [clusterAddresses, setClusterAddresses] = useState<
+    Record<string, string>
+  >({});
 
   // Auto-fill address for clusters based on their centroid
   useEffect(() => {
@@ -200,9 +206,15 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
             const [clat, clon] = c.center;
             try {
               const addr = await mapService.reverseGeocode(clat, clon);
-              return { id: c.id, address: addr || `(${clat.toFixed(6)}, ${clon.toFixed(6)})` };
+              return {
+                id: c.id,
+                address: addr || `(${clat.toFixed(6)}, ${clon.toFixed(6)})`,
+              };
             } catch {
-              return { id: c.id, address: `(${clat.toFixed(6)}, ${clon.toFixed(6)})` };
+              return {
+                id: c.id,
+                address: `(${clat.toFixed(6)}, ${clon.toFixed(6)})`,
+              };
             }
           });
         if (tasks.length > 0) {
@@ -991,7 +1003,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
   const getClusterIcon = (cluster: NoiseCluster) => {
     const color = getClusterColor(cluster);
-    const status = (cluster.areaStatus || "") as string;
+    const status = resolveClusterAreaStatus(cluster);
     const ringColor = status === "expiring" ? color : "rgba(0,0,0,0.15)";
     const shadow =
       status === "expiring"
@@ -1524,12 +1536,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         {noiseClusters
           .filter((cluster) => (cluster.reportCount ?? 0) > 1)
           .map((cluster) => {
-            const status =
-              (cluster.areaStatus as any) ||
-              computeNoiseAreaStatus(
-                cluster.firstCreatedAt || new Date(),
-                cluster.maxExpiresAt || undefined
-              );
+            const areaStatus = resolveClusterAreaStatus(cluster);
             const avg =
               typeof cluster.noiseLevelAvg === "number"
                 ? cluster.noiseLevelAvg
@@ -1538,7 +1545,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
             const baseColor = getNoiseColor(avg);
             const baseOpacity = getNoiseOpacity(avg);
             const style = getCircleStyleByStatus(
-              status,
+              areaStatus,
               baseColor,
               baseOpacity
             );
@@ -1569,7 +1576,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                         </div>
                         <div style={{ fontSize: 13, lineHeight: 1.4 }}>
                           <div>
-                            <strong>Status Area:</strong> {String(status)}
+                            <strong>Status:</strong> {String(areaStatus)}
+                          </div>
+                          <div>
+                            <strong>Status Area:</strong> {getNoiseDescription(avg)}
                           </div>
                           <div>
                             <strong>Jumlah Laporan:</strong>{" "}
@@ -1611,14 +1621,16 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                             </div>
                           )}
                           <div>
-                            <strong>Koordinat:</strong> ({formatCoordinates(lat, lon)})
+                            <strong>Koordinat:</strong> (
+                            {formatCoordinates(lat, lon)})
                           </div>
                           <div>
                             <strong>Radius:</strong> {formatRadius(radius)}
                           </div>
                           {clusterAddresses[cluster.id] && (
                             <div>
-                              <strong>Alamat:</strong> {clusterAddresses[cluster.id]}
+                              <strong>Alamat:</strong>{" "}
+                              {clusterAddresses[cluster.id]}
                             </div>
                           )}
                           <div>
@@ -1681,3 +1693,15 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 };
 
 export default MapComponent;
+
+// Helper: resolve area status from DB or compute fallback
+const VALID_AREA_STATUSES: NoiseAreaStatus[] = ["active", "expiring", "expired", "permanent"];
+const resolveClusterAreaStatus = (cluster: NoiseCluster): NoiseAreaStatus => {
+  const raw = (cluster.areaStatus ?? "").toString().toLowerCase().trim();
+  if ((VALID_AREA_STATUSES as string[]).includes(raw)) {
+    return raw as NoiseAreaStatus;
+  }
+  const created = cluster.firstCreatedAt || new Date();
+  const expires = cluster.maxExpiresAt || undefined;
+  return computeNoiseAreaStatus(created, expires);
+};
