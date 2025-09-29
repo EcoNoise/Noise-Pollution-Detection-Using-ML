@@ -11,7 +11,7 @@ import {
   Tooltip,
 } from "react-leaflet";
 import L, { Map as LeafletMap } from "leaflet";
-import { useNavigate } from "react-router-dom"; // NEW: Import for navigation
+import { useNavigate } from "react-router-dom"; 
 import { NoiseLocation, SearchResult } from "../types/mapTypes";
 import { mapConfig, tileLayerConfig, noiseColors } from "../config/mapConfig";
 import { mapService } from "../services/mapService";
@@ -26,7 +26,6 @@ import { useAuth } from "../contexts/AuthContext";
 import "leaflet/dist/leaflet.css";
 import { appConfig, logger } from "../config/appConfig";
 
-// PERBAIKAN: Fix untuk ikon default Leaflet yang sering rusak di React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
@@ -34,7 +33,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
 });
 
-// BARU: Custom icon untuk lokasi pengguna
 const userLocationIcon = L.divIcon({
   className: "user-location-marker",
   html: `
@@ -79,7 +77,6 @@ const userLocationIcon = L.divIcon({
   iconAnchor: [10, 10],
 });
 
-// BARU: Custom icon untuk search location
 const searchLocationIcon = L.divIcon({
   className: "search-location-marker",
   html: `
@@ -130,16 +127,13 @@ interface MapComponentProps {
 }
 
 const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
-  const navigate = useNavigate(); // NEW: Hook for navigation
+  const navigate = useNavigate(); 
   const { isAuthenticated } = useAuth();
   const [noiseLocations, setNoiseLocations] = useState<NoiseLocation[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const {
-    // popupState,  // removed unused
-    // hidePopup,   // removed unused
     showSuccess,
     showError,
-    // showWarning, // removed unused
     showConfirm,
     showLogin,
     PopupComponent,
@@ -150,7 +144,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [showNoiseForm, setShowNoiseForm] = useState<boolean>(false);
   const [showLegend, setShowLegend] = useState<boolean>(true);
   const [showFilter, setShowFilter] = useState<boolean>(false);
-  const [formDescription, setFormDescription] = useState<string>(""); // State untuk deskripsi
+  const [formDescription, setFormDescription] = useState<string>(""); 
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [selectedPosition, setSelectedPosition] = useState<
@@ -169,7 +163,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     address: string;
   } | null>(null);
 
-  // NEW: State for the address input in the form
   const [formAddress, setFormAddress] = useState<string>("");
 
   const [loading, setLoading] = useState<boolean>(false);
@@ -183,7 +176,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const watchId = useRef<number | null>(null);
 
-  // Tutorial state
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
 
   useEffect(() => {
@@ -193,13 +185,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     // Check if this is the first visit to show tutorial
     const hasSeenTutorial = localStorage.getItem("hasSeenMapTutorial");
     if (!hasSeenTutorial) {
-      // Delay tutorial to ensure map is loaded
       setTimeout(() => {
         setShowTutorial(true);
       }, 1000);
     }
 
-    // UPDATED: Check for shared data from either flow
+    // Check for shared data from either flow
     const sharedData = mapService.getSharedNoiseData();
     if (sharedData) {
       processSharedData(sharedData);
@@ -210,7 +201,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         navigator.geolocation.clearWatch(watchId.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Utility: process shared noise data passed from other flows
@@ -267,7 +257,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     if (mapRef.current) {
       mapRef.current.flyTo(coordinates, zoomLevel, {
         animate: true,
-        duration: 1.5, // Durasi animasi dalam detik
+        duration: 1.5, 
         easeLinearity: 0.25,
       });
       if (showMarker && !userLocation) {
@@ -294,7 +284,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         } finally {
           setIsSearching(false);
         }
-      }, 300); // Dipercepat dari 500ms ke 300ms untuk responsif
+      }, 300); 
     } else {
       setSearchResults([]);
       setIsSearching(false);
@@ -336,7 +326,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       return;
     }
 
-    // Removed legacy SessionManager check, use AuthContext instead
     if (!isAuthenticated) {
       showLogin(
         "Login Diperlukan",
@@ -347,7 +336,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     }
 
     setIsAddingNoise(!isAddingNoise);
-    // Reset form state when toggling the mode off
     if (isAddingNoise) {
       setShowNoiseForm(false);
       setSelectedPosition(null);
@@ -355,7 +343,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     }
   };
 
-  // NEW: Handler for the "Analisis Suara" button
+  // Handler for the "Analisis Suara" button
   const handleUploadAndAnalyze = async () => {
     if (!appConfig.backendEnabled) {
       setError("Fitur analisis audio tidak tersedia saat backend dinonaktifkan");
@@ -390,7 +378,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       return;
     }
 
-    const maxSize = 50 * 1024 * 1024; // 50MB
+    const maxSize = 50 * 1024 * 1024; 
     if (audioFile.size > maxSize) {
       setError(
         `Ukuran file terlalu besar (${(audioFile.size / 1024 / 1024).toFixed(
@@ -451,7 +439,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         return;
       }
 
-      // Tampilkan error yang lebih user-friendly
       let userMessage =
         err.message || "Terjadi kesalahan saat memproses file Anda.";
 
@@ -482,10 +469,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
 
-      // Reset error sebelumnya
       setError("");
 
-      // Validasi format file
       const allowedTypes = [
         "audio/wav",
         "audio/mp3",
@@ -498,19 +483,18 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       ];
       if (!allowedTypes.includes(file.type)) {
         setError(`Format file tidak didukung: ${file.type}`);
-        e.target.value = ""; // Reset input
+        e.target.value = ""; 
         return;
       }
 
-      // Validasi ukuran file
-      const maxSize = 50 * 1024 * 1024; // 50MB
+      const maxSize = 50 * 1024 * 1024; 
       if (file.size > maxSize) {
         setError(
           `File terlalu besar: ${(file.size / 1024 / 1024).toFixed(
             1
           )}MB. Maksimal 50MB.`
         );
-        e.target.value = ""; // Reset input
+        e.target.value = ""; 
         return;
       }
 
@@ -528,11 +512,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       setError("Fitur analisis ulang tidak tersedia saat backend dinonaktifkan");
       return;
     }
-    setLocationToReanalyze(location); // Simpan info lokasi mana yang akan dianalisis
-    reanalysisFileInputRef.current?.click(); // Buka jendela pilih file
+    setLocationToReanalyze(location); 
+    reanalysisFileInputRef.current?.click(); 
   };
 
-  // Fungsi ini berjalan setelah Anda memilih file audio
   const handleReanalysisFileSelected = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -542,12 +525,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     }
 
     const file = e.target.files?.[0];
-    if (!file || !locationToReanalyze) return; // Batalkan jika tidak ada file
+    if (!file || !locationToReanalyze) return; 
 
     setIsUploading(true);
     setError("");
     try {
-      // Panggil service yang sudah Anda buat
       const updatedLocation = await mapService.updateNoiseLocationWithAudio(
         locationToReanalyze.id,
         file,
@@ -558,13 +540,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       );
 
       if (updatedLocation) {
-        await loadNoiseLocations(); // Muat ulang data peta agar update
+        await loadNoiseLocations(); 
         showSuccess("Berhasil!", "Analisis ulang berhasil!");
       } else {
         setError("Gagal memperbarui setelah analisis ulang.");
       }
     } catch (err: any) {
-      // Tangani error koordinat sama
       if (err.message && err.message.includes("Koordinat sudah digunakan")) {
         setError(err.message);
       } else {
@@ -573,7 +554,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     } finally {
       setIsUploading(false);
       setLocationToReanalyze(null);
-      if (e.target) e.target.value = ""; // Reset input
+      if (e.target) e.target.value = ""; 
     }
   };
   const handleDeleteNoiseLocation = async (id: string) => {
@@ -586,30 +567,28 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       setLoading(true);
       const success = await mapService.removeNoiseLocation(id);
       if (success) {
-        await loadNoiseLocations(); // Reload data after successful deletion
+        await loadNoiseLocations(); 
       } else {
         setError("Gagal menghapus area berisik");
       }
     } catch (error: any) {
       logger.error("Error deleting noise location:", error);
-      // Tampilkan pesan error dari server jika ada
       setError(error.message || "Gagal menghapus area berisik");
     } finally {
       setLoading(false);
     }
   };
 
-  // DIPERBAHARUI: Handle locate user dengan icon
+  // Handle locate user dengan icon
   const handleLocateUser = async () => {
     setLoading(true);
-    setError(""); // Clear error sebelumnya
+    setError(""); 
     try {
       const position = await mapService.getCurrentLocation();
       if (position) {
         setUserLocation(position);
-        setIsTrackingUser(true); // Mulai tracking lokasi real-time
-        // PERBAIKAN: Gunakan smooth zoom untuk lokasi user
-        zoomToLocation(position, 16, false); // false karena sudah ada user location icon
+        setIsTrackingUser(true); 
+        zoomToLocation(position, 16, false); 
       }
     } catch (error) {
       logger.error("Error getting location:", error);
@@ -644,40 +623,33 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           setLoading(false);
         }
       },
-      undefined, // onCancel - default behavior
+      undefined, 
       "Ya, Hapus",
       "Batal"
     );
   };
 
-  // ENHANCED: Improved search result click handler
   const handleSearchResultClick = (result: SearchResult) => {
-    // PERBAIKAN: Set marker untuk lokasi pencarian dengan null check untuk address
     setSearchLocationMarker({
       position: result.coordinates,
       name: result.name,
-      address: result.address || "Alamat tidak tersedia", // Fix untuk type error
+      address: result.address || "Alamat tidak tersedia", 
     });
 
-    // Smooth zoom ke hasil pencarian dengan zoom level yang lebih tinggi
-    zoomToLocation(result.coordinates, 17, false); // false karena kita gunakan marker khusus
+    zoomToLocation(result.coordinates, 17, false); 
 
-    // Clear search UI
     setSearchQuery("");
     setSearchResults([]);
 
-    // Auto-hide marker setelah 10 detik
     setTimeout(() => {
       setSearchLocationMarker(null);
     }, 10000);
   };
 
-  // BARU: Function untuk menghapus search marker secara manual
   const handleClearSearchMarker = () => {
     setSearchLocationMarker(null);
   };
 
-  // Tutorial handlers
   const handleTutorialComplete = () => {
     setShowTutorial(false);
     localStorage.setItem("hasSeenMapTutorial", "true");
@@ -693,29 +665,26 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     setShowTutorial(true);
   };
 
-  // PERBAIKAN: Fungsi untuk handle keyboard navigation pada search results
+  // Fungsi untuk handle keyboard navigation pada search results
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       setSearchQuery("");
       setSearchResults([]);
-      setSearchLocationMarker(null); // Clear search marker juga
+      setSearchLocationMarker(null); 
     } else if (e.key === "Enter" && searchResults.length > 0) {
-      // Auto select first result saat Enter
       handleSearchResultClick(searchResults[0]);
     } else if (e.key === "ArrowDown" && searchResults.length > 0) {
-      // Future: implement keyboard navigation through results
       e.preventDefault();
     }
   };
 
-  // ENHANCED: Component for handling map events
+  // Component for handling map events
   const MapEvents: React.FC = () => {
     useMapEvents({
       click: (e) => {
         handleMapClick(e);
       },
       zoomstart: () => {
-        // Optional: behavior saat zoom dimulai
       },
     });
     return null;
@@ -727,7 +696,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       return noiseLocations;
     }
 
-    // Fungsi helper untuk konversi noise level
     const getNoiseLevelCategory = (level: number): string => {
       if (level === 0) return "Sedang dalam perbaikan";
       if (level <= 40) return "Tenang";
@@ -880,7 +848,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
                 id="audio-upload"
                 type="file"
                 accept="audio/*"
-                onChange={handleFileChange} // <--- Handler baru
+                onChange={handleFileChange} 
                 className={styles.fileInput}
                 disabled={isUploading || !appConfig.backendEnabled}
               />
@@ -889,7 +857,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
               )}
             </div>
             <button
-              onClick={handleUploadAndAnalyze} // <--- Handler baru
+              onClick={handleUploadAndAnalyze} 
               className={styles.submitButton}
               disabled={isUploading || !audioFile || !appConfig.backendEnabled}
             >

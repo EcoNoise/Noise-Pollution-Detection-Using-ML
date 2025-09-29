@@ -1,3 +1,4 @@
+// src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "../config/supabaseConfig";
@@ -37,7 +38,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
     const getSession = async () => {
       try {
         const {
@@ -50,7 +50,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setUser(session?.user ?? null);
           logger.info("Initial session loaded:", session?.user?.email);
           if (session?.user) {
-            // Persist for compatibility with legacy code paths
             localStorage.setItem("userId", session.user.id);
             localStorage.setItem("userEmail", session.user.email || "");
           }
@@ -64,7 +63,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     getSession();
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -72,7 +70,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(session?.user ?? null);
       setLoading(false);
 
-      // Handle different auth events
       switch (event) {
         case "SIGNED_IN":
           logger.info("User signed in:", session?.user?.email);
@@ -83,7 +80,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           break;
         case "SIGNED_OUT":
           logger.info("User signed out");
-          // Clear any local storage if needed
           localStorage.removeItem("userId");
           localStorage.removeItem("userEmail");
           break;
@@ -147,7 +143,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (data.user) {
         logger.info("Email sign in successful:", data.user.email);
-        // Store user info in localStorage for compatibility with existing code
         localStorage.setItem("userId", data.user.id);
         localStorage.setItem("userEmail", data.user.email || "");
         return { success: true };
@@ -185,7 +180,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (data.user) {
         logger.info("Email sign up successful:", data.user.email);
 
-        // If email confirmation is required
         if (!data.session && data.user && !data.user.email_confirmed_at) {
           return {
             success: true,
@@ -217,7 +211,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       logger.info("User signed out successfully");
-      // Clear local storage
       localStorage.removeItem("userId");
       localStorage.removeItem("userEmail");
     } catch (error) {

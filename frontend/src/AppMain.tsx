@@ -1,3 +1,4 @@
+// src/AppMain.tsx
 import React, { useState, useEffect } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -23,7 +24,7 @@ import HomePage from "./components/HomePage";
 import HistoryPage from "./components/HistoryPage";
 import StatusPage from "./components/StatusPage";
 import LandingPage from "./components/LandingPage";
-import MapsPage from "./components/MapsPage"; // Import yang benar
+import MapsPage from "./components/MapsPage"; 
 import RegisterPage from "./components/RegisterPage";
 import LoginPage from "./components/LoginPage";
 import ProfilePage from "./components/ProfilePage";
@@ -108,13 +109,13 @@ const Sidebar = styled(Box)(({ theme }) => ({
 
 const SidebarLogo = styled(Box)({
   marginBottom: "30px",
-  width: "60px", // Diperbesar dari 40px ke 60px
-  height: "60px", // Diperbesar dari 40px ke 60px
+  width: "60px", 
+  height: "60px", 
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   borderRadius: "12px",
-  background: "transparent", // Hilangkan background gradient
+  background: "transparent", 
   color: "white",
   fontWeight: "bold",
   cursor: "pointer",
@@ -210,7 +211,7 @@ const NavigationSidebar: React.FC<{
   };
 
   const handleLogoClick = () => {
-    navigate("/"); // Logo selalu mengarah ke landing page
+    navigate("/"); 
   };
 
   return (
@@ -277,7 +278,6 @@ const NavigationSidebar: React.FC<{
   );
 };
 
-// 2. Layout Utama: Membungkus semua halaman yang butuh sidebar
 const MainLayout: React.FC<{
   children: React.ReactNode;
   onLogout: () => void;
@@ -289,12 +289,10 @@ const MainLayout: React.FC<{
   </Box>
 );
 
-// 3. Rute Terlindungi: Komponen untuk halaman yang wajib login
 const ProtectedRoute: React.FC<{
   isAuthenticated: boolean;
   children: JSX.Element;
 }> = ({ isAuthenticated, children }) => {
-  // Phase 2: Always allow access (auth disabled)
   if (!appConfig.backendEnabled) {
     return children;
   }
@@ -302,23 +300,18 @@ const ProtectedRoute: React.FC<{
   return children;
 };
 
-// 4. Komponen App Utama: Mengatur semua routing
 function App() {
   const { user, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
 
-  // Determine authentication status from AuthContext
   const isAuthenticated = !!user;
 
   const handleLogin = () => {
-    // Login is now handled by AuthContext
-    // This function is kept for compatibility with existing components
   };
 
   const handleLogout = async () => {
     try {
       await signOut();
-      // Also clear legacy tokens for backward compatibility
       const sessionManager = SessionManager.getInstance();
       await sessionManager.clearTokens();
       localStorage.removeItem("userId");
@@ -328,10 +321,8 @@ function App() {
     }
   };
 
-  // Listen untuk auth logout events dari API interceptor (legacy support)
   useEffect(() => {
     const handleAuthLogout = () => {
-      // Auth state is now managed by AuthContext
       logger.info("Legacy auth logout event received");
     };
 
@@ -342,16 +333,13 @@ function App() {
     };
   }, []);
 
-  // Sync loading state with AuthContext
   useEffect(() => {
     setLoading(authLoading);
   }, [authLoading]);
 
-  // Listen to storage changes for cross-tab auth updates (legacy support)
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === "mock_access_token") {
-        // Legacy token handling - AuthContext will handle Supabase tokens
         logger.info("Legacy token change detected:", e.key);
       }
     };
@@ -496,7 +484,6 @@ function App() {
   );
 }
 
-// Wrapper component with AuthProvider
 function AppWithAuth() {
   return (
     <AuthProvider>

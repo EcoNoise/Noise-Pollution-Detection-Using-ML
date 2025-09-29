@@ -1,3 +1,4 @@
+// src/services/audioClassificationService.ts
 import * as tf from '@tensorflow/tfjs';
 import { logger } from '../config/appConfig';
 
@@ -65,11 +66,11 @@ class AudioClassificationService {
       let audioData: Float32Array;
       
       if (audioInput instanceof Float32Array) {
-        // Jalur 1: Float32Array langsung dari mic buffer
+        // Float32Array langsung dari mic buffer
         logger.info('📡 Using direct Float32Array from mic buffer');
         audioData = audioInput;
       } else {
-        // Jalur 2: Blob dari rekaman manual - perlu decode
+        // Blob dari rekaman manual - perlu decode
         logger.info('🎤 Decoding Blob from manual recording');
         const arrayBuffer = await audioInput.arrayBuffer();
         const audioContext = new AudioContext({ sampleRate: 16000 });
@@ -78,7 +79,7 @@ class AudioClassificationService {
         // Convert to Float32Array
         const rawAudioData = audioBuffer.getChannelData(0);
         
-        // Resample if needed
+        // Resample
         if (audioBuffer.sampleRate !== 16000) {
           logger.info(`🔄 Resampling from ${audioBuffer.sampleRate}Hz to 16000Hz`);
           audioData = this.resampleAudio(rawAudioData, audioBuffer.sampleRate, 16000);

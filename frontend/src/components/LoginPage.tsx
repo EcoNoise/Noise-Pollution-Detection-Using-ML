@@ -1,3 +1,4 @@
+// src/components/LoginPage.tsx
 import React, { useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff, User, Lock, Mail, ArrowLeft } from "lucide-react";
@@ -19,23 +20,16 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  
-  // Use state that persists and is not affected by auth re-renders
   const [displayError, setDisplayError] = useState("");
   const [errorTimestamp, setErrorTimestamp] = useState(0);
   const [successMessage, setSuccessMessage] = useState("");
-  
-  // Helper to set error that persists across re-renders
   const setErrorMessage = (message: string) => {
     setDisplayError(message);
     setErrorTimestamp(Date.now()); 
-    // Backup to localStorage to survive any re-renders
     localStorage.setItem('loginError', message);
     localStorage.setItem('loginErrorTime', Date.now().toString());
     console.log("🔥 Error set with timestamp and localStorage backup:", message, Date.now());
   };
-  
-  // Helper to clear error
   const clearErrorMessage = () => {
     setDisplayError("");
     setErrorTimestamp(0);
@@ -44,44 +38,42 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     console.log("🧹 Error cleared from state and localStorage");
   };
   
-  // Restore error from localStorage if it exists and is recent (within last 10 seconds)
+  // Restore error from localStorage jika ada
   React.useEffect(() => {
     const storedError = localStorage.getItem('loginError');
     const storedTime = localStorage.getItem('loginErrorTime');
     
     if (storedError && storedTime) {
       const timeDiff = Date.now() - parseInt(storedTime);
-      if (timeDiff < 10000) { // Less than 10 seconds old
+      if (timeDiff < 10000) { 
         setDisplayError(storedError);
         setErrorTimestamp(parseInt(storedTime));
         console.log("🔄 Error restored from localStorage:", storedError);
       } else {
-        // Clean old error
         localStorage.removeItem('loginError');
         localStorage.removeItem('loginErrorTime');
       }
     }
     
-    // Check for registration success message
+    // registration success message
     const registrationSuccess = localStorage.getItem('registrationSuccess');
     if (registrationSuccess) {
       setSuccessMessage(registrationSuccess);
-      localStorage.removeItem('registrationSuccess'); // Clear after showing
+      localStorage.removeItem('registrationSuccess'); 
       console.log("✅ Registration success message loaded:", registrationSuccess);
       
-      // Auto hide success message after 5 seconds
       setTimeout(() => {
         setSuccessMessage("");
       }, 5000);
     }
-  }, []); // Only run on mount
+  }, []); 
 
   // Debug error state changes
   React.useEffect(() => {
     console.log("🔍 Display error value:", displayError);
   }, [displayError, errorTimestamp]);
   
-  // Monitor and restore error if it gets reset
+  // Monitor dan restore error jika ada reset
   React.useEffect(() => {
     const interval = setInterval(() => {
       const storedError = localStorage.getItem('loginError');
@@ -89,13 +81,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       
       if (storedError && storedTime && !displayError) {
         const timeDiff = Date.now() - parseInt(storedTime);
-        if (timeDiff < 10000) { // Less than 10 seconds old
+        if (timeDiff < 10000) { 
           console.log("🚨 ERROR WAS RESET! Restoring from localStorage:", storedError);
           setDisplayError(storedError);
           setErrorTimestamp(parseInt(storedTime));
         }
       }
-    }, 1000); // Check every second
+    }, 1000); 
     
     return () => clearInterval(interval);
   }, [displayError]);
@@ -107,7 +99,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       return false;
     }
     
-    // Comprehensive email regex
     const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
     
     if (!emailRegex.test(emailValue)) {
@@ -160,16 +151,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   const { signInWithEmail, signInWithGoogle, loading: authLoading } = useAuth();
 
-  // Email change handler with validation
+  // Email change handler dengan validation
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setLoginField(value);
     setEmailError("");
     
-    // Clear login error when user starts typing
     clearErrorMessage();
     
-    // Only validate email format if it looks like an email; allow username input
     if (value.length > 0 && isEmailFormat(value)) {
       setTimeout(() => {
         validateEmail(value);
@@ -185,7 +174,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setPassword(value);
     setPasswordError("");
     
-    // Clear login error when user starts typing
     clearErrorMessage();
     
     if (value.length > 0) {
@@ -201,7 +189,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const identifier = loginField.trim();
   console.log("🔍 Login attempt started", { identifier, password: password ? "***" : "empty" });
     
-    // Clear all previous errors
     clearErrorMessage();
   setEmailError("");
   setPasswordError("");
@@ -230,20 +217,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setLoading(true);
 
     try {
-      // If input is username, resolve to email first
       let emailForAuth = identifier;
       if (!inputIsEmail) {
         const { data, error } = await supabase
           .from("profiles")
           .select("email, status_aktif")
-          // Case-insensitive exact match for username
           .ilike("username", identifier)
           .single();
 
         if (error || !data) {
           setEmailError("Username tidak ditemukan!");
           setErrorMessage("❌ Username tidak ditemukan!");
-          // Focus identifier field for quick correction
           setTimeout(() => identifierRef.current?.focus(), 0);
           setLoading(false);
           return;
@@ -268,20 +252,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       } else {
         console.log("❌ Login failed, processing error");
         
-        // Log the exact error for debugging
         console.log("Login Error Details:", {
           error: result.error,
           errorType: typeof result.error,
           errorString: String(result.error)
         });
         
-        // FORCE set error - ensure something is always shown
   let errorMessage = "❌ Login gagal!";
         
-        // Handle specific error cases with more detailed messages
         const errorMsg = String(result.error || "").toLowerCase();
         
-        // Common Supabase authentication errors
+        // authentication errors
     if (errorMsg.includes("invalid login credentials") || 
             errorMsg.includes("invalid_credentials") ||
             errorMsg.includes("wrong password") ||
@@ -291,7 +272,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             errorMsg.includes("invalid credentials") ||
             errorMsg.includes("bad email") ||
             errorMsg.includes("bad password")) {
-          // Try to disambiguate: check whether identifier exists
           if (inputIsEmail) {
             try {
               const { data } = await supabase
@@ -309,13 +289,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 setTimeout(() => identifierRef.current?.focus(), 0);
               }
             } catch {
-              // If cannot determine due to RLS or other issues, default to email not registered
               errorMessage = "❌ Email tidak terdaftar!";
               setEmailError("Email tidak terdaftar!");
               setTimeout(() => identifierRef.current?.focus(), 0);
             }
           } else {
-            // Username path: we already looked it up successfully above, so it's a wrong password
             errorMessage = "❌ Password salah!";
             setPasswordError("Password salah!");
             setTimeout(() => passwordRef.current?.focus(), 0);
@@ -344,7 +322,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                    errorMsg.includes("fetch failed")) {
           errorMessage = "🌐 Masalah koneksi internet!";
         } else {
-          // Default error for any other case
           if (result.error && result.error.length > 0) {
             errorMessage = `❌ ${result.error}`;
           } else {
@@ -354,7 +331,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         
         console.log("🔥 Setting error message:", errorMessage);
         
-        // Set error using persistent method
         setErrorMessage(errorMessage);
         
         logger.error("Login failed with error:", result.error);
@@ -362,7 +338,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     } catch (err: any) {
       console.log("❌ Catch block executed");
       
-      // Log complete error for debugging
       console.log("Catch Block Error Details:", {
         error: err,
         message: err.message,
@@ -423,7 +398,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       
       console.log("🔥 Setting catch error message:", errorMessage);
       
-      // Set error using persistent method
       setErrorMessage(errorMessage);
     } finally {
       setLoading(false);
@@ -435,7 +409,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     try {
       clearErrorMessage();
       await signInWithGoogle();
-      // Navigation will be handled by AuthCallback component
     } catch (err: any) {
       setErrorMessage("Gagal login dengan Google. Silakan coba lagi.");
       logger.error("Google login error:", err);

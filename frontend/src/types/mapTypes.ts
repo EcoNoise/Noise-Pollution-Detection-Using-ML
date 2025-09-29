@@ -1,22 +1,21 @@
 // src/types/mapTypes.ts
 export interface NoiseLocation {
   id: string;
-  coordinates: [number, number]; // Changed from separate latitude/longitude to coordinates array
+  coordinates: [number, number]; 
   noiseLevel: number;
-  source: string; // Added source field
-  healthImpact: string; // Added health impact field
+  source: string; 
+  healthImpact: string; 
   description?: string;
-  address?: string; // Added address field
+  address?: string; 
   timestamp: Date;
   radius?: number;
   color?: string;
-  userId?: string; // Added user ID field
-  userName?: string; // Added user name field
-  canDelete?: boolean; // Added permission field
-  expires_at?: Date; // Added expiration time field
-  // Final category mapped from classifier or heuristics (e.g., Traffic, Construction, Event, etc.)
+  userId?: string; 
+  userName?: string; 
+  canDelete?: boolean; 
+  expires_at?: Date; 
   final_category?: string;
-  status?: NoiseAreaStatus; // Optional persisted status from backend (active|expiring|expired|permanent)
+  status?: NoiseAreaStatus; 
 }
 
 export interface MapMarkerData {

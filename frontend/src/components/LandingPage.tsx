@@ -1,3 +1,4 @@
+// src/components/LandingPage.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 
@@ -80,11 +81,9 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
 
     // Function to remove Spline watermark
     const removeSplineWatermark = () => {
-      // Wait for Spline viewer to load
       setTimeout(() => {
         const splineViewer = document.querySelector("spline-viewer");
         if (splineViewer && splineViewer.shadowRoot) {
-          // Try to find and remove watermark in shadow DOM
           const shadowRoot = splineViewer.shadowRoot;
           const watermarkElements = shadowRoot.querySelectorAll(
             'a[href*="spline.design"], div[style*="position: absolute"][style*="bottom"], div[style*="position: fixed"][style*="bottom"]'
@@ -103,7 +102,7 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
           });
         }
 
-        // Also check for watermark in regular DOM
+        // check for watermark in regular DOM
         const regularWatermarks = document.querySelectorAll(
           'a[href*="spline.design"], div[style*="position: absolute"][style*="bottom"]'
         );
@@ -122,10 +121,8 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
       }, 2000);
     };
 
-    // Remove watermark when script loads
     script.onload = removeSplineWatermark;
 
-    // Also try to remove watermark periodically
     const interval = setInterval(removeSplineWatermark, 3000);
 
     return () => {
@@ -136,8 +133,6 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
     };
   }, []);
 
-  // Alternative approach using ref for creating spline-viewer
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const SplineViewer = ({
     url,
     className,
@@ -151,7 +146,6 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
       const container = containerRef.current;
       if (!container) return;
 
-      // Check if spline-viewer is loaded
       const checkAndCreateSpline = () => {
         if (customElements.get("spline-viewer")) {
           const splineViewer = document.createElement("spline-viewer") as any;
@@ -160,7 +154,6 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
           container.innerHTML = "";
           container.appendChild(splineViewer);
         } else {
-          // Retry after a short delay
           setTimeout(checkAndCreateSpline, 100);
         }
       };
@@ -2260,7 +2253,7 @@ const ModernLandingPage: React.FC<LandingPageProps> = ({
 
             <div className="footer-bottom">
               <div className="footer-copyright">
-                <p>&copy; 2024 EcoNoise. Semua hak dilindungi.</p>
+                <p>&copy; 2025 EcoNoise. Semua hak dilindungi.</p>
               </div>
               <div className="footer-credits">
                 <p>Dibuat dengan ❤️ untuk lingkungan yang lebih baik</p>

@@ -1,3 +1,4 @@
+// src/components/ProfilePage.tsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -183,7 +184,6 @@ const ProfilePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Form state
   const [formData, setFormData] = useState({
     username: "",
     first_name: "",
@@ -210,7 +210,7 @@ const ProfilePage: React.FC = () => {
         last_name: profileData.last_name || "",
         email: profileData.email || "",
       });
-      // Add cache-busting parameter to photo URL to prevent caching issues
+      // Add cache-busting parameter to photo URL 
       const photoUrl = profileData.photo_url
         ? `${profileData.photo_url}${
             profileData.photo_url.includes("?") ? "&" : "?"

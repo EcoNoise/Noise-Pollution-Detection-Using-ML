@@ -17,7 +17,6 @@ import {
 import { deriveFinalCategory } from "../services/map.transformers";
 import ModernPopup from "./ModernPopup";
 import styles from "../styles/MapComponent.module.css";
-// import { appConfig } from "../config/appConfig"; // removed unused import
 
 interface MapPopupProps {
   location: NoiseLocation;
@@ -49,7 +48,6 @@ const MapPopup: React.FC<MapPopupProps> = ({
     setShowDeleteConfirm(false);
   };
 
-  // Gunakan canDelete dari server sebagai penanda utama, dan userId sebagai backup
   const isOwner =
     location.canDelete || (currentUserId && location.userId === currentUserId);
 

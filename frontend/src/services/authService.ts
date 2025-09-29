@@ -1,3 +1,4 @@
+// src/services/authService.ts
 import { apiService } from './api';
 import SessionManager from '../utils/tokenManager';
 
@@ -8,7 +9,6 @@ export const register = async (formData: FormData) => {
   const username = formData.get('username') as string;
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
-  // Note: photo handling will be implemented later for profile pictures
 
   const userData = {
     first_name: firstName,
@@ -31,7 +31,6 @@ export const register = async (formData: FormData) => {
     localStorage.setItem("firstName", firstName);
     localStorage.setItem("lastName", lastName);
     
-    // Set mock tokens for session management
     const sessionManager = SessionManager.getInstance();
     sessionManager.setTokens(`mock-token-${result.data.user.id}`, `refresh-token-${result.data.user.id}`);
   }
@@ -77,7 +76,6 @@ export const login = async (loginField: string, password: string) => {
       localStorage.setItem("username", result.data.user.username);
     }
     
-    // Set mock tokens for session management
     const sessionManager = SessionManager.getInstance();
     sessionManager.setTokens(`mock-token-${result.data.user.id}`, `refresh-token-${result.data.user.id}`);
   }

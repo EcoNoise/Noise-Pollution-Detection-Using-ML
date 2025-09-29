@@ -1,3 +1,4 @@
+// src/services/interfaces/IAuthService.ts
 // Backend-agnostic Authentication Service Interface
 export interface User {
   id: string;

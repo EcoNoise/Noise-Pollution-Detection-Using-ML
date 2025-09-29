@@ -4,14 +4,11 @@ import MapComponent from "../components/MapComponent";
 
 const MapsPage: React.FC = () => {
   useEffect(() => {
-    // Set document title
     document.title = "Maps - Noise Detection";
 
-    // Apply full screen styles to html and body
     const html = document.documentElement;
     const body = document.body;
 
-    // Store original styles
     const originalHtmlStyle = {
       margin: html.style.margin,
       padding: html.style.padding,
@@ -26,7 +23,6 @@ const MapsPage: React.FC = () => {
       overflow: body.style.overflow,
     };
 
-    // Apply full screen styles
     html.style.margin = "0";
     html.style.padding = "0";
     html.style.height = "100%";
@@ -37,7 +33,6 @@ const MapsPage: React.FC = () => {
     body.style.height = "100%";
     body.style.overflow = "hidden";
 
-    // Cleanup on unmount - restore original styles
     return () => {
       html.style.margin = originalHtmlStyle.margin;
       html.style.padding = originalHtmlStyle.padding;

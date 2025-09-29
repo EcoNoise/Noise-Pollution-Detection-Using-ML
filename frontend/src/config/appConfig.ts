@@ -1,10 +1,12 @@
+// src/config/appConfig.ts
+
 // Config untuk status backend dan mode offline
 export const appConfig = {
-  backendEnabled: true, // Set ke false untuk mode offline/placeholder
-  showBackendNotice: true, // Tampilkan banner informasi backend
-  offlineMode: false, // Mode offline
-  debugMode: false, // Debug logs
-  isDevelopment: process.env.NODE_ENV === 'development' || false, // Development mode detection
+  backendEnabled: true, 
+  showBackendNotice: true, 
+  offlineMode: false, 
+  debugMode: false, 
+  isDevelopment: process.env.NODE_ENV === 'development' || false, 
 };
 
 

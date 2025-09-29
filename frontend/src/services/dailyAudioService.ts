@@ -1,8 +1,4 @@
-/**
- * Daily Audio Analysis Service
- * Service untuk mengelola data analisis audio harian
- */
-
+// src/services/dailyAudioService.ts
 import { apiService } from "./api";
 import { logger } from "../config/appConfig";
 
@@ -49,7 +45,6 @@ export class DailyAudioService {
    * Reset data daily summary (menghapus cache harian)
    */
   private static resetDailyData(): void {
-    // Hapus cache daily summary
     localStorage.removeItem(this.DAILY_CACHE_KEY);
     logger.info("📅 Hari baru dimulai! Data laporan harian telah direset.");
   }
@@ -85,7 +80,6 @@ export class DailyAudioService {
    * Reset data weekly summary (menghapus cache jika ada)
    */
   private static resetWeeklyData(): void {
-    // Hapus cache weekly summary jika ada
     localStorage.removeItem("weeklyAudioSummaryCache");
     logger.info("Weekly summary data has been reset for new week");
   }
@@ -94,20 +88,16 @@ export class DailyAudioService {
    */
   static async getTodayAudioSummary(): Promise<DailyAudioSummary> {
     try {
-      // Periksa apakah sudah terjadi pergantian hari
       if (this.hasDayChanged()) {
         this.resetDailyData();
       }
 
-      // Cek cache terlebih dahulu
       const cachedData = localStorage.getItem(this.DAILY_CACHE_KEY);
       if (cachedData) {
         const parsed = JSON.parse(cachedData);
-        // Pastikan cache masih untuk hari ini
         if (parsed.date === new Date().toDateString()) {
           return parsed;
         } else {
-          // Hapus cache yang sudah tidak valid
           localStorage.removeItem(this.DAILY_CACHE_KEY);
         }
       }
@@ -168,11 +158,9 @@ export class DailyAudioService {
    * Memaksa refresh data harian (menghapus cache dan mengambil data terbaru)
    */
   static async refreshTodayAudioSummary(): Promise<DailyAudioSummary> {
-    // Hapus cache untuk memaksa refresh
     localStorage.removeItem(this.DAILY_CACHE_KEY);
     logger.info("🔄 Data laporan harian telah di-refresh");
 
-    // Ambil data terbaru
     return this.getTodayAudioSummary();
   }
 

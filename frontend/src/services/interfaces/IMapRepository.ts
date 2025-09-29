@@ -1,3 +1,4 @@
+// src/services/interfaces/IMapRepository.ts
 // Backend-agnostic Map Repository Interface
 import type { NoiseArea } from "../../types/mapTypes";
 

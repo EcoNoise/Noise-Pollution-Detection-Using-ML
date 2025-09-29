@@ -1,3 +1,4 @@
+// src/services/interfaces/IProfileService.ts
 // Backend-agnostic Profile Service Interface
 export interface UserProfile {
   id?: number | string;

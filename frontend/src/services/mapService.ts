@@ -107,7 +107,7 @@ class MapService {
         radius: location.radius || 100,
       };
 
-      // Tentukan final_category dan expires_at sesuai aturan di map.md (Bagian 2)
+      // Tentukan final_category dan expires_at sesuai aturan di map.md 
       const finalCategory = deriveFinalCategory(requestData.noise_source);
       const now = new Date();
       const addDays = (d: number) => new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
@@ -138,7 +138,6 @@ class MapService {
         const userId = userData?.user?.id;
         if (!userId) throw new Error("User must be authenticated to add noise areas");
 
-        // Prevent duplicates at same exact lat/lng for same user (optional best-effort check)
         const { data, error } = await supabase
           .from("noise_areas")
           .insert({
@@ -155,7 +154,6 @@ class MapService {
           throw new Error(error.message || "Gagal menyimpan area kebisingan");
         }
 
-        // Fetch username from profiles for nicer display (falls back if not available)
         let userName: string | undefined = undefined;
         try {
           const { data: profile } = await supabase
@@ -236,14 +234,12 @@ class MapService {
       if (appConfig.backendEnabled) {
         const nowIso = new Date().toISOString();
         let data: any[] | null = null;
-        // Coba ambil dari VIEW terlebih dahulu
         const viewRes = await supabase
           .from("noise_areas_with_status")
           .select("*")
           .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
           .order("created_at", { ascending: false });
         if (viewRes.error) {
-          // Fallback ke tabel dasar jika VIEW belum ada
           logger.warn?.(
             "View noise_areas_with_status tidak tersedia, fallback ke tabel noise_areas",
             viewRes.error
@@ -298,7 +294,6 @@ class MapService {
   async getNoiseLocationById(id: string): Promise<NoiseLocation | null> {
     try {
       if (appConfig.backendEnabled) {
-        // Coba dari VIEW terlebih dahulu, fallback ke tabel apabila VIEW belum tersedia
         let areaRow: any | null = null;
         const viewRes = await supabase
           .from("noise_areas_with_status")
@@ -427,7 +422,6 @@ class MapService {
         return toNoiseLocation(data, currentUserId);
       }
 
-      // Local fallback not implemented for update in legacy flow (kept minimal)
       const current = await this.getNoiseLocationById(id);
       if (!current) return null;
       const merged: NoiseLocation = { ...current, ...updates } as NoiseLocation;
@@ -444,7 +438,6 @@ class MapService {
     updates: Partial<Omit<NoiseLocation, "noiseLevel" | "source" | "healthImpact">>
   ): Promise<NoiseLocation | null> {
     try {
-      // Analysis using new module
       const { apiService } = await import('./api');
       const uploadResult = await apiService.uploadAudioFile(audioFile);
       const analysisResult = { predictions: uploadResult.predictions };
@@ -493,7 +486,7 @@ class MapService {
         return toNoiseLocation(data, userData.user.id);
       }
 
-      // Local fallback (no persistent update to local storage for brevity)
+      // Local fallback 
       return {
         id,
         coordinates: [updateData.latitude, updateData.longitude],

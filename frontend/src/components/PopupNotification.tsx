@@ -58,7 +58,6 @@ const PopupNotification: React.FC<PopupProps> = ({
     onClose();
   };
 
-  // Prevent click on modal content from closing the modal
   const handleContentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
   };

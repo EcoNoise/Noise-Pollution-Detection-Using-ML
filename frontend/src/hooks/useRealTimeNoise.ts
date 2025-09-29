@@ -85,7 +85,6 @@ const defaultOptions: Required<UseRealTimeNoiseOptions> = {
 export const useRealTimeNoise = (
   options: Partial<UseRealTimeNoiseOptions> = {}
 ): UseRealTimeNoiseReturn => {
-  // Use individual values as dependencies instead of the whole options object
   const opts = useMemo(
     () => ({ ...defaultOptions, ...options }),
     [
@@ -149,7 +148,6 @@ export const useRealTimeNoise = (
   // Advanced A-weighting filter coefficients (IIR filter design)
   const createAWeightingFilter = useCallback(
     (audioContext: AudioContext): BiquadFilterNode[] => {
-      // Remove unused sampleRate variable
       const filters: BiquadFilterNode[] = [];
 
       // A-weighting filter implementation using cascaded biquad filters
@@ -226,13 +224,12 @@ export const useRealTimeNoise = (
         totalSum += magnitude;
       }
 
-      // Return correction factor in dB
       return totalSum > 0 ? 20 * Math.log10(weightedSum / totalSum) : 0;
     },
     [getAWeightingFactor]
   );
 
-  // Advanced RMS to dB conversion with proper calibration
+  // RMS to dB conversion
   const calculateDecibels = useCallback(
     (
       rms: number,
@@ -240,12 +237,10 @@ export const useRealTimeNoise = (
     ): { db: number; dbA: number } => {
       if (rms === 0) return { db: 0, dbA: 0 };
 
-      // Improved reference calculation based on device characteristics
       let reference = 0.00002; // Standard 20 µPa reference
 
       // Auto-calibration based on device type and background noise
       if (opts.calibrationMode === "auto") {
-        // Adjust reference based on detected device characteristics
         const deviceFactor = deviceCalibrationRef.current || 1.0;
         reference = reference * deviceFactor;
 
@@ -358,7 +353,7 @@ export const useRealTimeNoise = (
   // Auto-calibration function moved before use in dependencies to avoid hoisting issues
   function performAutoCalibration(rms: number, db: number) {
     // Collect background noise samples for the first 3 seconds
-    const calibrationTime = 3000; // 3 seconds
+    const calibrationTime = 3000;
     const startTime = Date.now();
 
     if (!backgroundNoiseRef.current) {
@@ -484,14 +479,13 @@ export const useRealTimeNoise = (
       // Update reading while preserving existing classification
       setCurrentReading(prev => ({
         ...reading,
-        classification: prev?.classification // pertahankan hasil klasifikasi sebelumnya
+        classification: prev?.classification 
       }));
 
       // Update statistics using A-weighted values
       setStatistics((prev) => {
         const newReadings = [...prev.readings, reading];
 
-        // Keep only recent readings
         if (newReadings.length > opts.historyLength) {
           newReadings.splice(0, newReadings.length - opts.historyLength);
         }
@@ -567,7 +561,6 @@ export const useRealTimeNoise = (
       const audioContext = new AudioContextClass();
       audioContextRef.current = audioContext;
 
-      // Resume audio context if suspended (required by some browsers)
       if (audioContext.state === "suspended") {
         await audioContext.resume();
       }
@@ -608,7 +601,7 @@ export const useRealTimeNoise = (
       microphoneStateRef.current = 'active';
 
       setIsListening(true);
-      setError(null); // Clear previous errors
+      setError(null); 
 
       // Start processing at regular intervals
       intervalRef.current = setInterval(processAudioData, opts.updateInterval);
@@ -685,7 +678,7 @@ export const useRealTimeNoise = (
     setCurrentReading(null);
   }, []);
 
-  // Manual calibration function (enhanced)
+  // Manual calibration function 
   const calibrate = useCallback(() => {
     if (currentReading) {
       // Assume current reading should be around 35 dB(A) (typical quiet room)
@@ -713,7 +706,6 @@ export const useRealTimeNoise = (
     }
   }, [currentReading]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopListening();

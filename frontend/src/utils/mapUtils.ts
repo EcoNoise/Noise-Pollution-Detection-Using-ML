@@ -10,10 +10,10 @@ export const getNoiseColor = (noiseLevel: number): string => {
 };
 
 export const getNoiseRadius = (noiseLevel: number): number => {
-  // Calculate radius based on noise level (in meters) - DIPERKECIL
-  const baseRadius = 25; // Dikurangi dari 50 ke 25 meter
-  const multiplier = Math.max(1, noiseLevel / 80); // Dikurangi dari 40 ke 80 untuk multiplier lebih kecil
-  return Math.min(baseRadius * multiplier, 60); // Maksimal 60 meter
+  // Calculate radius based on noise level (in meters) 
+  const baseRadius = 25; 
+  const multiplier = Math.max(1, noiseLevel / 80); 
+  return Math.min(baseRadius * multiplier, 60); 
 };
 
 export const getNoiseOpacity = (noiseLevel: number): number => {
@@ -74,7 +74,7 @@ export const generateNoiseArea = (location: NoiseLocation): NoiseArea => {
   };
 };
 
-// Hitung status berdasarkan aturan di map.md §4
+// Hitung status berdasarkan aturan di map.md
 export const computeNoiseAreaStatus = (
   createdAt: Date | string,
   expiresAt?: Date | string
@@ -122,7 +122,7 @@ export const formatCoordinates = (lat: number, lon: number): string => {
   return `${latFixed}, ${lonFixed}`;
 };
 
-// Tooltip singkat untuk status expiring/expired sesuai map.md §5
+// Tooltip singkat untuk status expiring/expired sesuai map.md 
 export const getStatusTooltip = (status: NoiseAreaStatus): string | null => {
   switch (status) {
     case "expiring":
@@ -146,7 +146,6 @@ export const getCircleStyleByStatus = (
   if (status === "expiring") {
     return { color: baseColor, fillColor: baseColor, fillOpacity: Math.max(0.35, baseOpacity - 0.25), weight: 1 };
   }
-  // active/permanent: gunakan style dasar
   return { color: baseColor, fillColor: baseColor, fillOpacity: baseOpacity, weight: 1 };
 };
 

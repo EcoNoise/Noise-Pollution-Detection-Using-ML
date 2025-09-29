@@ -1,3 +1,4 @@
+// src/components/HealthDashboard.tsx
 import React, { useState, useEffect, useCallback } from "react";
 import { logger } from "../config/appConfig";
 import { appConfig } from "../config/appConfig";
@@ -58,7 +59,6 @@ const HealthDashboard: React.FC = () => {
         setWeeklyAlerts(alertsRecs?.alerts || []);
         setWeeklyRecommendations(alertsRecs?.recommendations || []);
 
-        // Optionally set a lightweight dashboard summary from todayData
         if (todayData) {
           setDashboard({
             profile: { tracking_enabled: true },
@@ -73,7 +73,6 @@ const HealthDashboard: React.FC = () => {
           setDashboard(null);
         }
       } else {
-        // Fallback to local services
         const [dashboardData, weeklyData] = await Promise.all([
           getHealthDashboard(),
           DailyAudioService.getWeeklyAudioSummary(selectedDate),
@@ -95,7 +94,6 @@ const HealthDashboard: React.FC = () => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Refresh dashboard when health-related data updates (e.g., session stopped)
   useEffect(() => {
     const handler = () => fetchDashboardData();
     window.addEventListener("health:data-updated", handler as EventListener);
@@ -122,7 +120,6 @@ const HealthDashboard: React.FC = () => {
     return Math.min((hours / 12) * 100, 100);
   };
 
-  // Selalu render container dengan tombol
   return (
     <div className="bg-slate-800 rounded-lg p-3 sm:p-4 md:p-6">
       {/* Header */}

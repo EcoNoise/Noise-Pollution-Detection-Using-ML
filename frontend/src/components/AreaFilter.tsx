@@ -10,7 +10,7 @@ import {
 interface AreaFilterProps {
   onFilterChange: (filters: AreaFilters) => void;
   activeFilters: AreaFilters;
-  noiseLocations: NoiseLocation[]; // Tambahkan prop ini
+  noiseLocations: NoiseLocation[]; 
 }
 
 export interface AreaFilters {
@@ -52,8 +52,6 @@ const AreaFilter: React.FC<AreaFilterProps> = ({
   ];
   const defaultHealthImpacts = ["Ringan", "Sedang", "Tinggi", "Berbahaya"];
 
-  // Gabungkan default values dengan unique values dari data (jika ada)
-  // Tetapi pastikan default values selalu ada
   const dataBasedNoiseLevels =
     noiseLocations.length > 0
       ? Array.from(
@@ -77,7 +75,6 @@ const AreaFilter: React.FC<AreaFilterProps> = ({
         )
       : [];
 
-  // Gabungkan dan hilangkan duplikasi, prioritaskan urutan default
   const uniqueNoiseLevels = Array.from(
     new Set([...defaultNoiseLevels, ...dataBasedNoiseLevels])
   );

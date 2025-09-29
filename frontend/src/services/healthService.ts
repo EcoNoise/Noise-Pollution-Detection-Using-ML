@@ -38,7 +38,6 @@ export interface WeeklySummary {
   recommendations: string[];
 }
 
-// New interfaces for Supabase integration
 export interface HealthAnalysisSession {
   id?: string;
   user_id?: string;
@@ -129,7 +128,6 @@ export const endHealthSession = async (
       });
     }
   } catch (rpcErr) {
-    // Biarkan diam-diam: pada kondisi normal trigger DB sudah mengagregasi harian
     console.warn('upsert_health_daily_metrics RPC fallback failed:', rpcErr);
   }
 
