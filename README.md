@@ -393,10 +393,6 @@ Kami menyambut kontribusi dari siapa pun! Lihat [CONTRIBUTORS.md](CONTRIBUTORS.m
 3. Run tests sebelum commit
 4. Follow coding standards (Black, ESLint)
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 🆘 Support & Help
 
 ### Common Issues

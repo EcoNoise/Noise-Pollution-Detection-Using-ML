@@ -56,10 +56,10 @@ Catatan:
 
 Tambahan UI (sesuai permintaan):
 
-- Di popup peta, tampilkan `final_category` sebagai label "Kategori".
 - Tampilkan "Koordinat (latitude, longitude)" dalam format ringkas: `(<lat_five_decimals>, <lon_five_decimals>)`.
 - Tampilkan `radius` sebagai label "Radius" dengan format konsisten (meter), contoh: `100 m`.
-- Utility `formatCoordinates(lat, lon)` dan `formatRadius(radius)` ditambahkan pada frontend untuk memastikan clean code dan konsistensi tampilan.
+- Tampilkan `Kadaluarsa` (berdasarkan `expires_at`) menggunakan util `getTimeUntilExpiry(expires_at)` untuk menampilkan waktu relatif seperti "3 jam 12 menit lagi" atau "Sudah kadaluarsa".
+- Utility `formatCoordinates(lat, lon)`, `formatRadius(radius)`, dan `getTimeUntilExpiry(expires_at)` ditambahkan/ digunakan pada frontend untuk memastikan clean code dan konsistensi tampilan.
 
 ---
 
@@ -106,16 +106,16 @@ Opsional (untuk konsistensi):
 
 ---
 
-## 5) Tampilan di Peta (Frontend)
+## 5) Tampilan di Peta (Frontend) — Selesai ✅
 
 Gaya marker berdasarkan `status`:
 
 - Active → ikon/lingkaran berwarna penuh (opacity normal)
 - Expiring → ikon sedikit pudar + label kecil "akan kadaluarsa"
 - Expired → ikon abu-abu + tooltip "laporan lama, mungkin tidak relevan"
-- Permanent → ikon stabil tanpa indikator expire
+<!-- - Permanent → ikon stabil tanpa indikator expire -->
 
-Detail saat marker diklik (popup):
+<!-- Detail saat marker diklik (popup):
 
 - Lokasi (lat, lon) & radius area
 - Tingkat kebisingan (dB)
@@ -130,7 +130,7 @@ Catatan UI:
 - Username pelapor diambil dari tabel `profiles` berdasarkan `user_id` dan ditampilkan sebagai "Ditambahkan oleh".
 - Deskripsi pengguna dapat disembunyikan dari popup (sesuai keputusan produk saat ini).
 
----
+--- -->
 
 ## 6) Validasi & Refresh oleh Pengguna
 
@@ -200,4 +200,67 @@ Penggabungan/Clustering:
 
 ---
 
-Dokumen ini dapat dikembangkan lebih lanjut (contoh: diagram state, spesifikasi RPC, dan contoh query analitik) sesuai kebutuhan sprint berikutnya.
+## 12) Integrasi Cluster di Frontend (MapComponent)
+
+Fitur: Menampilkan hasil clustering kebisingan (RPC `get_noise_clusters`) sebagai marker cluster di peta Leaflet.
+
+- Lokasi perubahan utama: <mcfile name="MapComponent.tsx" path="frontend/src/components/MapComponent.tsx"></mcfile>
+- Service pemanggil RPC: <mcfile name="mapService.ts" path="frontend/src/services/mapService.ts"></mcfile> dengan method <mcsymbol name="getNoiseClusters" filename="mapService.ts" path="frontend/src/services/mapService.ts" startline="1" type="function"></mcsymbol>
+- Tipe data: <mcfile name="mapTypes.ts" path="frontend/src/types/mapTypes.ts"></mcfile> interface <mcsymbol name="NoiseCluster" filename="mapTypes.ts" path="frontend/src/types/mapTypes.ts" startline="1" type="class"></mcsymbol>
+
+Ringkasan implementasi:
+- Menambahkan state `noiseClusters`, `clustersLoading`, `clustersError` dan loader `loadNoiseClusters()` yang memanggil `mapService.getNoiseClusters()` saat mount.
+- Layer marker cluster divisualisasikan dengan `Marker` custom icon (divIcon) menggunakan warna berdasarkan kategori/status:
+  - Warna prioritas: status `expired` = abu-abu, status `expiring` memiliki ring animasi; jika ada `finalCategory` gunakan palet kategori; fallback ke `getNoiseColor(noiseLevelAvg)` dari <mcfile name="mapUtils.ts" path="frontend/src/utils/mapUtils.ts"></mcfile>.
+- Popup ringkas per cluster menampilkan: kategori final (atau dominan), level dB rata-rata & max, jumlah report, status area, serta rentang waktu pertama-terakhir.
+- Tidak mengubah logic lain (pencarian, tutorial, controls) kecuali pemulihan handler `handleSearchKeyDown` yang sempat terhapus saat merge.
+
+Catatan penggunaan:
+- Fitur cluster aktif hanya bila `appConfig.backendEnabled = true`.
+- Jika ada error RPC, UI akan menampilkan popup error (via logger) dan state `clustersError` diisi, namun render peta tetap berjalan tanpa cluster.
+
+Langkah lanjutan (opsional):
+- Tambah tombol refresh cluster manual dan auto-refresh berkala.
+- Toggle visibilitas layer cluster dan filter berdasarkan kategori/status.
+- Integrasi marker clustering plugin (mis. Leaflet.markercluster) jika jumlah cluster sangat besar.
+
+- Cara pakai (contoh React effect):
+
+```ts
+import { useEffect, useState } from "react";
+import { mapService } from "../services/mapService";
+import type { NoiseCluster } from "../types/mapTypes";
+
+const [clusters, setClusters] = useState<NoiseCluster[]>([]);
+
+useEffect(() => {
+  let mounted = true;
+  (async () => {
+    const rows = await mapService.getNoiseClusters();
+    if (mounted) setClusters(rows);
+  })();
+  return () => { mounted = false; };
+}, []);
+```
+
+- Catatan:
+  - Service ini membutuhkan `appConfig.backendEnabled === true` dan user dapat membaca RPC (RLS/GRANT sudah diatur di migrasi).
+  - Struktur kolom mengikuti definisi fungsi SQL terbaru yang menggunakan `ST_DWithin` (≤30 m) dan selisih waktu ≤1 jam dengan connected components transitif.
+  - Jika Anda ingin filter berdasarkan kategori, bounding box, radius, atau time window berbeda, fungsi RPC dapat diparameterisasi di sprint selanjutnya.
+
+```ts
+export interface NoiseCluster {
+  id: string; // cluster_id (uuid)
+  center: [number, number]; // [latitude_avg, longitude_avg]
+  noiseLevelAvg: number | null; // rata-rata noise_level
+  areaStatus?: NoiseAreaStatus | string; // status cluster bila tersedia dari backend
+  finalCategory?: string | null; // kategori mayoritas (opsional)
+  noiseSources?: string[] | null; // daftar sumber unik (opsional)
+  firstCreatedAt?: Date | null;
+  lastCreatedAt?: Date | null;
+  maxExpiresAt?: Date | null;
+  addedByUsernames: string[];
+  reportCount: number;
+  avgConfidence?: number | null;
+}
+```

@@ -1,5 +1,11 @@
 // src/components/MapComponent.tsx
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import { usePopup } from "../hooks/usePopup";
 import {
   MapContainer,
@@ -8,22 +14,42 @@ import {
   Popup,
   useMapEvents,
   Marker,
+  Tooltip,
 } from "react-leaflet";
 import L, { Map as LeafletMap } from "leaflet";
 import { useNavigate } from "react-router-dom"; // NEW: Import for navigation
-import { NoiseLocation, SearchResult } from "../types/mapTypes";
+import { NoiseLocation, SearchResult, NoiseCluster, NoiseAreaStatus } from "../types/mapTypes";
 import { mapConfig, tileLayerConfig, noiseColors } from "../config/mapConfig";
 import { mapService } from "../services/mapService";
-import { generateNoiseArea } from "../utils/mapUtils";
+import {
+  generateNoiseArea,
+  computeNoiseAreaStatus,
+  getCircleStyleByStatus,
+  getStatusTooltip,
+  getNoiseColor,
+  getNoiseRadius,
+  getNoiseOpacity,
+  formatNoiseLevel,
+  calculateDistance,
+  formatCoordinates,
+  formatRadius,
+  getNoiseDescription,
+} from "../utils/mapUtils";
 import MapControls from "./MapControls";
 import MapPopup from "./MapPopup";
 import AreaFilter, { AreaFilters } from "./AreaFilter";
 import MapTutorial from "./MapTutorial";
 import styles from "../styles/MapComponent.module.css";
 import { useAuth } from "../contexts/AuthContext";
+import { getUserProfile } from "../services/profileService";
 
 import "leaflet/dist/leaflet.css";
 import { appConfig, logger } from "../config/appConfig";
+import { deriveFinalCategory } from "../services/map.transformers";
+import {
+  translateNoiseSource,
+  translateHealthImpact,
+} from "../utils/translationUtils";
 
 // PERBAIKAN: Fix untuk ikon default Leaflet yang sering rusak di React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -161,6 +187,111 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(
     null
   );
+  // Cluster state
+  const [noiseClusters, setNoiseClusters] = useState<NoiseCluster[]>([]);
+  const [clustersLoading, setClustersLoading] = useState<boolean>(false);
+  const [clustersError, setClustersError] = useState<string>("");
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+  const [clusterAddresses, setClusterAddresses] = useState<
+    Record<string, string>
+  >({});
+
+  // Auto-fill address for clusters based on their centroid
+  useEffect(() => {
+    const fetchMissingAddresses = async () => {
+      try {
+        const tasks = noiseClusters
+          .filter((c) => !(c.id in clusterAddresses))
+          .map(async (c) => {
+            const [clat, clon] = c.center;
+            try {
+              const addr = await mapService.reverseGeocode(clat, clon);
+              return {
+                id: c.id,
+                address: addr || `(${clat.toFixed(6)}, ${clon.toFixed(6)})`,
+              };
+            } catch {
+              return {
+                id: c.id,
+                address: `(${clat.toFixed(6)}, ${clon.toFixed(6)})`,
+              };
+            }
+          });
+        if (tasks.length > 0) {
+          const results = await Promise.all(tasks);
+          setClusterAddresses((prev) => {
+            const updated: Record<string, string> = { ...prev };
+            for (const r of results) {
+              updated[r.id] = r.address;
+            }
+            return updated;
+          });
+        }
+      } catch (e) {
+        logger.warn?.("Gagal memuat alamat cluster", e);
+      }
+    };
+    fetchMissingAddresses();
+  }, [noiseClusters]);
+
+  // NEW: Cek apakah user saat ini berkontribusi pada cluster (berdasarkan username)
+  const hasCurrentUserContribution = useCallback(
+    (cluster: NoiseCluster) => {
+      const uname = currentUsername || localStorage.getItem("username");
+      if (!uname) return false;
+      return (
+        Array.isArray(cluster.addedByUsernames) &&
+        cluster.addedByUsernames.includes(uname)
+      );
+    },
+    [currentUsername]
+  );
+
+  // NEW: Muat username saat user login (fallback ke localStorage)
+  useEffect(() => {
+    const loadUsername = async () => {
+      try {
+        if (appConfig.backendEnabled && isAuthenticated) {
+          const profile = await getUserProfile();
+          if (profile?.username) {
+            setCurrentUsername(profile.username);
+            return;
+          }
+        }
+        const local = localStorage.getItem("username");
+        if (local) setCurrentUsername(local);
+      } catch (e) {
+        const local = localStorage.getItem("username");
+        if (local) setCurrentUsername(local);
+        logger.warn?.("Gagal memuat username", e);
+      }
+    };
+    loadUsername();
+  }, [isAuthenticated]);
+
+  // Hanya sembunyikan popup single-report jika lokasinya tergabung pada cluster (>=2 laporan)
+  // Spatial threshold diselaraskan dengan fungsi SQL: ST_DWithin(..., 30m) + toleransi kecil
+  const CLUSTER_DISTANCE_THRESHOLD = 35; // meters
+  const isLocationCoveredByAnyCluster = useCallback(
+    (location: NoiseLocation) => {
+      if (!appConfig.backendEnabled || noiseClusters.length === 0) return false;
+      for (const c of noiseClusters) {
+        if ((c.reportCount ?? 0) <= 1) continue; // cluster artinya minimal 2 laporan
+        const d = calculateDistance(
+          location.coordinates[0],
+          location.coordinates[1],
+          c.center[0],
+          c.center[1]
+        );
+        // PERUBAHAN: Abaikan jendela waktu; cukup gunakan kedekatan spasial
+        if (d <= CLUSTER_DISTANCE_THRESHOLD) {
+          return true;
+        }
+      }
+      return false;
+    },
+    [noiseClusters]
+  );
   const [isTrackingUser, setIsTrackingUser] = useState<boolean>(false);
   const [searchLocationMarker, setSearchLocationMarker] = useState<{
     position: [number, number];
@@ -188,6 +319,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   useEffect(() => {
     loadNoiseLocations();
     handleLocateUser();
+    // Load clusters (backend only)
+    loadNoiseClusters();
 
     // Check if this is the first visit to show tutorial
     const hasSeenTutorial = localStorage.getItem("hasSeenMapTutorial");
@@ -212,17 +345,50 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Tutup popup ketika masuk mode tambah area untuk mencegah konflik klik
+  useEffect(() => {
+    if (isAddingNoise) {
+      try {
+        mapRef.current?.closePopup();
+      } catch (e) {
+        // no-op
+      }
+    }
+  }, [isAddingNoise]);
+
   // Utility: process shared noise data passed from other flows
-  const processSharedData = (
-    data: { analysis: any; position?: [number, number]; address?: string }
-  ) => {
+  const processSharedData = async (data: {
+    analysis: any;
+    position?: [number, number];
+    address?: string;
+  }) => {
     try {
       if (data.position) {
         setSelectedPosition(data.position);
         setShowNoiseForm(true);
       }
-      if (data.address) {
+      if (data.address && data.address.trim()) {
         setFormAddress(data.address);
+      } else if (data.position) {
+        // Jika alamat tidak tersedia, lakukan reverse geocoding menggunakan Nominatim
+        try {
+          const addr = await mapService.reverseGeocode(
+            data.position[0],
+            data.position[1]
+          );
+          if (addr) {
+            setFormAddress(addr);
+          } else {
+            // Fallback ke koordinat bila gagal
+            const lat = Number(data.position[0]).toFixed(6);
+            const lon = Number(data.position[1]).toFixed(6);
+            setFormAddress(`(${lat}, ${lon})`);
+          }
+        } catch (err) {
+          const lat = Number(data.position[0]).toFixed(6);
+          const lon = Number(data.position[1]).toFixed(6);
+          setFormAddress(`(${lat}, ${lon})`);
+        }
       }
       if (data.analysis) {
         logger.info("Received shared analysis data", data.analysis);
@@ -319,10 +485,43 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     }
   };
 
-  const handleMapClick = (e: any) => {
+  // Loader untuk data cluster dari backend
+  const loadNoiseClusters = async () => {
+    if (!appConfig.backendEnabled) {
+      setNoiseClusters([]);
+      setClustersError("");
+      return;
+    }
+    try {
+      setClustersLoading(true);
+      const clusters = await mapService.getNoiseClusters();
+      setNoiseClusters(clusters);
+      setClustersError("");
+    } catch (err) {
+      logger.error("Error loading noise clusters:", err);
+      setClustersError("Gagal memuat cluster kebisingan");
+    } finally {
+      setClustersLoading(false);
+    }
+  };
+
+  const handleMapClick = async (e: any) => {
     if (isAddingNoise) {
-      setSelectedPosition([e.latlng.lat, e.latlng.lng]);
+      const lat = e.latlng.lat;
+      const lon = e.latlng.lng;
+      setSelectedPosition([lat, lon]);
       setShowNoiseForm(true);
+      // Isikan alamat otomatis menggunakan Nominatim
+      try {
+        const addr = await mapService.reverseGeocode(lat, lon);
+        if (addr) {
+          setFormAddress(addr);
+        } else {
+          setFormAddress(`(${lat.toFixed(6)}, ${lon.toFixed(6)})`);
+        }
+      } catch (err) {
+        setFormAddress(`(${lat.toFixed(6)}, ${lon.toFixed(6)})`);
+      }
     }
     setSearchMarker(null);
     if (searchLocationMarker) {
@@ -357,7 +556,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   // NEW: Handler for the "Analisis Suara" button
   const handleUploadAndAnalyze = async () => {
     if (!appConfig.backendEnabled) {
-      setError("Fitur analisis audio tidak tersedia saat backend dinonaktifkan");
+      setError(
+        "Fitur analisis audio tidak tersedia saat backend dinonaktifkan"
+      );
       return;
     }
 
@@ -404,12 +605,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
     try {
       logger.info("🎵 Memulai analisis audio:", {
-         fileName: audioFile.name,
-         fileSize: `${(audioFile.size / 1024 / 1024).toFixed(2)}MB`,
-         fileType: audioFile.type,
-         position: selectedPosition,
-         address: formAddress,
-       });
+        fileName: audioFile.name,
+        fileSize: `${(audioFile.size / 1024 / 1024).toFixed(2)}MB`,
+        fileType: audioFile.type,
+        position: selectedPosition,
+        address: formAddress,
+      });
 
       const newLocation = await mapService.analyzeAudioAndAddArea(
         audioFile,
@@ -423,6 +624,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 
         // Reload data dan zoom ke lokasi baru
         await loadNoiseLocations();
+        await loadNoiseClusters();
         zoomToLocation(newLocation.coordinates, 17);
 
         // Reset form dan tutup panel
@@ -514,9 +716,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       }
 
       logger.info("📁 File dipilih:", {
-         name: file.name,
-         size: file.size,
-         type: file.type,
+        name: file.name,
+        size: file.size,
+        type: file.type,
       });
 
       setAudioFile(file);
@@ -524,7 +726,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
   };
   const handleStartReanalysis = (location: NoiseLocation) => {
     if (!appConfig.backendEnabled) {
-      setError("Fitur analisis ulang tidak tersedia saat backend dinonaktifkan");
+      setError(
+        "Fitur analisis ulang tidak tersedia saat backend dinonaktifkan"
+      );
       return;
     }
     setLocationToReanalyze(location); // Simpan info lokasi mana yang akan dianalisis
@@ -536,7 +740,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     if (!appConfig.backendEnabled) {
-      setError("Fitur analisis ulang tidak tersedia saat backend dinonaktifkan");
+      setError(
+        "Fitur analisis ulang tidak tersedia saat backend dinonaktifkan"
+      );
       return;
     }
 
@@ -586,6 +792,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       const success = await mapService.removeNoiseLocation(id);
       if (success) {
         await loadNoiseLocations(); // Reload data after successful deletion
+        await loadNoiseClusters(); // Sinkronkan layer cluster
       } else {
         setError("Gagal menghapus area berisik");
       }
@@ -632,6 +839,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           const success = await mapService.clearAllNoiseLocations();
           if (success) {
             await loadNoiseLocations();
+            await loadNoiseClusters();
             showSuccess("Berhasil!", "Semua area berisik telah dihapus.");
           } else {
             showError("Gagal", "Gagal menghapus area berisik");
@@ -644,6 +852,59 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         }
       },
       undefined, // onCancel - default behavior
+      "Ya, Hapus",
+      "Batal"
+    );
+  };
+
+  // NEW: Hapus seluruh laporan milik saya di cluster ini saja
+  const handleDeleteClusterReports = async (cluster: NoiseCluster) => {
+    if (!appConfig.backendEnabled) {
+      showError(
+        "Backend nonaktif",
+        "Fitur hapus laporan dalam cluster hanya tersedia saat backend aktif."
+      );
+      return;
+    }
+    if (!isAuthenticated) {
+      showLogin(
+        "Login Diperlukan",
+        "Anda harus login untuk menghapus laporan Anda dalam cluster.",
+        () => navigate("/login")
+      );
+      return;
+    }
+
+    showConfirm(
+      "Hapus Laporan Saya di Cluster",
+      "Tindakan ini akan menghapus semua laporan yang Anda buat di cluster ini saja dan tidak menyentuh laporan pengguna lain. Lanjutkan?",
+      async () => {
+        try {
+          setLoading(true);
+          const deletedCount = await mapService.removeUserReportsInCluster(
+            cluster
+          );
+          if (deletedCount > 0) {
+            await loadNoiseLocations();
+            await loadNoiseClusters();
+            showSuccess(
+              "Berhasil",
+              `Terhapus ${deletedCount} laporan milik Anda dari cluster.`
+            );
+          } else {
+            showError(
+              "Tidak ada yang dihapus",
+              "Tidak ditemukan laporan Anda di cluster ini atau terjadi kegagalan."
+            );
+          }
+        } catch (error) {
+          logger.error("Error deleting user reports in cluster:", error);
+          showError("Gagal", "Gagal menghapus laporan Anda dalam cluster.");
+        } finally {
+          setLoading(false);
+        }
+      },
+      undefined,
       "Ya, Hapus",
       "Batal"
     );
@@ -692,7 +953,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     setShowTutorial(true);
   };
 
-  // PERBAIKAN: Fungsi untuk handle keyboard navigation pada search results
+  // PERBAIKAN: Fungsi untuk handle keyboard navigation pada search results (dipulihkan)
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       setSearchQuery("");
@@ -707,6 +968,72 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     }
   };
 
+  // Helpers for cluster styling and popup
+  const categoryColors: Record<string, string> = {
+    Traffic: "#ef4444", // merah
+    Construction: "#f59e0b", // oranye
+    Industry: "#8b5cf6", // ungu
+    Event: "#10b981", // hijau tosca
+    Nature: "#22c55e", // hijau
+    Other: "#3b82f6", // biru
+  };
+
+  const getClusterColor = (cluster: NoiseCluster): string => {
+    // Status expired = abu-abu
+    if ((cluster.areaStatus || "") === "expired") return "#9aa0a6";
+    // Gunakan kategori jika ada
+    if (cluster.finalCategory && categoryColors[cluster.finalCategory]) {
+      return categoryColors[cluster.finalCategory];
+    }
+    // Fallback ke warna berdasarkan rata-rata level kebisingan
+    if (typeof cluster.noiseLevelAvg === "number") {
+      return getNoiseColor(cluster.noiseLevelAvg);
+    }
+    return "#3b82f6"; // default biru
+  };
+
+  const formatDateTime = (d?: Date | null): string => {
+    if (!d) return "—";
+    try {
+      return new Date(d).toLocaleString();
+    } catch {
+      return "—";
+    }
+  };
+
+  const getClusterIcon = (cluster: NoiseCluster) => {
+    const color = getClusterColor(cluster);
+    const status = resolveClusterAreaStatus(cluster);
+    const ringColor = status === "expiring" ? color : "rgba(0,0,0,0.15)";
+    const shadow =
+      status === "expiring"
+        ? `0 0 0 6px ${ringColor}55`
+        : "0 2px 8px rgba(0,0,0,0.2)";
+
+    const size = 38; // diameter
+    const border =
+      status === "expired" ? "2px dashed #9aa0a6" : `3px solid white`;
+
+    const html = `
+      <div style="
+        display:flex;align-items:center;justify-content:center;
+        width:${size}px;height:${size}px;border-radius:50%;
+        background:${color};color:#fff;font-weight:700;font-size:14px;
+        border:${border}; box-shadow:${shadow};
+      ">
+        ${Math.max(1, cluster.reportCount || 0)}
+      </div>
+    `;
+
+    return L.divIcon({
+      html,
+      className: "noise-cluster-marker",
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+      popupAnchor: [0, -size / 2],
+    });
+  };
+
   // ENHANCED: Component for handling map events
   const MapEvents: React.FC = () => {
     useMapEvents({
@@ -719,10 +1046,62 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
     });
     return null;
   };
-  const filteredNoiseLocations = useMemo(() => {
-    const { noiseLevel, source, healthImpact } = activeFilters;
+  const getClusterCategoryDisplay = (cluster: NoiseCluster): string => {
+    const rawFinal = (cluster.finalCategory || "").trim();
+    // Jika finalCategory bukan Mixed, tampilkan apa adanya
+    if (rawFinal && rawFinal.toLowerCase() !== "mixed") return rawFinal;
 
-    if (!noiseLevel?.length && !source?.length && !healthImpact?.length) {
+    // Ketika Mixed atau kosong: turunkan daftar kategori dari noiseSources
+    const sourceCats: string[] = Array.isArray(cluster.noiseSources)
+      ? Array.from(
+          new Set(cluster.noiseSources.map((s) => deriveFinalCategory(s)))
+        )
+      : [];
+
+    // Terapkan filter kategori (jika user memilih)
+    const selectedCats = activeFilters.category?.length
+      ? sourceCats.filter((c) => activeFilters.category!.includes(c))
+      : sourceCats;
+
+    // Jika hasil filter mengerucut ke satu kategori, tampilkan kategori itu saja
+    if (selectedCats.length === 1) return selectedCats[0];
+
+    // Jika hasil filter memuat beberapa kategori, tampilkan sebagai daftar (bukan sekadar "Mixed")
+    if (selectedCats.length > 1) return selectedCats.join(", ");
+
+    // Jika filter menyingkirkan semua kategori, tampilkan semua kategori yang ada (jika ada)
+    if (sourceCats.length > 0) return sourceCats.join(", ");
+
+    // Fallback terakhir
+    return rawFinal || "Mixed";
+  };
+
+  // BARU: Tampilkan label sumber yang menyesuaikan filter kategori aktif
+  const getClusterSourcesDisplay = (cluster: NoiseCluster): string => {
+    // Kumpulkan sumber unik dari cluster
+    const sources: string[] = Array.isArray(cluster.noiseSources)
+      ? Array.from(new Set(cluster.noiseSources))
+      : [];
+
+    if (sources.length === 0) return "—";
+
+    // Jika ada filter kategori aktif, saring sumber berdasarkan kategori yang diturunkan
+    const activeCats = activeFilters.category || [];
+    const filteredSources = activeCats.length
+      ? sources.filter((s) => activeCats.includes(deriveFinalCategory(s)))
+      : sources;
+
+    // Jika setelah filter tidak ada yang tersisa, tampilkan semua sumber agar user tahu asalnya
+    const displaySources = filteredSources.length ? filteredSources : sources;
+
+    // Tampilkan dengan terjemahan yang user-friendly
+    return displaySources.map((s) => translateNoiseSource(s)).join(", ");
+  };
+
+  const filteredNoiseLocations = useMemo(() => {
+    const { noiseLevel, category, healthImpact } = activeFilters;
+
+    if (!noiseLevel?.length && !category?.length && !healthImpact?.length) {
       return noiseLocations;
     }
 
@@ -741,10 +1120,16 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       );
       const noiseLevelMatch =
         !noiseLevel?.length || noiseLevel.includes(locationNoiseLevelCategory);
-      const sourceMatch = !source?.length || source.includes(location.source);
+
+      // Tentukan kategori final untuk lokasi
+      const locationCategory =
+        location.final_category || deriveFinalCategory(location.source);
+      const categoryMatch =
+        !category?.length || category.includes(locationCategory);
+
       const healthImpactMatch =
         !healthImpact?.length || healthImpact.includes(location.healthImpact);
-      return noiseLevelMatch && sourceMatch && healthImpactMatch;
+      return noiseLevelMatch && categoryMatch && healthImpactMatch;
     });
   }, [noiseLocations, activeFilters]);
 
@@ -833,14 +1218,16 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
       {showNoiseForm && selectedPosition && (
         <div className={styles.noisePanel}>
           {!appConfig.backendEnabled && (
-            <div style={{ 
-              background: '#fbbf24', 
-              color: '#92400e', 
-              padding: '12px', 
-              borderRadius: '8px', 
-              marginBottom: '16px',
-              border: '1px solid #f59e0b'
-            }}>
+            <div
+              style={{
+                background: "#fbbf24",
+                color: "#92400e",
+                padding: "12px",
+                borderRadius: "8px",
+                marginBottom: "16px",
+                border: "1px solid #f59e0b",
+              }}
+            >
               ⚠️ Fitur analisis audio dinonaktifkan sementara
             </div>
           )}
@@ -892,10 +1279,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
               className={styles.submitButton}
               disabled={isUploading || !audioFile || !appConfig.backendEnabled}
             >
-              {!appConfig.backendEnabled 
-                ? "Fitur Dinonaktifkan" 
-                : isUploading 
-                ? "Menganalisis..." 
+              {!appConfig.backendEnabled
+                ? "Fitur Dinonaktifkan"
+                : isUploading
+                ? "Menganalisis..."
                 : "Upload & Analisis"}
             </button>
           </div>
@@ -1003,46 +1390,73 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
         {/* Noise Areas as Circles */}
         {filteredNoiseLocations.map((location) => {
           const area = generateNoiseArea(location);
+          const status =
+            location.status ||
+            computeNoiseAreaStatus(location.timestamp, location.expires_at);
+          const style = getCircleStyleByStatus(
+            status,
+            area.color,
+            area.opacity
+          );
+          const tooltipText = getStatusTooltip(status);
+          const isCovered = isLocationCoveredByAnyCluster(location);
+          // Jika lokasi sudah tergabung dalam cluster, jangan render lingkaran individual
+          if (isCovered) return null;
           return (
             <Circle
               key={location.id}
               center={area.center}
               radius={area.radius}
-              pathOptions={{
-                color: area.color,
-                fillColor: area.color,
-                fillOpacity: area.opacity,
-                weight: 1,
-              }}
+              pathOptions={style}
+              interactive={!isAddingNoise}
             >
-              <Popup>
-                <MapPopup
-                  location={location}
-                  onDelete={handleDeleteNoiseLocation}
-                  onReanalyze={handleStartReanalysis}
-                  currentUserId={localStorage.getItem("userId")}
-                />
-              </Popup>
+              {!isAddingNoise && tooltipText && (
+                <Tooltip
+                  direction="top"
+                  offset={[0, -8]}
+                  opacity={1}
+                  permanent={false}
+                >
+                  <span style={{ fontSize: 12 }}>{tooltipText}</span>
+                </Tooltip>
+              )}
+              {/* Popup single-report tetap untuk lokasi non-cluster */}
+              {!isAddingNoise && (
+                <Popup>
+                  <MapPopup
+                    location={location}
+                    onDelete={handleDeleteNoiseLocation}
+                    onReanalyze={handleStartReanalysis}
+                    currentUserId={localStorage.getItem("userId")}
+                  />
+                </Popup>
+              )}
             </Circle>
           );
         })}
 
         {/* BARU: User Location Marker */}
         {userLocation && (
-          <Marker position={userLocation} icon={userLocationIcon}>
-            <Popup>
-              <div style={{ textAlign: "center", padding: "8px" }}>
-                <strong>📍 Lokasi Anda</strong>
-                <br />
-                <small>
-                  {userLocation[0].toFixed(6)}, {userLocation[1].toFixed(6)}
-                </small>
-                <br />
-                <small style={{ color: "#666" }}>
-                  {isTrackingUser ? "🔄 Tracking aktif" : "📌 Lokasi tetap"}
-                </small>
-              </div>
-            </Popup>
+          <Marker
+            position={userLocation}
+            icon={userLocationIcon}
+            interactive={!isAddingNoise}
+          >
+            {!isAddingNoise && (
+              <Popup>
+                <div style={{ textAlign: "center", padding: "8px" }}>
+                  <strong>📍 Lokasi Anda</strong>
+                  <br />
+                  <small>
+                    {userLocation[0].toFixed(6)}, {userLocation[1].toFixed(6)}
+                  </small>
+                  <br />
+                  <small style={{ color: "#666" }}>
+                    {isTrackingUser ? "🔄 Tracking aktif" : "📌 Lokasi tetap"}
+                  </small>
+                </div>
+              </Popup>
+            )}
           </Marker>
         )}
 
@@ -1051,50 +1465,53 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
           <Marker
             position={searchLocationMarker.position}
             icon={searchLocationIcon}
+            interactive={!isAddingNoise}
           >
-            <Popup>
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "10px",
-                  minWidth: "200px",
-                }}
-              >
-                <strong style={{ fontSize: "16px", color: "#ff4444" }}>
-                  📍 {searchLocationMarker.name}
-                </strong>
-                <br />
-                <div
-                  style={{ margin: "8px 0", color: "#666", fontSize: "14px" }}
-                >
-                  {searchLocationMarker.address}
-                </div>
+            {!isAddingNoise && (
+              <Popup>
                 <div
                   style={{
-                    fontSize: "12px",
-                    color: "#999",
-                    marginBottom: "10px",
+                    textAlign: "center",
+                    padding: "10px",
+                    minWidth: "200px",
                   }}
                 >
-                  {searchLocationMarker.position[0].toFixed(6)},{" "}
-                  {searchLocationMarker.position[1].toFixed(6)}
+                  <strong style={{ fontSize: "16px", color: "#ff4444" }}>
+                    📍 {searchLocationMarker.name}
+                  </strong>
+                  <br />
+                  <div
+                    style={{ margin: "8px 0", color: "#666", fontSize: "14px" }}
+                  >
+                    {searchLocationMarker.address}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#999",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    {searchLocationMarker.position[0].toFixed(6)},{" "}
+                    {searchLocationMarker.position[1].toFixed(6)}
+                  </div>
+                  <button
+                    onClick={handleClearSearchMarker}
+                    style={{
+                      background: "#ff4444",
+                      color: "white",
+                      border: "none",
+                      padding: "6px 12px",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                    }}
+                  >
+                    Tutup Marker
+                  </button>
                 </div>
-                <button
-                  onClick={handleClearSearchMarker}
-                  style={{
-                    background: "#ff4444",
-                    color: "white",
-                    border: "none",
-                    padding: "6px 12px",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                  }}
-                >
-                  Tutup Marker
-                </button>
-              </div>
-            </Popup>
+              </Popup>
+            )}
           </Marker>
         )}
 
@@ -1111,8 +1528,157 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
               iconSize: [20, 20],
               iconAnchor: [10, 10],
             })}
+            interactive={!isAddingNoise}
           />
         )}
+
+        {/* NEW: Cluster markers layer */}
+        {noiseClusters
+          .filter((cluster) => (cluster.reportCount ?? 0) > 1)
+          .map((cluster) => {
+            const areaStatus = resolveClusterAreaStatus(cluster);
+            const avg =
+              typeof cluster.noiseLevelAvg === "number"
+                ? cluster.noiseLevelAvg
+                : 50;
+            const radius = getNoiseRadius(avg);
+            const baseColor = getNoiseColor(avg);
+            const baseOpacity = getNoiseOpacity(avg);
+            const style = getCircleStyleByStatus(
+              areaStatus,
+              baseColor,
+              baseOpacity
+            );
+            const [lat, lon] = cluster.center;
+            const icon = getClusterIcon(cluster);
+            return (
+              <React.Fragment key={`cluster-wrap-${cluster.id}`}>
+                <Circle
+                  key={`cluster-area-${cluster.id}`}
+                  center={[lat, lon]}
+                  radius={radius}
+                  pathOptions={style}
+                  interactive={false}
+                >
+                  {/* Popup dihapus agar tidak muncul dua kali; interaksi cluster hanya melalui Marker */}
+                </Circle>
+                <Marker
+                  key={`cluster-${cluster.id}`}
+                  position={[lat, lon]}
+                  icon={icon}
+                  interactive={!isAddingNoise}
+                >
+                  {!isAddingNoise && (
+                    <Popup>
+                      <div style={{ minWidth: 220 }}>
+                        <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                          LAPORAN KEBISINGAN
+                        </div>
+                        <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                          <div>
+                            <strong>Status:</strong> {String(areaStatus)}
+                          </div>
+                          <div>
+                            <strong>Status Area:</strong> {getNoiseDescription(avg)}
+                          </div>
+                          <div>
+                            <strong>Jumlah Laporan:</strong>{" "}
+                            {cluster.reportCount}
+                          </div>
+                          {typeof cluster.noiseLevelAvg === "number" && (
+                            <div>
+                              <strong>Rata-rata:</strong>{" "}
+                              {formatNoiseLevel(cluster.noiseLevelAvg)}
+                            </div>
+                          )}
+                          {(cluster.finalCategory ||
+                            (Array.isArray(cluster.noiseSources) &&
+                              cluster.noiseSources.length > 0)) && (
+                            <div>
+                              <strong>Kategori Dominan:</strong>{" "}
+                              {getClusterCategoryDisplay(cluster)}
+                            </div>
+                          )}
+                          {Array.isArray(cluster.noiseSources) &&
+                            cluster.noiseSources.length > 0 && (
+                              <div>
+                                <strong>Sumber:</strong>{" "}
+                                {getClusterSourcesDisplay(cluster)}
+                              </div>
+                            )}
+                          {typeof cluster.noiseLevelAvg === "number" && (
+                            <div>
+                              <strong>Dampak Kesehatan:</strong>{" "}
+                              {translateHealthImpact(
+                                cluster.noiseLevelAvg < 55
+                                  ? "Aman"
+                                  : cluster.noiseLevelAvg < 70
+                                  ? "Perhatian"
+                                  : cluster.noiseLevelAvg < 85
+                                  ? "Berbahaya"
+                                  : "Sangat Berbahaya"
+                              )}
+                            </div>
+                          )}
+                          <div>
+                            <strong>Koordinat:</strong> (
+                            {formatCoordinates(lat, lon)})
+                          </div>
+                          <div>
+                            <strong>Radius:</strong> {formatRadius(radius)}
+                          </div>
+                          {clusterAddresses[cluster.id] && (
+                            <div>
+                              <strong>Alamat:</strong>{" "}
+                              {clusterAddresses[cluster.id]}
+                            </div>
+                          )}
+                          <div>
+                            <strong>Periode:</strong>{" "}
+                            {formatDateTime(cluster.firstCreatedAt)} →{" "}
+                            {formatDateTime(cluster.lastCreatedAt)}
+                          </div>
+                          {cluster.addedByUsernames?.length > 0 && (
+                            <div>
+                              <strong>Kontributor:</strong>{" "}
+                              {cluster.addedByUsernames.slice(0, 3).join(", ")}
+                              {cluster.addedByUsernames.length > 3
+                                ? ", ..."
+                                : ""}
+                            </div>
+                          )}
+                          {isAuthenticated &&
+                            hasCurrentUserContribution(cluster) && (
+                              <div style={{ marginTop: 10 }}>
+                                <button
+                                  onClick={() =>
+                                    handleDeleteClusterReports(cluster)
+                                  }
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    padding: "6px 10px",
+                                    borderRadius: 6,
+                                    border: "1px solid #e11d48",
+                                    background: "#fee2e2",
+                                    color: "#b91c1c",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  🗑️ Hapus Laporan Saya
+                                </button>
+                              </div>
+                            )}
+                        </div>
+                      </div>
+                    </Popup>
+                  )}
+                </Marker>
+              </React.Fragment>
+            );
+          })}
       </MapContainer>
       <PopupComponent />
 
@@ -1127,3 +1693,15 @@ const MapComponent: React.FC<MapComponentProps> = ({ className }) => {
 };
 
 export default MapComponent;
+
+// Helper: resolve area status from DB or compute fallback
+const VALID_AREA_STATUSES: NoiseAreaStatus[] = ["active", "expiring", "expired", "permanent"];
+const resolveClusterAreaStatus = (cluster: NoiseCluster): NoiseAreaStatus => {
+  const raw = (cluster.areaStatus ?? "").toString().toLowerCase().trim();
+  if ((VALID_AREA_STATUSES as string[]).includes(raw)) {
+    return raw as NoiseAreaStatus;
+  }
+  const created = cluster.firstCreatedAt || new Date();
+  const expires = cluster.maxExpiresAt || undefined;
+  return computeNoiseAreaStatus(created, expires);
+};

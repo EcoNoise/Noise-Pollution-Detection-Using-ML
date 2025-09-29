@@ -124,44 +124,44 @@ const HealthDashboard: React.FC = () => {
 
   // Selalu render container dengan tombol
   return (
-    <div className="bg-slate-800 rounded-lg p-6">
+    <div className="bg-slate-800 rounded-lg p-3 sm:p-4 md:p-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-bold text-white">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-2">
+        <h3 className="text-lg sm:text-xl font-bold text-white">
           Dashboard Kesehatan Personal
         </h3>
       </div>
 
       {/* Konten dashboard */}
       {loading ? (
-        <div className="text-slate-400 text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p>Memuat data...</p>
+        <div className="text-slate-400 text-center py-6 sm:py-8">
+          <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-sm sm:text-base">Memuat data...</p>
         </div>
       ) : error ? (
-        <div className="bg-red-900/20 border border-red-500 rounded-lg p-4">
-          <p className="text-red-400">Error: {error}</p>
+        <div className="bg-red-900/20 border border-red-500 rounded-lg p-3 sm:p-4">
+          <p className="text-red-400 text-sm sm:text-base">Error: {error}</p>
         </div>
       ) : !dashboard && weeklySummary.length === 0 ? (
-        <div className="text-slate-400 text-center py-8">
-          <p>Belum ada data kesehatan tersedia.</p>
-          <p className="text-sm mt-2">
+        <div className="text-slate-400 text-center py-6 sm:py-8">
+          <p className="text-sm sm:text-base">Belum ada data kesehatan tersedia.</p>
+          <p className="text-xs sm:text-sm mt-2">
             Silakan atur profil kesehatan dan tambahkan log paparan.
           </p>
-          <div className="mt-4 text-sm text-blue-400">
+          <div className="mt-4 text-xs sm:text-sm text-blue-400">
             <p>
               👆 Gunakan tombol "Pengaturan" dan "Histori" di atas untuk memulai
             </p>
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Weekly Summary */}
-          <div className="bg-slate-700 rounded-lg p-6 border border-slate-600">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-slate-700 rounded-lg p-4 sm:p-6 border border-slate-600">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
               <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-blue-400" />
-                <h3 className="text-lg font-semibold text-white">
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+                <h3 className="text-base sm:text-lg font-semibold text-white">
                   Ringkasan Mingguan
                 </h3>
               </div>
@@ -187,7 +187,7 @@ const HealthDashboard: React.FC = () => {
                       !isCurrentWeek && (
                         <button
                           onClick={() => setSelectedDate(new Date())}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors text-white"
+                          className="px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-xs sm:text-sm font-medium transition-colors text-white"
                         >
                           Minggu Ini
                         </button>
@@ -199,32 +199,32 @@ const HealthDashboard: React.FC = () => {
             </div>
 
             {/* Daily Exposure Chart */}
-            <div className="mb-6">
-              <h5 className="text-sm font-medium text-slate-300 mb-3">
+            <div className="mb-4 sm:mb-6">
+              <h5 className="text-xs sm:text-sm font-medium text-slate-300 mb-3">
                 Paparan Harian (Jam)
               </h5>
               <div className="space-y-2">
                 {weeklySummary.map((summary, index) => (
-                  <div key={index} className="flex items-center gap-4">
-                    <div className="w-8 text-xs text-slate-400 font-medium">
+                  <div key={index} className="flex items-center gap-2 sm:gap-4">
+                    <div className="w-6 sm:w-8 text-xs text-slate-400 font-medium">
                       {getDayNameFromIndex(index)}
                     </div>
-                    <div className="flex-1 bg-slate-600 rounded-full h-6 relative overflow-hidden">
+                    <div className="flex-1 bg-slate-600 rounded-full h-5 sm:h-6 relative overflow-hidden">
                       <div
-                        className="h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                        className="h-5 sm:h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
                         style={{
                           width: `${getExposureBarWidth(
                             summary.totalAnalysis
                           )}%`,
                         }}
                       >
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-white">
+                        <span className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 text-xs text-white">
                           {summary.totalAnalysis.toFixed(1)} jam
                         </span>
                       </div>
                     </div>
                     <div
-                      className={`w-16 text-right text-xs font-medium ${getNoiseColor(
+                      className={`w-12 sm:w-16 text-right text-xs font-medium ${getNoiseColor(
                         summary.averageNoiseLevel
                       )}`}
                     >
@@ -237,11 +237,11 @@ const HealthDashboard: React.FC = () => {
           </div>
 
           {/* Alerts & Recommendations */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-slate-700 rounded-lg p-6 border border-slate-600">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            <div className="bg-slate-700 rounded-lg p-4 sm:p-6 border border-slate-600">
               <div className="flex items-center gap-2 mb-4">
-                <AlertTriangle className="w-5 h-5 text-yellow-400" />
-                <h3 className="text-lg font-semibold text-white">Peringatan</h3>
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                <h3 className="text-base sm:text-lg font-semibold text-white">Peringatan</h3>
               </div>
               <div className="space-y-3">
                 {weeklyAlerts.length > 0 ? (
@@ -250,12 +250,12 @@ const HealthDashboard: React.FC = () => {
                       key={idx}
                       className="bg-slate-800 rounded-lg p-3 border border-slate-600"
                     >
-                      <p className="text-sm text-slate-300">{msg}</p>
+                      <p className="text-xs sm:text-sm text-slate-300">{msg}</p>
                     </div>
                   ))
                 ) : (
                   <div className="bg-slate-800 rounded-lg p-3 border border-slate-600">
-                    <p className="text-sm text-slate-300">
+                    <p className="text-xs sm:text-sm text-slate-300">
                       Tidak ada peringatan untuk minggu ini.
                     </p>
                   </div>
@@ -263,10 +263,10 @@ const HealthDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-slate-700 rounded-lg p-6 border border-slate-600">
+            <div className="bg-slate-700 rounded-lg p-4 sm:p-6 border border-slate-600">
               <div className="flex items-center gap-2 mb-4">
-                <Activity className="w-5 h-5 text-green-400" />
-                <h3 className="text-lg font-semibold text-white">
+                <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+                <h3 className="text-base sm:text-lg font-semibold text-white">
                   Rekomendasi
                 </h3>
               </div>
@@ -277,12 +277,12 @@ const HealthDashboard: React.FC = () => {
                       key={idx}
                       className="bg-slate-800 rounded-lg p-3 border border-slate-600"
                     >
-                      <p className="text-sm text-slate-300">{rec}</p>
+                      <p className="text-xs sm:text-sm text-slate-300">{rec}</p>
                     </div>
                   ))
                 ) : (
                   <div className="bg-slate-800 rounded-lg p-3 border border-slate-600">
-                    <p className="text-sm text-slate-300">
+                    <p className="text-xs sm:text-sm text-slate-300">
                       Belum ada rekomendasi spesifik. Tetap jaga paparan
                       kebisingan Anda.
                     </p>

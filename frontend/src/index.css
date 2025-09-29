@@ -17,9 +17,23 @@ code {
   box-sizing: border-box;
 }
 
+/* RESPONSIVE UTILITIES */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+}
+
 .fade-in {
   animation: fadeIn 0.3s ease-in;
 }
+
 .sidebar {
   position: fixed;
   left: 0;
@@ -29,6 +43,19 @@ code {
   z-index: 10;
 }
 
+/* RESPONSIVE SIDEBAR */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 60px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    width: 50px;
+  }
+}
+
 .fullscreen-map-container {
   position: fixed;
   left: 80px; /* sama dengan lebar sidebar */
@@ -36,6 +63,21 @@ code {
   width: calc(100vw - 80px);
   height: 100vh;
   z-index: 1;
+}
+
+/* RESPONSIVE MAP CONTAINER */
+@media (max-width: 768px) {
+  .fullscreen-map-container {
+    left: 60px;
+    width: calc(100vw - 60px);
+  }
+}
+
+@media (max-width: 480px) {
+  .fullscreen-map-container {
+    left: 50px;
+    width: calc(100vw - 50px);
+  }
 }
 @keyframes fadeIn {
   from {
@@ -47,7 +89,57 @@ code {
     transform: translateY(0);
   }
 }
+
+/* RESPONSIVE FADE IN */
+@media (max-width: 480px) {
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
 @import "~leaflet/dist/leaflet.css";
+
+/* RESPONSIVE LEAFLET CONTROLS */
+@media (max-width: 768px) {
+  .leaflet-control-container .leaflet-top.leaflet-right {
+    top: 10px;
+    right: 10px;
+  }
+  
+  .leaflet-control-container .leaflet-top.leaflet-left {
+    top: 10px;
+    left: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .leaflet-control-container .leaflet-top.leaflet-right {
+    top: 8px;
+    right: 8px;
+  }
+  
+  .leaflet-control-container .leaflet-top.leaflet-left {
+    top: 8px;
+    left: 8px;
+  }
+  
+  .leaflet-control-zoom {
+    font-size: 14px;
+  }
+  
+  .leaflet-control-zoom a {
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+  }
+}
 
 /* Global CSS to hide Spline watermark */
 spline-viewer spline-watermark,
@@ -72,4 +164,79 @@ div:has(a[href*="spline.design"]) {
 *[alt*="Built with Spline"],
 *:contains("Built with Spline") {
   display: none !important;
+}
+
+/* RESPONSIVE GLOBAL UTILITIES */
+.container-responsive {
+  padding: 16px;
+}
+
+@media (max-width: 768px) {
+  .container-responsive {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container-responsive {
+    padding: 8px;
+  }
+}
+
+/* RESPONSIVE TEXT UTILITIES */
+.text-responsive-lg {
+  font-size: 1.5rem;
+}
+
+.text-responsive-md {
+  font-size: 1.25rem;
+}
+
+.text-responsive-sm {
+  font-size: 1rem;
+}
+
+@media (max-width: 768px) {
+  .text-responsive-lg {
+    font-size: 1.3rem;
+  }
+  
+  .text-responsive-md {
+    font-size: 1.1rem;
+  }
+  
+  .text-responsive-sm {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .text-responsive-lg {
+    font-size: 1.2rem;
+  }
+  
+  .text-responsive-md {
+    font-size: 1rem;
+  }
+  
+  .text-responsive-sm {
+    font-size: 0.8rem;
+  }
+}
+
+/* RESPONSIVE SPACING UTILITIES */
+.gap-responsive {
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .gap-responsive {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .gap-responsive {
+    gap: 8px;
+  }
 }

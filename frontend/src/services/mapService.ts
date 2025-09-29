@@ -1,8 +1,8 @@
 // src/services/mapService.ts
-import { NoiseLocation, SearchResult } from "../types/mapTypes";
+import { NoiseLocation, SearchResult, NoiseCluster } from "../types/mapTypes";
 import { PredictionResponse } from "./api";
 import { repository, getCurrentUserId as repoGetUserId } from "./map.repository";
-import { toNoiseLocation, generateId } from "./map.transformers";
+import { toNoiseLocation, generateId, deriveFinalCategory } from "./map.transformers";
 import { analyzeAudioFile } from "./map.analysis";
 import { exportUserNoiseData } from "./map.export";
 import { logger, appConfig } from "../config/appConfig";
@@ -107,6 +107,28 @@ class MapService {
         radius: location.radius || 100,
       };
 
+      // Tentukan final_category dan expires_at sesuai aturan di map.md (Bagian 2)
+      const finalCategory = deriveFinalCategory(requestData.noise_source);
+      const now = new Date();
+      const addDays = (d: number) => new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
+      const expiresAt: Date | null = (() => {
+        switch (finalCategory) {
+          case "Event":
+            return addDays(1);
+          case "Construction":
+            return addDays(14);
+          case "Traffic":
+            return addDays(3);
+          case "Industry":
+            return addDays(90);
+          case "Nature":
+            return addDays(7);
+          case "Other":
+          default:
+            return addDays(7);
+        }
+      })();
+
       // Backend path (Supabase)
       if (appConfig.backendEnabled) {
         const { data: userData, error: authError } = await supabase.auth.getUser();
@@ -117,25 +139,13 @@ class MapService {
         if (!userId) throw new Error("User must be authenticated to add noise areas");
 
         // Prevent duplicates at same exact lat/lng for same user (optional best-effort check)
-        const nowIso = new Date().toISOString();
-        const { data: dupCheck } = await supabase
-          .from("noise_areas")
-          .select("id")
-          .eq("user_id", userId)
-          .eq("latitude", requestData.latitude)
-          .eq("longitude", requestData.longitude)
-          .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
-          .limit(1);
-        if (dupCheck && dupCheck.length > 0) {
-          throw new Error("Koordinat sudah digunakan, pilih lokasi lain");
-        }
-
         const { data, error } = await supabase
           .from("noise_areas")
           .insert({
             user_id: userId,
             ...requestData,
-            expires_at: null,
+            final_category: finalCategory,
+            expires_at: expiresAt ? expiresAt.toISOString() : null,
           })
           .select("*")
           .single();
@@ -185,7 +195,8 @@ class MapService {
         ...requestData,
         user_id: userId,
         created_at: new Date().toISOString(),
-        expires_at: null
+        final_category: finalCategory,
+        expires_at: expiresAt ? expiresAt.toISOString() : null,
       };
 
       // Save to storage
@@ -212,6 +223,7 @@ class MapService {
         userName: userName,
         canDelete: true,
         expires_at: newArea.expires_at ? new Date(newArea.expires_at) : undefined,
+        final_category: newArea.final_category,
       };
     } catch (error) {
       logger.error("Error adding noise location:", error);
@@ -223,14 +235,31 @@ class MapService {
     try {
       if (appConfig.backendEnabled) {
         const nowIso = new Date().toISOString();
-        const { data, error } = await supabase
-          .from("noise_areas")
+        let data: any[] | null = null;
+        // Coba ambil dari VIEW terlebih dahulu
+        const viewRes = await supabase
+          .from("noise_areas_with_status")
           .select("*")
           .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
           .order("created_at", { ascending: false });
-        if (error) {
-          logger.error("Failed to fetch noise areas:", error);
-          return [];
+        if (viewRes.error) {
+          // Fallback ke tabel dasar jika VIEW belum ada
+          logger.warn?.(
+            "View noise_areas_with_status tidak tersedia, fallback ke tabel noise_areas",
+            viewRes.error
+          );
+          const tableRes = await supabase
+            .from("noise_areas")
+            .select("*")
+            .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+            .order("created_at", { ascending: false });
+          if (tableRes.error) {
+            logger.error("Failed to fetch noise areas:", tableRes.error);
+            return [];
+          }
+          data = tableRes.data as any[];
+        } else {
+          data = viewRes.data as any[];
         }
 
         // Fetch usernames for involved user_ids from profiles (publicly readable when active)
@@ -269,22 +298,39 @@ class MapService {
   async getNoiseLocationById(id: string): Promise<NoiseLocation | null> {
     try {
       if (appConfig.backendEnabled) {
-        const { data, error } = await supabase
-          .from("noise_areas")
+        // Coba dari VIEW terlebih dahulu, fallback ke tabel apabila VIEW belum tersedia
+        let areaRow: any | null = null;
+        const viewRes = await supabase
+          .from("noise_areas_with_status")
           .select("*")
           .eq("id", id)
-          .single();
-        if (error) {
-          logger.error("Failed to fetch noise area by id:", error);
-          return null;
+          .maybeSingle();
+        if (viewRes.error) {
+          logger.warn?.(
+            "View noise_areas_with_status tidak tersedia, fallback ke tabel noise_areas",
+            viewRes.error
+          );
+          const tableRes = await supabase
+            .from("noise_areas")
+            .select("*")
+            .eq("id", id)
+            .maybeSingle();
+          if (tableRes.error) {
+            logger.error("Failed to fetch noise area by id:", tableRes.error);
+            return null;
+          }
+          areaRow = tableRes.data;
+        } else {
+          areaRow = viewRes.data;
         }
+
         // Enrich with username
         let userName: string | undefined = undefined;
         try {
           const { data: profile } = await supabase
             .from("profiles")
             .select("id, username")
-            .eq("id", data.user_id)
+            .eq("id", areaRow?.user_id)
             .maybeSingle();
           if (profile?.username) userName = profile.username;
         } catch (e) {
@@ -292,7 +338,7 @@ class MapService {
         }
         const { data: userData } = await supabase.auth.getUser();
         const currentUserId = userData?.user?.id;
-        return toNoiseLocation({ ...data, userName }, currentUserId);
+        return areaRow ? toNoiseLocation({ ...areaRow, userName }, currentUserId) : null;
       }
 
       const userId = getCurrentUserId();
@@ -489,6 +535,72 @@ class MapService {
     }
   }
 
+  // Cache untuk mengurangi request berulang ke Nominatim
+  private reverseGeocodeCache = new Map<string, string>();
+
+  async reverseGeocode(lat: number, lon: number): Promise<string> {
+    // Bulatkan koordinat untuk efisiensi cache (presisi ~100m)
+    const roundedLat = Math.round(lat * 1000) / 1000;
+    const roundedLon = Math.round(lon * 1000) / 1000;
+    const cacheKey = `${roundedLat},${roundedLon}`;
+
+    // Cek cache terlebih dahulu
+    if (this.reverseGeocodeCache.has(cacheKey)) {
+      return this.reverseGeocodeCache.get(cacheKey)!;
+    }
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1&accept-language=id,en`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result && result.display_name) {
+        // Format alamat menjadi lebih ringkas dan sesuai Indonesia
+        let formattedAddress = result.display_name;
+        
+        if (result.address) {
+          const addr = result.address;
+          const parts = [];
+          
+          // Prioritas: road/suburb -> village/town -> city -> state
+          if (addr.road) parts.push(addr.road);
+          else if (addr.suburb) parts.push(addr.suburb);
+          
+          if (addr.village) parts.push(addr.village);
+          else if (addr.town) parts.push(addr.town);
+          else if (addr.city) parts.push(addr.city);
+          
+          if (addr.state) parts.push(addr.state);
+          
+          if (parts.length > 0) {
+            formattedAddress = parts.join(", ");
+          }
+        }
+        
+        // Cache hasil untuk mengurangi request
+        this.reverseGeocodeCache.set(cacheKey, formattedAddress);
+        return formattedAddress;
+      }
+      
+      // Fallback jika tidak ada hasil
+      const fallback = `Koordinat: (${lat.toFixed(6)}, ${lon.toFixed(6)})`;
+      this.reverseGeocodeCache.set(cacheKey, fallback);
+      return fallback;
+      
+    } catch (error) {
+      logger.warn("Reverse geocoding failed:", error);
+      const fallback = `Koordinat: (${lat.toFixed(6)}, ${lon.toFixed(6)})`;
+      this.reverseGeocodeCache.set(cacheKey, fallback);
+      return fallback;
+    }
+  }
+
   async getCurrentLocation(): Promise<[number, number] | null> {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -560,6 +672,81 @@ class MapService {
     }
   }
 
+  async removeUserReportsInCluster(cluster: NoiseCluster): Promise<number> {
+    try {
+      if (!appConfig.backendEnabled) {
+        // Fallback lokal tidak didukung untuk operasi cluster mass-delete
+        throw new Error('Backend dinonaktifkan, operasi hapus cluster tidak tersedia');
+      }
+
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData?.user?.id || null;
+      if (!currentUserId) throw new Error('User not authenticated');
+
+      // 1) Coba ambil laporan berdasarkan cluster_id (jika kolom ini dipopulasi)
+      const ids: string[] = [];
+      const { data: byClusterId, error: byClusterErr } = await supabase
+        .from('noise_areas')
+        .select('id')
+        .eq('user_id', currentUserId)
+        .eq('cluster_id', cluster.id);
+      if (!byClusterErr && Array.isArray(byClusterId)) {
+        for (const row of byClusterId) if (row?.id) ids.push(row.id);
+      }
+
+      // 2) Tambahan pendekatan heuristik dengan bounding box + rentang waktu
+      const centerLat = cluster.center?.[0];
+      const centerLon = cluster.center?.[1];
+      // ~30-50 meter dalam derajat (lat ~ 1 deg ~ 111km)
+      const deltaDeg = 0.0005; // ~55m
+      const minLat = centerLat - deltaDeg;
+      const maxLat = centerLat + deltaDeg;
+      const minLon = centerLon - deltaDeg;
+      const maxLon = centerLon + deltaDeg;
+      const startTime = cluster.firstCreatedAt
+        ? new Date(cluster.firstCreatedAt.getTime() - 60 * 60 * 1000)
+        : new Date(Date.now() - 6 * 60 * 60 * 1000);
+      const endTime = cluster.lastCreatedAt
+        ? new Date(cluster.lastCreatedAt.getTime() + 60 * 60 * 1000)
+        : new Date(Date.now() + 6 * 60 * 60 * 1000);
+
+      const { data: byBBox, error: byBBoxErr } = await supabase
+        .from('noise_areas')
+        .select('id')
+        .eq('user_id', currentUserId)
+        .gte('latitude', minLat)
+        .lte('latitude', maxLat)
+        .gte('longitude', minLon)
+        .lte('longitude', maxLon)
+        .gte('created_at', startTime.toISOString())
+        .lte('created_at', endTime.toISOString());
+
+      if (!byBBoxErr && Array.isArray(byBBox)) {
+        for (const row of byBBox) if (row?.id) ids.push(row.id);
+      }
+
+      // Hilangkan duplikat
+      const uniqueIds = Array.from(new Set(ids));
+      if (uniqueIds.length === 0) {
+        return 0;
+      }
+
+      const { error: delErr } = await supabase
+        .from('noise_areas')
+        .delete()
+        .in('id', uniqueIds);
+      if (delErr) {
+        logger.error('Failed to delete user reports in cluster:', delErr);
+        return 0;
+      }
+
+      return uniqueIds.length;
+    } catch (err) {
+      logger.error('Error removing user reports in cluster:', err);
+      return 0;
+    }
+  }
+
   async exportNoiseData(): Promise<string | null> {
     try {
       const userId = getCurrentUserId();
@@ -598,6 +785,47 @@ class MapService {
     }
     return `User${userId.slice(-4)}`;
   }
+
+  // Memanggil RPC get_noise_clusters() dari Supabase dan memetakan hasil ke tipe NoiseCluster
+  async getNoiseClusters(): Promise<NoiseCluster[]> {
+    try {
+      if (!appConfig.backendEnabled) {
+        // Ketika backend dimatikan, service cluster belum tersedia
+        return [];
+      }
+
+      const { data, error } = await supabase.rpc("get_noise_clusters");
+      if (error) {
+        logger.error("Failed to fetch noise clusters via RPC:", error);
+        return [];
+      }
+
+      const rows = (data as any[]) || [];
+      return rows.map((row) => ({
+        id: row.cluster_id,
+        center: [row.latitude_avg, row.longitude_avg] as [number, number],
+        noiseLevelAvg: row.noise_level_avg ?? null,
+        areaStatus: row.area_status ?? "Aman",
+        finalCategory: row.final_category ?? null,
+        // Convert CSV/text noise_sources from RPC into string[] for frontend usage
+        noiseSources: typeof row.noise_sources === "string"
+          ? Array.from(new Set(row.noise_sources.split(",").map((s: string) => s.trim()).filter(Boolean)))
+          : (Array.isArray(row.noise_sources) ? row.noise_sources : null),
+        firstCreatedAt: row.first_created_at ? new Date(row.first_created_at) : null,
+        lastCreatedAt: row.last_created_at ? new Date(row.last_created_at) : null,
+        maxExpiresAt: row.max_expires_at ? new Date(row.max_expires_at) : null,
+        addedByUsernames: Array.isArray(row.added_by_usernames) ? row.added_by_usernames : [],
+        reportCount:
+          typeof row.report_count === "string" ? parseInt(row.report_count, 10) : (row.report_count ?? 0),
+        avgConfidence: row.avg_confidence ?? null,
+      }));
+    } catch (err) {
+      logger.error("Error while fetching noise clusters:", err);
+      return [];
+    }
+  }
 }
 
 export const mapService = new MapService();
+
+// HAPUS: implementasi getNoiseClusters yang berada di luar kelas (pindahkan ke dalam class MapService di atas)

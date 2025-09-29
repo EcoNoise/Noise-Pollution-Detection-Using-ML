@@ -3,9 +3,9 @@ import React from "react";
 import { NoiseLocation } from "../types/mapTypes";
 import styles from "../styles/AreaFilter.module.css";
 import {
-  translateNoiseSource,
   translateHealthImpact,
 } from "../utils/translationUtils";
+import { deriveFinalCategory } from "../services/map.transformers";
 
 interface AreaFilterProps {
   onFilterChange: (filters: AreaFilters) => void;
@@ -15,7 +15,7 @@ interface AreaFilterProps {
 
 export interface AreaFilters {
   noiseLevel?: string[];
-  source?: string[];
+  category?: string[]; // ganti dari source -> category
   healthImpact?: string[];
 }
 
@@ -35,22 +35,20 @@ const AreaFilter: React.FC<AreaFilterProps> = ({
 
   // Default values untuk setiap kategori filter - SELALU DITAMPILKAN
   const defaultNoiseLevels = [
-    "Sedang dalam perbaikan",
     "Tenang",
     "Sedang",
     "Berisik",
     "Sangat Berisik",
   ];
-  const defaultSources = [
-    "petasan_kembang_api",
-    "alat_berat_konstruksi",
-    "klakson_kendaraan",
-    "mesin_kendaraan",
-    "ac_outdoor",
-    "sirine_ambulans",
-    "tidak_diketahui",
+  const defaultCategories = [
+    "Traffic",
+    "Construction",
+    "Industry",
+    "Event",
+    "Nature",
+    "Other",
   ];
-  const defaultHealthImpacts = ["Ringan", "Sedang", "Tinggi", "Berbahaya"];
+  const defaultHealthImpacts = ["Aman", "Perhatian", "Berbahaya", "Sangat Berbahaya"];
 
   // Gabungkan default values dengan unique values dari data (jika ada)
   // Tetapi pastikan default values selalu ada
@@ -65,9 +63,15 @@ const AreaFilter: React.FC<AreaFilterProps> = ({
         )
       : [];
 
-  const dataBasedSources =
+  const dataBasedCategories =
     noiseLocations.length > 0
-      ? Array.from(new Set(noiseLocations.map((location) => location.source)))
+      ? Array.from(
+          new Set(
+            noiseLocations.map(
+              (location) => location.final_category || deriveFinalCategory(location.source)
+            )
+          )
+        )
       : [];
 
   const dataBasedHealthImpacts =
@@ -81,8 +85,8 @@ const AreaFilter: React.FC<AreaFilterProps> = ({
   const uniqueNoiseLevels = Array.from(
     new Set([...defaultNoiseLevels, ...dataBasedNoiseLevels])
   );
-  const uniqueSources = Array.from(
-    new Set([...defaultSources, ...dataBasedSources])
+  const uniqueCategories = Array.from(
+    new Set([...defaultCategories, ...dataBasedCategories])
   );
   const uniqueHealthImpacts = Array.from(
     new Set([...defaultHealthImpacts, ...dataBasedHealthImpacts])
@@ -123,16 +127,16 @@ const AreaFilter: React.FC<AreaFilterProps> = ({
       </div>
 
       <div className={styles.filterSection}>
-        <h3>Sumber Kebisingan</h3>
+        <h3>Kategori Kebisingan</h3>
         <div className={styles.filterOptions}>
-          {uniqueSources.map((source) => (
-            <label key={source} className={styles.filterOption}>
+          {uniqueCategories.map((category) => (
+            <label key={category} className={styles.filterOption}>
               <input
                 type="checkbox"
-                checked={activeFilters.source?.includes(source) || false}
-                onChange={() => handleFilterChange("source", source)}
+                checked={activeFilters.category?.includes(category) || false}
+                onChange={() => handleFilterChange("category", category)}
               />
-              {translateNoiseSource(source)}
+              {category}
             </label>
           ))}
         </div>
