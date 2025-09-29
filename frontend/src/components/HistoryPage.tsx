@@ -1,3 +1,4 @@
+// src/components/HistoryPage.tsx
 import React, { useState, useEffect } from "react";
 import {
   Volume2,
@@ -110,10 +111,9 @@ const HistoryPage: React.FC = () => {
               riskLevel,
             };
             setDailySummary(mapped);
-            return; // selesai menggunakan backend
+            return; 
           }
         } catch (err) {
-          // Jika backend gagal, fallback ke cache lokal
           logger.warn(
             "Gagal memuat dashboard harian dari backend, fallback ke cache lokal",
             err

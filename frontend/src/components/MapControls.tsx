@@ -31,7 +31,6 @@ const MapControls: React.FC<MapControlsProps> = ({
   showFilter,
   isTrackingUser = false,
   hasUserLocation = false,
-  // add default to avoid undefined usage when not passed
   backendDisabled = false,
 }) => {
   return (

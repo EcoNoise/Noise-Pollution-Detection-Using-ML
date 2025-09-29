@@ -1,3 +1,4 @@
+// src/services/api.ts
 import { logger } from "../config/appConfig";
 
 // Types
@@ -49,10 +50,10 @@ let mockPredictionHistory: HistoryItem[] = [];
 export const apiService = {
   // Authentication stubs
   async signUp(email: string, password: string, userData: any) {
-    // Simulate API delay
+    
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Mock validation
+    
     if (!email || !password) {
       return { data: null, error: { message: "Email dan password harus diisi" } };
     }
@@ -70,7 +71,7 @@ export const apiService = {
   },
 
   async signIn(email: string, password: string) {
-    // Simulate API delay
+    
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Simple mock authentication
@@ -91,7 +92,7 @@ export const apiService = {
   },
 
   async signOut() {
-    // Simulate API delay
+    
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Clear local storage
@@ -103,7 +104,7 @@ export const apiService = {
 
   // Get prediction history stub
   async getPredictionHistory(limit: number = 50): Promise<HistoryItem[]> {
-    // Simulate API delay
+    
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     return mockPredictionHistory.slice(0, limit);
@@ -111,14 +112,14 @@ export const apiService = {
 
   // Noise areas stubs
   async getNoiseAreas() {
-    // Simulate API delay
+    
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     return { data: mockNoiseAreas, error: null };
   },
 
   async createNoiseArea(noiseArea: any) {
-    // Simulate API delay
+    
     await new Promise((resolve) => setTimeout(resolve, 800));
 
     const newArea = {
@@ -201,7 +202,6 @@ export const apiService = {
   async getModelStatus(): Promise<ModelStatus> {
     try {
       await import("./audioClassificationService");
-      // For now, return a simple status - can be enhanced later
       return {
         model_loaded: true,
         model_version: "YAMNet-1.0.0",

@@ -1,3 +1,4 @@
+// src/utils/translationUtils.ts
 // Utilitas untuk menerjemahkan label ke tampilan yang user-friendly
 
 export const translateNoiseSource = (source: string): string => {

@@ -1,3 +1,4 @@
+// src/utils/apiInterceptor.ts
 // API Interceptor untuk handle auto-refresh dan 401 errors
 import SessionManager from "./tokenManager";
 
@@ -16,7 +17,7 @@ class APIInterceptor {
     return APIInterceptor.instance;
   }
 
-  // Enhanced fetch dengan auto-refresh
+  // fetch dengan auto-refresh
   async fetch(url: string, options: RequestInit = {}): Promise<Response> {
     try {
       // Get valid access token (akan auto-refresh jika perlu)
@@ -39,7 +40,7 @@ class APIInterceptor {
         headers,
       });
 
-      // Jika masih 401, coba refresh sekali lagi
+      // Jika masih 401, refresh sekali lagi
       if (response.status === 401) {
         try {
           const newAccessToken = await this.sessionManager.refreshAccessToken();

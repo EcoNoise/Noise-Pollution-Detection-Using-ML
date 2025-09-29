@@ -199,6 +199,5 @@ const HomePage: React.FC = () => {
   );
 };
 
-// Removed the orphaned code block that was incorrectly placed outside the component
 
 export default HomePage;

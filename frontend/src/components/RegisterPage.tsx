@@ -1,3 +1,4 @@
+// src/components/RegisterPage.tsx
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -16,7 +17,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
 
-  // Individual state for each field
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [fullName, setFullName] = useState("");
@@ -32,7 +32,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // Rehydrate error from localStorage in case of remount/reset
   useEffect(() => {
     try {
       const storedErr = localStorage.getItem('registrationError');
@@ -43,14 +42,12 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
     } catch {}
   }, []);
 
-  // Log when error changes to verify UI path
   useEffect(() => {
     if (error) {
       try { logger.info("Display error value:", error); } catch {}
     }
   }, [error]);
 
-  // Ensure error block scrolls into view when it appears (no logic changes)
   useEffect(() => {
     if (!error) return;
     let cancelled = false;
@@ -68,8 +65,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
   }, [error]);
 
 
-  // No more redirect effect - we render LoginPage directly
-
   // Email validation function
   const validateEmail = (emailValue: string) => {
     if (!emailValue) {
@@ -77,7 +72,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
       return false;
     }
     
-    // More comprehensive email regex
     const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
     
     if (!emailRegex.test(emailValue)) {
@@ -85,7 +79,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
       return false;
     }
     
-    // Additional checks
     const parts = emailValue.split('@');
     if (parts.length !== 2) {
       setEmailError("Email harus mengandung satu simbol @");
@@ -124,11 +117,9 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
     const value = e.target.value;
     setEmail(value);
     
-    // Clear previous errors immediately
     setEmailError("");
-    setError(""); // Clear main error message too
+    setError(""); 
     
-    // Real-time validation with debounce effect
     if (value.length > 0) {
       setTimeout(() => {
         validateEmail(value);
@@ -152,21 +143,18 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
   };
 
   const nextStep = () => {
-    // Validation for step 1
     if (step === 1) {
       if (!firstName || !lastName || !username || !email) {
         setError("Mohon lengkapi semua field yang wajib diisi");
         return;
       }
       
-      // Validate email
       if (!validateEmail(email)) {
         setError("Mohon perbaiki kesalahan pada email");
         return;
       }
     }
 
-    // Validation for step 2
     if (step === 2) {
       if (!password || !confirmPassword) {
         setError("Mohon isi password dan konfirmasi password");
@@ -211,22 +199,18 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
     try {
       setError("");
       await signInWithGoogle();
-      // Navigation will be handled by AuthCallback component
     } catch (err: any) {
       setError("Gagal mendaftar dengan Google. Silakan coba lagi.");
       logger.error("Google register error:", err);
     }
   };
 
-  // Handle email registration - hanya dipanggil di step 3
+  // Handle email registration
   const handleRegister = async () => {
     setError("");
     setLoading(true);
 
-
-
     try {
-      // Prepare user metadata
       const metadata = {
         firstName,
         lastName,
@@ -247,26 +231,20 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
           }, 100);
         }
         
-        // Logout user setelah registration agar harus login manual
         await signOut();
         
         onRegisterSuccess?.();
         navigate('/login?success=true');
         return;
         
-        // PREVENT LOADING STATE UPDATE - langsung redirect
-        // Jangan update setLoading(false) agar tidak re-render component
-        console.log("� IMMEDIATE redirect - no component update");
+        console.log("IMMEDIATE redirect - no component update");
         
-        // Call callback if provided
         onRegisterSuccess?.();
         
-        // EXIT - NO MORE REDIRECT
         return;
       } else {
 
         
-        // Handle specific error cases
         let errorMessage = "Registrasi gagal. Coba lagi.";
         if (result.error) {
           if (result.error.includes("User already registered") || result.error.includes("already registered")) {
@@ -280,13 +258,11 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
           }
         }
         
-        // Set error for UI with smooth scroll
   console.error("Sign-up error:", result.error);
   try { localStorage.setItem('registrationError', errorMessage); } catch {}
   setError(errorMessage);
   setLoading(false);
         
-        // Scroll to error message after a short delay
         setTimeout(() => {
           const errorElement = document.querySelector('[data-error-message]') as HTMLElement | null;
           if (errorElement && errorElement.offsetParent !== null) {
@@ -296,7 +272,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
       }
     } catch (err: any) {
       
-      // Handle specific exception cases
       let errorMessage = "Terjadi kesalahan saat registrasi. Silakan coba lagi.";
         if (err?.message) {
         if (err.message.includes("User already registered") || err.message.includes("already registered")) {
@@ -312,13 +287,11 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
         }
       }
       
-      // Set error for UI with smooth scroll
   console.error("Sign-up error (exception):", err);
   try { localStorage.setItem('registrationError', errorMessage); } catch {}
   setError(errorMessage);
-  setLoading(false); // Only set loading false on error
+  setLoading(false); 
       
-      // Scroll to error message after a short delay
       setTimeout(() => {
         const errorElement = document.querySelector('[data-error-message]') as HTMLElement | null;
         if (errorElement && errorElement.offsetParent !== null) {
@@ -326,7 +299,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
         }
       }, 120);
     }
-    // NO FINALLY BLOCK - success case returns immediately
   };
 
   // Handle success modal close and navigation
@@ -342,7 +314,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess }) => {
     window.location.replace("/login");
   };
 
-  // Prevent form submission pada step 1 dan 2
+  // Prevent form submission 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
   };

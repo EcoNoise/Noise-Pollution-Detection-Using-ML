@@ -39,7 +39,6 @@ import { audioClassificationService } from "../services/audioClassificationServi
 import { mapService } from "../services/mapService";
 import { logger, appConfig } from "../config/appConfig";
 import { useNavigate } from "react-router-dom";
-// import SessionManager from "../utils/tokenManager"; // removed legacy
 import ModernPopup from "./ModernPopup";
 import {
   createHealthSession,
@@ -131,7 +130,6 @@ interface RealTimeNoiseTabProps {
   className?: string;
 }
 
-// Cache untuk menyimpan data setelah monitor dihentikan
 interface CachedReading {
   reading: any;
   statistics: any;
@@ -148,7 +146,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLoginAlert, setShowLoginAlert] = useState(false);
 
-  // Cache untuk data setelah monitoring dihentikan
   const [cachedReading, setCachedReading] = useState<CachedReading | null>(
     null
   );
@@ -179,14 +176,13 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     classificationInterval: 3000,
   });
 
-  // Session tracking refs for Supabase integration
+  // Session tracking refs 
   const sessionIdRef = useRef<string | null>(null);
   const sessionStartRef = useRef<number | null>(null);
   const sumDbRef = useRef<number>(0);
   const sumDbARef = useRef<number>(0);
   const countRef = useRef<number>(0);
 
-  // Cache cleanup ketika komponen unmount
   useEffect(() => {
     return () => {
       if (cacheTimeoutRef.current) {
@@ -195,7 +191,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     };
   }, []);
 
-  // Update cache expiry timer
   useEffect(() => {
     if (cacheExpiry) {
       const now = Date.now();
@@ -218,7 +213,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     }
   }, [cacheExpiry]);
 
-  // Accumulate readings while listening to compute session averages
   useEffect(() => {
     if (isListening && currentReading) {
       sumDbRef.current += currentReading.db;
@@ -228,7 +222,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   }, [isListening, currentReading]);
 
   const handleStartListening = useCallback(async () => {
-    // Clear cache saat mulai monitoring baru
     if (cacheTimeoutRef.current) {
       clearTimeout(cacheTimeoutRef.current);
     }
@@ -236,7 +229,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     setCacheExpiry(null);
 
     await startListening();
-    // Only create a backend session when backend enabled
     if (appConfig.backendEnabled) {
       sessionStartRef.current = Date.now();
       sumDbRef.current = 0;
@@ -250,7 +242,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
         logger.error("Failed to create health session", e);
       }
     } else {
-      // offline path: mark start time for duration calculation
       sessionStartRef.current = Date.now();
       sumDbRef.current = 0;
       sumDbARef.current = 0;
@@ -259,7 +250,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
   }, [startListening]);
 
   const handleStopListening = useCallback(async () => {
-    // Simpan data ke cache sebelum menghentikan monitoring
     if (currentReading && statistics) {
       try {
         const position = await mapService.getCurrentLocation();
@@ -270,12 +260,10 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
           location: position || undefined,
         };
         setCachedReading(cache);
-        // Tidak ada expiry time - cache bertahan sampai monitoring baru atau pindah tab
         setCacheExpiry(null);
         logger.info("Data cached until next monitoring session or tab change");
       } catch (error) {
         logger.warn("Could not get location for cache:", error);
-        // Tetap cache tanpa lokasi
         const cache: CachedReading = {
           reading: currentReading,
           statistics: statistics,
@@ -317,9 +305,7 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
         });
         logger.info("Health session ended", sessionIdRef.current);
       } else {
-        // Fallback to local exposure log so dashboard reflects activity offline
         const hours = duration_seconds / 3600;
-        // Ensure a local user id exists in offline mode
         if (!localStorage.getItem("userId")) {
           localStorage.setItem("userId", "guest");
         }
@@ -338,12 +324,10 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       logger.error("Failed to end session or create offline log", e);
     } finally {
       try {
-        // Ensure DailyAudioService cache is refreshed so other views show latest data
         await DailyAudioService.refreshTodayAudioSummary();
       } catch (err) {
         logger.error("Failed to refresh daily summary", err);
       }
-      // Notify listeners (e.g., HealthDashboard) that data has changed
       window.dispatchEvent(new CustomEvent("health:data-updated"));
 
       sessionIdRef.current = null;
@@ -370,7 +354,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     }
   };
 
-  // Initialize TensorFlow.js model
   useEffect(() => {
     const loadModels = async () => {
       try {
@@ -409,7 +392,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       return;
     }
 
-    // Tentukan data mana yang akan digunakan: current reading atau cached reading
     let dataToShare = currentReading;
     let position: [number, number] | null = null;
 
@@ -417,7 +399,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       !isListening &&
       cachedReading
     ) {
-      // Gunakan data dari cache
       dataToShare = cachedReading.reading;
       position = cachedReading.location || null;
       logger.info("Using cached data for sharing to map");
@@ -425,7 +406,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       !isListening &&
       !cachedReading
     ) {
-      // Tidak ada cache dan tidak sedang monitoring
       alert(
         "Tidak ada data untuk dibagikan. Silakan mulai monitoring terlebih dahulu."
       );
@@ -440,7 +420,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     }
 
     try {
-      // Jika tidak ada posisi dari cache, coba dapatkan posisi saat ini
       if (!position) {
         position = await mapService.getCurrentLocation();
         if (!position) {
@@ -469,7 +448,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       });
 
       if (saved) {
-        // Clear cache setelah berhasil share
         if (cachedReading) {
           setCachedReading(null);
           setCacheExpiry(null);
@@ -494,14 +472,11 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
     setShowLoginAlert(false);
   };
 
-  // Tentukan apakah tombol share harus disabled (tanpa menggunakan displayData)
   const isShareButtonDisabled =
     !isAuthenticated ||
     (!currentReading && !cachedReading);
 
-  // Helper function untuk mendapatkan data yang akan ditampilkan
   const getDisplayData = () => {
-    // Jika sedang listening, gunakan currentReading
     if (isListening && currentReading) {
       return {
         reading: currentReading,
@@ -510,7 +485,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       };
     }
     
-    // Jika tidak listening tapi ada cache yang valid (tanpa expiry check)
     if (!isListening && cachedReading) {
       return {
         reading: cachedReading.reading,
@@ -519,7 +493,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
       };
     }
     
-    // Jika tidak ada data
     return {
       reading: null,
       statistics: null,
@@ -529,7 +502,6 @@ const RealTimeNoiseTab: React.FC<RealTimeNoiseTabProps> = ({ className }) => {
 
   const displayData = getDisplayData();
 
-  // Tentukan apakah tombol share harus ditampilkan dan statusnya
   const shouldShowShareButton = 
     displayData.reading && 
     !isListening && 

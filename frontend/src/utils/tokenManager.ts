@@ -1,3 +1,4 @@
+// src/utils/tokenManager.ts
 // Mock Session Manager to replace Supabase authentication
 class SessionManager {
   private static instance: SessionManager;

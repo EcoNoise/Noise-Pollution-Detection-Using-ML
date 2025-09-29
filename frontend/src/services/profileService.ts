@@ -1,4 +1,4 @@
-// File: src/services/profileService.ts
+// src/services/profileService.ts
 // Supabase integration for user profiles
 
 import { supabase, storageConfig } from '../config/supabaseConfig';
@@ -137,13 +137,10 @@ export const uploadProfilePhoto = async (file: File): Promise<string> => {
     const user = await getCurrentUser();
     if (!user) throw new Error('User not authenticated');
 
-    // Get current profile to check for existing photo
     const currentProfile = await getUserProfile();
     
-    // Delete existing photo files if any exist
     if (currentProfile.photo_url) {
       try {
-        // List all files in user's folder to delete any existing photos
         const { data: files, error: listError } = await supabase.storage
           .from(storageConfig.profileBucket)
           .list(`${user.id}/`, {
@@ -152,7 +149,6 @@ export const uploadProfilePhoto = async (file: File): Promise<string> => {
           });
 
         if (!listError && files && files.length > 0) {
-          // Delete all existing files in user's folder
           const filesToDelete = files.map(file => `${user.id}/${file.name}`);
           const { error: deleteError } = await supabase.storage
             .from(storageConfig.profileBucket)
@@ -166,7 +162,6 @@ export const uploadProfilePhoto = async (file: File): Promise<string> => {
         }
       } catch (deleteErr) {
         logger.warn('Warning: Error during old photo cleanup:', deleteErr);
-        // Continue with upload even if deletion fails
       }
     }
 
@@ -179,7 +174,7 @@ export const uploadProfilePhoto = async (file: File): Promise<string> => {
       .from(storageConfig.profileBucket)
       .upload(fileName, file, {
         cacheControl: '3600',
-        upsert: true // Use upsert as fallback in case deletion didn't work
+        upsert: true 
       });
 
     if (error) {
@@ -187,7 +182,6 @@ export const uploadProfilePhoto = async (file: File): Promise<string> => {
       throw new Error(`Failed to upload profile photo: ${error.message}`);
     }
 
-    // Verify that the file was actually uploaded by checking if it exists
     const { data: checkData, error: checkError } = await supabase.storage
       .from(storageConfig.profileBucket)
       .list(`${user.id}/`, {
@@ -200,7 +194,6 @@ export const uploadProfilePhoto = async (file: File): Promise<string> => {
       throw new Error('Upload failed: File not found in storage after upload');
     }
 
-    // Get public URL (store clean URL in DB; add cache-busting only in UI layer)
     const { data: { publicUrl } } = supabase.storage
       .from(storageConfig.profileBucket)
       .getPublicUrl(fileName);
@@ -221,7 +214,6 @@ export const deleteProfilePhoto = async (): Promise<void> => {
     const user = await getCurrentUser();
     if (!user) throw new Error('User not authenticated');
 
-    // List all files in user's folder
     const { data: files, error: listError } = await supabase.storage
       .from(storageConfig.profileBucket)
       .list(user.id);
@@ -232,7 +224,6 @@ export const deleteProfilePhoto = async (): Promise<void> => {
     }
 
     if (files && files.length > 0) {
-      // Delete all files in user's folder
       const filePaths = files.map(file => `${user.id}/${file.name}`);
       const { error: deleteError } = await supabase.storage
         .from(storageConfig.profileBucket)

@@ -1,3 +1,4 @@
+// src/services/interfaces/index.ts
 export * from './IAuthService';
 export * from './IProfileService';
 export * from './IMapRepository';

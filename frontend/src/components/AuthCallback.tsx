@@ -1,3 +1,4 @@
+// src/components/AuthCallback.tsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../config/supabaseConfig";
@@ -14,7 +15,6 @@ const AuthCallback: React.FC = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Get the session from the URL hash
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -22,7 +22,6 @@ const AuthCallback: React.FC = () => {
           setStatus("error");
           setMessage("Gagal memproses autentikasi. Silakan coba lagi.");
 
-          // Redirect to login after 3 seconds
           setTimeout(() => {
             navigate("/login");
           }, 3000);
@@ -34,11 +33,10 @@ const AuthCallback: React.FC = () => {
           setStatus("success");
           setMessage("Autentikasi berhasil! Mengalihkan ke halaman utama...");
 
-          // Store user info for compatibility
+          // Store user info 
           localStorage.setItem("userId", data.session.user.id);
           localStorage.setItem("userEmail", data.session.user.email || "");
 
-          // Redirect to home after 2 seconds
           setTimeout(() => {
             navigate("/home");
           }, 2000);
@@ -49,7 +47,6 @@ const AuthCallback: React.FC = () => {
             "Tidak ada sesi yang ditemukan. Mengalihkan ke halaman login..."
           );
 
-          // Redirect to login after 3 seconds
           setTimeout(() => {
             navigate("/login");
           }, 3000);
@@ -61,7 +58,6 @@ const AuthCallback: React.FC = () => {
           "Terjadi kesalahan yang tidak terduga. Mengalihkan ke halaman login..."
         );
 
-        // Redirect to login after 3 seconds
         setTimeout(() => {
           navigate("/login");
         }, 3000);

@@ -79,14 +79,12 @@ const MapTutorial: React.FC<MapTutorialProps> = ({ isVisible, onComplete, onSkip
 
     const step = tutorialSteps[currentStep];
     if (step && step.targetSelector) {
-      // Wait a bit for elements to render
       const timer = setTimeout(() => {
         const element = document.querySelector(step.targetSelector) as HTMLElement;
         if (element) {
           setHighlightedElement(element);
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
-          // If element not found, clear highlight
           setHighlightedElement(null);
         }
       }, 100);

@@ -1,3 +1,4 @@
+// src/config/supabaseConfig.ts
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase configuration
@@ -19,7 +20,6 @@ export const storageConfig = {
 // Export configuration for debugging purposes
 export const supabaseConfig = {
   url: supabaseUrl,
-  // Don't expose the actual key in logs
   hasKey: !!supabaseKey,
   isConfigured: !!(supabaseUrl && supabaseKey),
 };

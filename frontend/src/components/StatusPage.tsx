@@ -1,3 +1,4 @@
+// src/components/StatusPage.tsx
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -43,11 +44,9 @@ const StatusPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Check models
       const modelData = await apiService.getModelStatus();
       setModelStatus(modelData);
 
-      // Check health
       await apiService.healthCheck();
 
       setLastChecked(new Date());

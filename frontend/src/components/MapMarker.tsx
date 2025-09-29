@@ -1,3 +1,4 @@
+// src/components/MapMarker.tsx
 import React from 'react';
 import { Marker } from 'react-leaflet';
 import { Icon, DivIcon } from 'leaflet';
@@ -11,7 +12,7 @@ interface MapMarkerProps {
 const MapMarker: React.FC<MapMarkerProps> = ({ data, onClick }) => {
   const getMarkerIcon = (): Icon | DivIcon => {
     if (data.type === 'analysis') {
-      // Custom icon for analysis points
+      // icon untuk analysis points
       return new Icon({
         iconUrl: 'data:image/svg+xml;base64,' + btoa(`
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#2196F3">
@@ -24,7 +25,7 @@ const MapMarker: React.FC<MapMarkerProps> = ({ data, onClick }) => {
       });
     }
     
-    // Return default icon for other types or fallback
+    // icon fallback
     return new Icon({
       iconUrl: 'data:image/svg+xml;base64,' + btoa(`
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#FF5722">
